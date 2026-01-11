@@ -36,7 +36,7 @@ export function LandingPage() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Button className="btn-gradient text-white border-0" asChild data-testid="button-login">
-              <a href="/api/login">Get Started</a>
+              <a href="/sign-in-demo">Get Started</a>
             </Button>
           </div>
         </div>
@@ -91,13 +91,13 @@ export function LandingPage() {
                   <AnimatedGenerateButton
                     highlightHueDeg={280}
                     className="h-14 px-8 text-base"
-                    onClick={() => window.location.href = '/api/login'}
+                    onClick={() => window.location.href = '/sign-in-demo'}
                   >
                     <ArrowRight className="w-5 h-5" />
                     Start Posting Bounties
                   </AnimatedGenerateButton>
                   <Button size="lg" variant="outline" className="h-14 px-8 text-base gap-3 glass" asChild data-testid="button-browse-bounties-hero">
-                    <a href="/api/login">
+                    <a href="/sign-in-demo">
                       <Play className="w-4 h-4" />
                       Watch Demo
                     </a>
@@ -176,7 +176,7 @@ export function LandingPage() {
                       
                       <div className="p-4 bg-muted/30 border-t border-border/50">
                         <Button variant="ghost" className="w-full justify-between text-sm text-muted-foreground hover:text-foreground" asChild>
-                          <a href="/api/login">
+                          <a href="/sign-in-demo">
                             View all bounties
                             <ChevronRight className="w-4 h-4" />
                           </a>
@@ -499,7 +499,7 @@ export function LandingPage() {
               <AnimatedGenerateButton
                 highlightHueDeg={280}
                 className="h-14 px-8 text-base"
-                onClick={() => window.location.href = '/api/login'}
+                onClick={() => window.location.href = '/sign-in-demo'}
               >
                 <ArrowRight className="w-5 h-5" />
                 Get Started Free

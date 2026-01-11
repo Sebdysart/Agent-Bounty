@@ -23,6 +23,9 @@ import { AgentMarketplacePage } from "@/pages/agent-marketplace";
 import { AgentDetailPage } from "@/pages/agent-detail";
 import IntegrationHub from "@/pages/integration-hub";
 import SecuritySettingsPage from "@/pages/security-settings";
+import ProfilePage from "@/pages/profile";
+import MyAgentsPage from "@/pages/my-agents";
+import SettingsPage from "@/pages/settings";
 
 function AuthenticatedRouter() {
   return (
@@ -42,6 +45,9 @@ function AuthenticatedRouter() {
       <Route path="/agent-marketplace/:id" component={AgentDetailPage} />
       <Route path="/integrations" component={IntegrationHub} />
       <Route path="/security" component={SecuritySettingsPage} />
+      <Route path="/profile" component={ProfilePage} />
+      <Route path="/my-agents" component={MyAgentsPage} />
+      <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,13 +1,21 @@
 import { 
   bounties, agents, submissions, reviews, userProfiles, bountyTimeline,
   agentUploads, agentVersions, agentTools, agentUploadTools, agentTests, agentListings, agentReviews,
+  agentBadges, integrationConnectors, agentIntegrations, agentForks, agentAnalytics, agentRunLogs,
+  discussions, discussionReplies, votes, securitySettings, securityAuditLog, agentSecurityScans,
   type Bounty, type InsertBounty, type Agent, type InsertAgent,
   type Submission, type InsertSubmission, type Review, type InsertReview,
   type UserProfile, type InsertUserProfile, type BountyTimeline,
   type AgentUpload, type InsertAgentUpload, type AgentVersion, type InsertAgentVersion,
   type AgentTool, type InsertAgentTool, type AgentTest, type InsertAgentTest,
   type AgentListing, type InsertAgentListing, type AgentReview, type InsertAgentReview,
-  bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses
+  type AgentBadge, type InsertAgentBadge, type IntegrationConnector, type InsertIntegrationConnector,
+  type AgentIntegration, type InsertAgentIntegration, type AgentFork, type InsertAgentFork,
+  type AgentAnalytics, type AgentRunLog, type Discussion, type InsertDiscussion,
+  type DiscussionReply, type InsertDiscussionReply, type Vote, type InsertVote,
+  type SecuritySettings, type InsertSecuritySettings, type SecurityAuditLog, type InsertSecurityAuditLog,
+  type AgentSecurityScan, type InsertAgentSecurityScan,
+  bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
@@ -308,14 +316,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userProfiles.id, userId));
   }
 
-  async getTopAgents(limit: number = 10) {
-    return db
-      .select()
-      .from(agents)
-      .orderBy(desc(agents.avgRating), desc(agents.totalBounties))
-      .limit(limit);
-  }
-
   async getAgentLeaderboard() {
     return db
       .select({
@@ -544,6 +544,208 @@ export class DatabaseStorage implements IStorage {
       reviewCount: reviews.length,
       updatedAt: new Date() 
     }).where(eq(agentUploads.id, agentUploadId));
+  }
+
+  async awardBadge(badge: InsertAgentBadge): Promise<AgentBadge> {
+    const [created] = await db.insert(agentBadges).values(badge).returning();
+    return created;
+  }
+
+  async getAgentBadges(agentUploadId: number): Promise<AgentBadge[]> {
+    return db.select().from(agentBadges).where(eq(agentBadges.agentUploadId, agentUploadId));
+  }
+
+  async revokeBadge(id: number): Promise<boolean> {
+    const result = await db.delete(agentBadges).where(eq(agentBadges.id, id));
+    return true;
+  }
+
+  async getIntegrationConnectors(): Promise<IntegrationConnector[]> {
+    return db.select().from(integrationConnectors).where(eq(integrationConnectors.isActive, true)).orderBy(integrationConnectors.name);
+  }
+
+  async getIntegrationConnectorBySlug(slug: string): Promise<IntegrationConnector | undefined> {
+    const [connector] = await db.select().from(integrationConnectors).where(eq(integrationConnectors.slug, slug));
+    return connector;
+  }
+
+  async createIntegrationConnector(connector: InsertIntegrationConnector): Promise<IntegrationConnector> {
+    const [created] = await db.insert(integrationConnectors).values(connector).returning();
+    return created;
+  }
+
+  async addAgentIntegration(integration: InsertAgentIntegration): Promise<AgentIntegration> {
+    const [created] = await db.insert(agentIntegrations).values(integration).returning();
+    await db.update(integrationConnectors).set({ 
+      usageCount: sql`${integrationConnectors.usageCount} + 1` 
+    }).where(eq(integrationConnectors.id, integration.connectorId));
+    return created;
+  }
+
+  async getAgentIntegrations(agentUploadId: number): Promise<(AgentIntegration & { connector: IntegrationConnector })[]> {
+    const result = await db
+      .select({ integration: agentIntegrations, connector: integrationConnectors })
+      .from(agentIntegrations)
+      .innerJoin(integrationConnectors, eq(agentIntegrations.connectorId, integrationConnectors.id))
+      .where(eq(agentIntegrations.agentUploadId, agentUploadId));
+    return result.map(r => ({ ...r.integration, connector: r.connector }));
+  }
+
+  async removeAgentIntegration(id: number): Promise<boolean> {
+    await db.delete(agentIntegrations).where(eq(agentIntegrations.id, id));
+    return true;
+  }
+
+  async forkAgent(fork: InsertAgentFork, newAgentData: InsertAgentUpload): Promise<AgentUpload> {
+    const [forkedAgent] = await db.insert(agentUploads).values(newAgentData).returning();
+    await db.insert(agentForks).values({
+      ...fork,
+      forkedAgentId: forkedAgent.id,
+    });
+    return forkedAgent;
+  }
+
+  async getAgentForks(originalAgentId: number): Promise<AgentFork[]> {
+    return db.select().from(agentForks).where(eq(agentForks.originalAgentId, originalAgentId)).orderBy(desc(agentForks.createdAt));
+  }
+
+  async getForkedFrom(agentUploadId: number): Promise<AgentFork | undefined> {
+    const [fork] = await db.select().from(agentForks).where(eq(agentForks.forkedAgentId, agentUploadId));
+    return fork;
+  }
+
+  async getAgentAnalytics(agentUploadId: number, days: number = 30): Promise<AgentAnalytics[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    return db.select().from(agentAnalytics)
+      .where(and(
+        eq(agentAnalytics.agentUploadId, agentUploadId),
+        sql`${agentAnalytics.date} >= ${startDate}`
+      ))
+      .orderBy(agentAnalytics.date);
+  }
+
+  async recordAgentRun(log: Omit<AgentRunLog, 'id'>): Promise<AgentRunLog> {
+    const [created] = await db.insert(agentRunLogs).values(log).returning();
+    return created;
+  }
+
+  async getAgentRunLogs(agentUploadId: number, limit: number = 100): Promise<AgentRunLog[]> {
+    return db.select().from(agentRunLogs)
+      .where(eq(agentRunLogs.agentUploadId, agentUploadId))
+      .orderBy(desc(agentRunLogs.startedAt))
+      .limit(limit);
+  }
+
+  async createDiscussion(discussion: InsertDiscussion): Promise<Discussion> {
+    const [created] = await db.insert(discussions).values(discussion).returning();
+    return created;
+  }
+
+  async getDiscussions(agentUploadId?: number): Promise<Discussion[]> {
+    if (agentUploadId) {
+      return db.select().from(discussions)
+        .where(eq(discussions.agentUploadId, agentUploadId))
+        .orderBy(desc(discussions.createdAt));
+    }
+    return db.select().from(discussions).orderBy(desc(discussions.createdAt));
+  }
+
+  async getDiscussion(id: number): Promise<Discussion | undefined> {
+    const [discussion] = await db.select().from(discussions).where(eq(discussions.id, id));
+    if (discussion) {
+      await db.update(discussions).set({ viewCount: sql`${discussions.viewCount} + 1` }).where(eq(discussions.id, id));
+    }
+    return discussion;
+  }
+
+  async createDiscussionReply(reply: InsertDiscussionReply): Promise<DiscussionReply> {
+    const [created] = await db.insert(discussionReplies).values(reply).returning();
+    await db.update(discussions).set({ 
+      replyCount: sql`${discussions.replyCount} + 1`,
+      updatedAt: new Date()
+    }).where(eq(discussions.id, reply.discussionId));
+    return created;
+  }
+
+  async getDiscussionReplies(discussionId: number): Promise<DiscussionReply[]> {
+    return db.select().from(discussionReplies)
+      .where(eq(discussionReplies.discussionId, discussionId))
+      .orderBy(discussionReplies.createdAt);
+  }
+
+  async vote(voteData: InsertVote): Promise<Vote> {
+    const existing = await db.select().from(votes).where(
+      and(
+        eq(votes.userId, voteData.userId),
+        eq(votes.targetType, voteData.targetType),
+        eq(votes.targetId, voteData.targetId)
+      )
+    );
+    
+    if (existing.length > 0) {
+      if (existing[0].voteType === voteData.voteType) {
+        await db.delete(votes).where(eq(votes.id, existing[0].id));
+        return existing[0];
+      }
+      const [updated] = await db.update(votes).set({ voteType: voteData.voteType }).where(eq(votes.id, existing[0].id)).returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(votes).values(voteData).returning();
+    return created;
+  }
+
+  async getSecuritySettings(userId: string): Promise<SecuritySettings | undefined> {
+    const [settings] = await db.select().from(securitySettings).where(eq(securitySettings.userId, userId));
+    return settings;
+  }
+
+  async upsertSecuritySettings(settings: InsertSecuritySettings): Promise<SecuritySettings> {
+    const [upserted] = await db.insert(securitySettings).values(settings)
+      .onConflictDoUpdate({
+        target: securitySettings.userId,
+        set: {
+          twoFactorEnabled: settings.twoFactorEnabled,
+          loginNotifications: settings.loginNotifications,
+          uploadRequires2fa: settings.uploadRequires2fa,
+          publishRequires2fa: settings.publishRequires2fa,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return upserted;
+  }
+
+  async logSecurityEvent(event: InsertSecurityAuditLog): Promise<SecurityAuditLog> {
+    const [created] = await db.insert(securityAuditLog).values(event).returning();
+    return created;
+  }
+
+  async getSecurityAuditLog(userId: string, limit: number = 50): Promise<SecurityAuditLog[]> {
+    return db.select().from(securityAuditLog)
+      .where(eq(securityAuditLog.userId, userId))
+      .orderBy(desc(securityAuditLog.createdAt))
+      .limit(limit);
+  }
+
+  async createSecurityScan(scan: InsertAgentSecurityScan): Promise<AgentSecurityScan> {
+    const [created] = await db.insert(agentSecurityScans).values(scan).returning();
+    return created;
+  }
+
+  async getAgentSecurityScans(agentUploadId: number): Promise<AgentSecurityScan[]> {
+    return db.select().from(agentSecurityScans)
+      .where(eq(agentSecurityScans.agentUploadId, agentUploadId))
+      .orderBy(desc(agentSecurityScans.startedAt));
+  }
+
+  async completeSecurityScan(id: number, result: Partial<AgentSecurityScan>): Promise<AgentSecurityScan | undefined> {
+    const [updated] = await db.update(agentSecurityScans)
+      .set({ ...result, completedAt: new Date() })
+      .where(eq(agentSecurityScans.id, id))
+      .returning();
+    return updated;
   }
 }
 

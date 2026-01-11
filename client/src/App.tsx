@@ -21,6 +21,8 @@ import { MarketplacePage } from "@/pages/marketplace";
 import { AgentUploadPage } from "@/pages/agent-upload";
 import { AgentMarketplacePage } from "@/pages/agent-marketplace";
 import { AgentDetailPage } from "@/pages/agent-detail";
+import IntegrationHub from "@/pages/integration-hub";
+import SecuritySettingsPage from "@/pages/security-settings";
 
 function AuthenticatedRouter() {
   return (
@@ -38,6 +40,8 @@ function AuthenticatedRouter() {
       <Route path="/agent-upload" component={AgentUploadPage} />
       <Route path="/agent-marketplace" component={AgentMarketplacePage} />
       <Route path="/agent-marketplace/:id" component={AgentDetailPage} />
+      <Route path="/integrations" component={IntegrationHub} />
+      <Route path="/security" component={SecuritySettingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

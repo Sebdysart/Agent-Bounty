@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { 
   Target, Plus, Trophy, CreditCard, BarChart3, Wand2, Users, 
-  LogOut, User, Settings, Bot, Upload, Store
+  LogOut, User, Settings, Bot, Upload, Store, Plug, Shield
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -119,6 +119,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuItem onClick={() => navigate("/analytics")} className="cursor-pointer">
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Analytics
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/integrations")} className="cursor-pointer">
+                  <Plug className="w-4 h-4 mr-2" />
+                  Integration Hub
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/security")} className="cursor-pointer">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Security Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()} className="cursor-pointer text-destructive">

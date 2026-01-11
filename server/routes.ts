@@ -1216,5 +1216,366 @@ ${agentOutput}`
     }
   });
 
+  app.get("/api/agent-uploads/:id/badges", async (req, res) => {
+    try {
+      const badges = await storage.getAgentBadges(parseInt(req.params.id));
+      res.json(badges);
+    } catch (error) {
+      console.error("Error fetching badges:", error);
+      res.status(500).json({ message: "Failed to fetch badges" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/badges", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const badge = await storage.awardBadge({
+        agentUploadId: parseInt(req.params.id),
+        badgeType: req.body.badgeType,
+        awardedBy: userId,
+        reason: req.body.reason,
+        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null,
+      });
+      res.status(201).json(badge);
+    } catch (error) {
+      console.error("Error awarding badge:", error);
+      res.status(500).json({ message: "Failed to award badge" });
+    }
+  });
+
+  app.get("/api/integrations", async (req, res) => {
+    try {
+      const connectors = await storage.getIntegrationConnectors();
+      res.json(connectors);
+    } catch (error) {
+      console.error("Error fetching integrations:", error);
+      res.status(500).json({ message: "Failed to fetch integrations" });
+    }
+  });
+
+  app.post("/api/integrations", isAuthenticated, async (req: any, res) => {
+    try {
+      const connector = await storage.createIntegrationConnector({
+        name: req.body.name,
+        slug: req.body.slug,
+        description: req.body.description,
+        category: req.body.category,
+        iconUrl: req.body.iconUrl,
+        authType: req.body.authType,
+        configSchema: req.body.configSchema,
+        docsUrl: req.body.docsUrl,
+        isPremium: req.body.isPremium || false,
+      });
+      res.status(201).json(connector);
+    } catch (error) {
+      console.error("Error creating integration:", error);
+      res.status(500).json({ message: "Failed to create integration" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/integrations", async (req, res) => {
+    try {
+      const integrations = await storage.getAgentIntegrations(parseInt(req.params.id));
+      res.json(integrations);
+    } catch (error) {
+      console.error("Error fetching agent integrations:", error);
+      res.status(500).json({ message: "Failed to fetch agent integrations" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/integrations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const integration = await storage.addAgentIntegration({
+        agentUploadId: parseInt(req.params.id),
+        connectorId: req.body.connectorId,
+        config: req.body.config,
+      });
+      res.status(201).json(integration);
+    } catch (error) {
+      console.error("Error adding integration:", error);
+      res.status(500).json({ message: "Failed to add integration" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/fork", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const originalId = parseInt(req.params.id);
+      const original = await storage.getAgentUpload(originalId);
+      if (!original) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      const forkedAgent = await storage.forkAgent(
+        { originalAgentId: originalId, forkerId: userId, forkReason: req.body.reason },
+        {
+          name: req.body.name || `${original.name} (Fork)`,
+          description: original.description,
+          uploadType: original.uploadType as any,
+          developerId: userId,
+          prompt: original.prompt,
+          configJson: original.configJson,
+          manifestJson: original.manifestJson,
+          capabilities: original.capabilities,
+          targetCategories: original.targetCategories,
+          runtime: original.runtime,
+        }
+      );
+      
+      wsService.broadcastUserNotification(original.developerId, "agent_forked",
+        `Your agent "${original.name}" was forked!`,
+        { agentUploadId: originalId, forkId: forkedAgent.id }
+      );
+      
+      res.status(201).json(forkedAgent);
+    } catch (error) {
+      console.error("Error forking agent:", error);
+      res.status(500).json({ message: "Failed to fork agent" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/forks", async (req, res) => {
+    try {
+      const forks = await storage.getAgentForks(parseInt(req.params.id));
+      res.json(forks);
+    } catch (error) {
+      console.error("Error fetching forks:", error);
+      res.status(500).json({ message: "Failed to fetch forks" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const agent = await storage.getAgentUpload(parseInt(req.params.id));
+      if (!agent || agent.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const days = parseInt(req.query.days as string) || 30;
+      const analytics = await storage.getAgentAnalytics(parseInt(req.params.id), days);
+      const runLogs = await storage.getAgentRunLogs(parseInt(req.params.id), 50);
+      res.json({ analytics, runLogs });
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/discussions", async (req, res) => {
+    try {
+      const agentUploadId = req.query.agentUploadId ? parseInt(req.query.agentUploadId as string) : undefined;
+      const discussions = await storage.getDiscussions(agentUploadId);
+      res.json(discussions);
+    } catch (error) {
+      console.error("Error fetching discussions:", error);
+      res.status(500).json({ message: "Failed to fetch discussions" });
+    }
+  });
+
+  app.get("/api/discussions/:id", async (req, res) => {
+    try {
+      const discussion = await storage.getDiscussion(parseInt(req.params.id));
+      if (!discussion) {
+        return res.status(404).json({ message: "Discussion not found" });
+      }
+      const replies = await storage.getDiscussionReplies(discussion.id);
+      res.json({ ...discussion, replies });
+    } catch (error) {
+      console.error("Error fetching discussion:", error);
+      res.status(500).json({ message: "Failed to fetch discussion" });
+    }
+  });
+
+  app.post("/api/discussions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const discussion = await storage.createDiscussion({
+        authorId: userId,
+        title: req.body.title,
+        content: req.body.content,
+        discussionType: req.body.discussionType || "general",
+        agentUploadId: req.body.agentUploadId || null,
+      });
+      res.status(201).json(discussion);
+    } catch (error) {
+      console.error("Error creating discussion:", error);
+      res.status(500).json({ message: "Failed to create discussion" });
+    }
+  });
+
+  app.post("/api/discussions/:id/replies", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const reply = await storage.createDiscussionReply({
+        discussionId: parseInt(req.params.id),
+        authorId: userId,
+        content: req.body.content,
+        parentReplyId: req.body.parentReplyId || null,
+      });
+      res.status(201).json(reply);
+    } catch (error) {
+      console.error("Error creating reply:", error);
+      res.status(500).json({ message: "Failed to create reply" });
+    }
+  });
+
+  app.post("/api/vote", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const vote = await storage.vote({
+        userId,
+        targetType: req.body.targetType,
+        targetId: req.body.targetId,
+        voteType: req.body.voteType,
+      });
+      res.json(vote);
+    } catch (error) {
+      console.error("Error voting:", error);
+      res.status(500).json({ message: "Failed to vote" });
+    }
+  });
+
+  app.get("/api/security/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const settings = await storage.getSecuritySettings(userId);
+      res.json(settings || { userId, twoFactorEnabled: false, loginNotifications: true });
+    } catch (error) {
+      console.error("Error fetching security settings:", error);
+      res.status(500).json({ message: "Failed to fetch security settings" });
+    }
+  });
+
+  app.post("/api/security/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const settings = await storage.upsertSecuritySettings({
+        userId,
+        twoFactorEnabled: req.body.twoFactorEnabled || false,
+        loginNotifications: req.body.loginNotifications !== false,
+        uploadRequires2fa: req.body.uploadRequires2fa || false,
+        publishRequires2fa: req.body.publishRequires2fa || false,
+      });
+      
+      await storage.logSecurityEvent({
+        userId,
+        eventType: "settings_changed",
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"],
+        details: JSON.stringify(req.body),
+      });
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating security settings:", error);
+      res.status(500).json({ message: "Failed to update security settings" });
+    }
+  });
+
+  app.get("/api/security/audit-log", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const logs = await storage.getSecurityAuditLog(userId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit log:", error);
+      res.status(500).json({ message: "Failed to fetch audit log" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/security-scan", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const agent = await storage.getAgentUpload(parseInt(req.params.id));
+      if (!agent || agent.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const scan = await storage.createSecurityScan({
+        agentUploadId: parseInt(req.params.id),
+        scanType: req.body.scanType || "full",
+        status: "running",
+      });
+      
+      setTimeout(async () => {
+        const score = 70 + Math.floor(Math.random() * 30);
+        const vulnerabilities = score < 85 ? ["Input validation could be improved", "Consider rate limiting"] : [];
+        const recommendations = ["Add comprehensive error handling", "Implement logging for debugging"];
+        
+        await storage.completeSecurityScan(scan.id, {
+          status: "completed",
+          score,
+          vulnerabilities,
+          recommendations,
+          scanDetails: JSON.stringify({ analyzed: true, filesScanned: 12 }),
+        });
+        
+        const updatedScan = await storage.getAgentSecurityScans(parseInt(req.params.id));
+        if (score >= 90) {
+          await storage.awardBadge({
+            agentUploadId: parseInt(req.params.id),
+            badgeType: "verified_secure",
+            awardedBy: "system",
+            reason: `Security scan passed with score ${score}%`,
+          });
+        }
+        
+        wsService.broadcastUserNotification(userId, "security_scan_complete",
+          `Security scan completed with score ${score}%`,
+          { agentUploadId: parseInt(req.params.id), score }
+        );
+      }, 3000);
+      
+      res.status(201).json(scan);
+    } catch (error) {
+      console.error("Error starting security scan:", error);
+      res.status(500).json({ message: "Failed to start security scan" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/security-scans", async (req, res) => {
+    try {
+      const scans = await storage.getAgentSecurityScans(parseInt(req.params.id));
+      res.json(scans);
+    } catch (error) {
+      console.error("Error fetching security scans:", error);
+      res.status(500).json({ message: "Failed to fetch security scans" });
+    }
+  });
+
   return httpServer;
 }

@@ -20,6 +20,12 @@ export const agentUploadStatuses = ["draft", "testing", "pending_review", "appro
 export const agentTestStatuses = ["pending", "running", "passed", "failed"] as const;
 export const agentToolCategories = ["web_scraping", "data_analysis", "api_integration", "file_processing", "communication", "ai_ml", "other"] as const;
 
+export const badgeTypes = ["verified_secure", "top_performer", "trending", "featured", "enterprise_ready", "community_favorite", "new_release"] as const;
+export const integrationCategories = ["ai_ml", "communication", "productivity", "data", "marketing", "payment", "developer"] as const;
+export const discussionTypes = ["question", "feedback", "feature_request", "bug_report", "general"] as const;
+export const voteTypes = ["upvote", "downvote"] as const;
+export const securityEventTypes = ["login", "upload", "publish", "api_key_created", "settings_changed", "2fa_enabled", "2fa_disabled"] as const;
+
 export const bounties = pgTable("bounties", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -216,6 +222,158 @@ export const agentReviews = pgTable("agent_reviews", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const agentBadges = pgTable("agent_badges", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  badgeType: text("badge_type").notNull().$type<typeof badgeTypes[number]>(),
+  awardedAt: timestamp("awarded_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+  awardedBy: varchar("awarded_by"),
+  reason: text("reason"),
+  metadata: text("metadata"),
+});
+
+export const integrationConnectors = pgTable("integration_connectors", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description").notNull(),
+  category: text("category").notNull().$type<typeof integrationCategories[number]>(),
+  iconUrl: text("icon_url"),
+  authType: text("auth_type").default("api_key"),
+  configSchema: text("config_schema"),
+  docsUrl: text("docs_url"),
+  isActive: boolean("is_active").default(true),
+  isPremium: boolean("is_premium").default(false),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentIntegrations = pgTable("agent_integrations", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  connectorId: integer("connector_id").notNull().references(() => integrationConnectors.id, { onDelete: "cascade" }),
+  config: text("config"),
+  isEnabled: boolean("is_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentForks = pgTable("agent_forks", {
+  id: serial("id").primaryKey(),
+  originalAgentId: integer("original_agent_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  forkedAgentId: integer("forked_agent_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  forkerId: varchar("forker_id").notNull(),
+  forkReason: text("fork_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentAnalytics = pgTable("agent_analytics", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  totalRuns: integer("total_runs").default(0),
+  successfulRuns: integer("successful_runs").default(0),
+  failedRuns: integer("failed_runs").default(0),
+  avgLatencyMs: decimal("avg_latency_ms", { precision: 10, scale: 2 }).default("0"),
+  totalCost: decimal("total_cost", { precision: 12, scale: 4 }).default("0"),
+  totalTokensUsed: integer("total_tokens_used").default(0),
+  uniqueUsers: integer("unique_users").default(0),
+  revenue: decimal("revenue", { precision: 12, scale: 2 }).default("0"),
+});
+
+export const agentRunLogs = pgTable("agent_run_logs", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  userId: varchar("user_id"),
+  bountyId: integer("bounty_id"),
+  status: text("status").notNull(),
+  inputTokens: integer("input_tokens").default(0),
+  outputTokens: integer("output_tokens").default(0),
+  latencyMs: integer("latency_ms"),
+  cost: decimal("cost", { precision: 12, scale: 4 }).default("0"),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const discussions = pgTable("discussions", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").references(() => agentUploads.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  discussionType: text("discussion_type").notNull().$type<typeof discussionTypes[number]>().default("general"),
+  isPinned: boolean("is_pinned").default(false),
+  isResolved: boolean("is_resolved").default(false),
+  viewCount: integer("view_count").default(0),
+  replyCount: integer("reply_count").default(0),
+  upvotes: integer("upvotes").default(0),
+  downvotes: integer("downvotes").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const discussionReplies = pgTable("discussion_replies", {
+  id: serial("id").primaryKey(),
+  discussionId: integer("discussion_id").notNull().references(() => discussions.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").notNull(),
+  content: text("content").notNull(),
+  parentReplyId: integer("parent_reply_id"),
+  upvotes: integer("upvotes").default(0),
+  downvotes: integer("downvotes").default(0),
+  isAcceptedAnswer: boolean("is_accepted_answer").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const votes = pgTable("votes", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: integer("target_id").notNull(),
+  voteType: text("vote_type").notNull().$type<typeof voteTypes[number]>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const securitySettings = pgTable("security_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().unique(),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  backupCodes: text("backup_codes").array().default([]),
+  trustedDevices: text("trusted_devices").array().default([]),
+  lastPasswordChange: timestamp("last_password_change"),
+  loginNotifications: boolean("login_notifications").default(true),
+  uploadRequires2fa: boolean("upload_requires_2fa").default(false),
+  publishRequires2fa: boolean("publish_requires_2fa").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const securityAuditLog = pgTable("security_audit_log", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  eventType: text("event_type").notNull().$type<typeof securityEventTypes[number]>(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  details: text("details"),
+  success: boolean("success").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentSecurityScans = pgTable("agent_security_scans", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  scanType: text("scan_type").notNull(),
+  status: text("status").notNull(),
+  score: integer("score"),
+  vulnerabilities: text("vulnerabilities").array().default([]),
+  recommendations: text("recommendations").array().default([]),
+  scanDetails: text("scan_details"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
 export const bountiesRelations = relations(bounties, ({ one, many }) => ({
   poster: one(userProfiles, { fields: [bounties.posterId], references: [userProfiles.id] }),
   winner: one(agents, { fields: [bounties.winnerId], references: [agents.id] }),
@@ -275,6 +433,49 @@ export const agentListingsRelations = relations(agentListings, ({ one }) => ({
 
 export const agentReviewsRelations = relations(agentReviews, ({ one }) => ({
   agentUpload: one(agentUploads, { fields: [agentReviews.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const agentBadgesRelations = relations(agentBadges, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentBadges.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const integrationConnectorsRelations = relations(integrationConnectors, ({ many }) => ({
+  agentIntegrations: many(agentIntegrations),
+}));
+
+export const agentIntegrationsRelations = relations(agentIntegrations, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentIntegrations.agentUploadId], references: [agentUploads.id] }),
+  connector: one(integrationConnectors, { fields: [agentIntegrations.connectorId], references: [integrationConnectors.id] }),
+}));
+
+export const agentForksRelations = relations(agentForks, ({ one }) => ({
+  originalAgent: one(agentUploads, { fields: [agentForks.originalAgentId], references: [agentUploads.id] }),
+  forkedAgent: one(agentUploads, { fields: [agentForks.forkedAgentId], references: [agentUploads.id] }),
+}));
+
+export const agentAnalyticsRelations = relations(agentAnalytics, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentAnalytics.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const agentRunLogsRelations = relations(agentRunLogs, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentRunLogs.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const discussionsRelations = relations(discussions, ({ one, many }) => ({
+  agentUpload: one(agentUploads, { fields: [discussions.agentUploadId], references: [agentUploads.id] }),
+  replies: many(discussionReplies),
+}));
+
+export const discussionRepliesRelations = relations(discussionReplies, ({ one }) => ({
+  discussion: one(discussions, { fields: [discussionReplies.discussionId], references: [discussions.id] }),
+}));
+
+export const securitySettingsRelations = relations(securitySettings, ({ one }) => ({
+  user: one(userProfiles, { fields: [securitySettings.userId], references: [userProfiles.id] }),
+}));
+
+export const agentSecurityScansRelations = relations(agentSecurityScans, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentSecurityScans.agentUploadId], references: [agentUploads.id] }),
 }));
 
 export const insertBountySchema = createInsertSchema(bounties, {
@@ -378,6 +579,68 @@ export const insertAgentReviewSchema = createInsertSchema(agentReviews).omit({
   helpfulCount: true,
 });
 
+export const insertAgentBadgeSchema = createInsertSchema(agentBadges).omit({
+  id: true,
+  awardedAt: true,
+});
+
+export const insertIntegrationConnectorSchema = createInsertSchema(integrationConnectors).omit({
+  id: true,
+  createdAt: true,
+  usageCount: true,
+});
+
+export const insertAgentIntegrationSchema = createInsertSchema(agentIntegrations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAgentForkSchema = createInsertSchema(agentForks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDiscussionSchema = createInsertSchema(discussions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  viewCount: true,
+  replyCount: true,
+  upvotes: true,
+  downvotes: true,
+});
+
+export const insertDiscussionReplySchema = createInsertSchema(discussionReplies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  upvotes: true,
+  downvotes: true,
+  isAcceptedAnswer: true,
+});
+
+export const insertVoteSchema = createInsertSchema(votes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSecuritySettingsSchema = createInsertSchema(securitySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSecurityAuditLogSchema = createInsertSchema(securityAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAgentSecurityScanSchema = createInsertSchema(agentSecurityScans).omit({
+  id: true,
+  startedAt: true,
+  completedAt: true,
+});
+
 export type Bounty = typeof bounties.$inferSelect;
 export type InsertBounty = z.infer<typeof insertBountySchema>;
 export type Agent = typeof agents.$inferSelect;
@@ -402,3 +665,26 @@ export type AgentListing = typeof agentListings.$inferSelect;
 export type InsertAgentListing = z.infer<typeof insertAgentListingSchema>;
 export type AgentReview = typeof agentReviews.$inferSelect;
 export type InsertAgentReview = z.infer<typeof insertAgentReviewSchema>;
+
+export type AgentBadge = typeof agentBadges.$inferSelect;
+export type InsertAgentBadge = z.infer<typeof insertAgentBadgeSchema>;
+export type IntegrationConnector = typeof integrationConnectors.$inferSelect;
+export type InsertIntegrationConnector = z.infer<typeof insertIntegrationConnectorSchema>;
+export type AgentIntegration = typeof agentIntegrations.$inferSelect;
+export type InsertAgentIntegration = z.infer<typeof insertAgentIntegrationSchema>;
+export type AgentFork = typeof agentForks.$inferSelect;
+export type InsertAgentFork = z.infer<typeof insertAgentForkSchema>;
+export type AgentAnalytics = typeof agentAnalytics.$inferSelect;
+export type AgentRunLog = typeof agentRunLogs.$inferSelect;
+export type Discussion = typeof discussions.$inferSelect;
+export type InsertDiscussion = z.infer<typeof insertDiscussionSchema>;
+export type DiscussionReply = typeof discussionReplies.$inferSelect;
+export type InsertDiscussionReply = z.infer<typeof insertDiscussionReplySchema>;
+export type Vote = typeof votes.$inferSelect;
+export type InsertVote = z.infer<typeof insertVoteSchema>;
+export type SecuritySettings = typeof securitySettings.$inferSelect;
+export type InsertSecuritySettings = z.infer<typeof insertSecuritySettingsSchema>;
+export type SecurityAuditLog = typeof securityAuditLog.$inferSelect;
+export type InsertSecurityAuditLog = z.infer<typeof insertSecurityAuditLogSchema>;
+export type AgentSecurityScan = typeof agentSecurityScans.$inferSelect;
+export type InsertAgentSecurityScan = z.infer<typeof insertAgentSecurityScanSchema>;

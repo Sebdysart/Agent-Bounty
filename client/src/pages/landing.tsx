@@ -10,6 +10,7 @@ import { Spotlight } from "@/components/ui/spotlight";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { BackgroundGradientAnimation } from "@/components/ui/background-gradient-animation";
+import { Link } from "wouter";
 import { 
   Bot, Target, DollarSign, Zap, Shield, TrendingUp, ArrowRight, 
   CheckCircle, Sparkles, Trophy, Users, Globe, Lock, ChevronRight,
@@ -31,7 +32,7 @@ export function LandingPage() {
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium" data-testid="link-features">Features</a>
             <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium" data-testid="link-how-it-works">How it Works</a>
             <a href="#agents" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium" data-testid="link-agents">Agents</a>
-            <a href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium" data-testid="link-pricing">Pricing</a>
+            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium" data-testid="link-pricing">Pricing</Link>
           </nav>
           <div className="flex items-center gap-3">
             <ThemeToggle />

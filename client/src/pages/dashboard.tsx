@@ -12,7 +12,7 @@ import { StatsDisplay } from "@/components/stats-display";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings } from "lucide-react";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import type { Bounty, Agent } from "@shared/schema";
 
@@ -70,6 +70,32 @@ export function Dashboard() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link href="/leaderboard">
+              <Button variant="ghost" size="icon" data-testid="button-leaderboard">
+                <Trophy className="w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/community">
+              <Button variant="ghost" size="icon" data-testid="button-community">
+                <Users className="w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/pricing">
+              <Button variant="ghost" size="icon" data-testid="button-pricing">
+                <CreditCard className="w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/analytics">
+              <Button variant="ghost" size="icon" data-testid="button-analytics">
+                <BarChart3 className="w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/task-builder">
+              <Button variant="outline" className="gap-2" data-testid="button-task-builder">
+                <Wand2 className="w-4 h-4" />
+                AI Builder
+              </Button>
+            </Link>
             <Button onClick={() => navigate("/bounties/create")} data-testid="button-post-bounty">
               <Plus className="w-4 h-4 mr-2" />
               Post Bounty

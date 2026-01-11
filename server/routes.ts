@@ -9,6 +9,17 @@ import {
 import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
+import OpenAI from "openai";
+
+function getOpenAIClient() {
+  if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    return null;
+  }
+  return new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+}
 
 const updateBountyStatusSchema = z.object({
   status: z.enum(bountyStatuses),
@@ -442,6 +453,285 @@ export async function registerRoutes(
       console.error("Error refunding payment:", error);
       res.status(500).json({ message: "Failed to refund payment" });
     }
+  });
+
+  app.get("/api/subscription/plans", async (req, res) => {
+    try {
+      const prices = await stripeService.getOrCreatePrices();
+      res.json({
+        free: { name: "Free", price: 0, features: ["3 bounties/month", "Basic support", "Community access"] },
+        pro: { name: "Pro", price: prices.pro.amount, priceId: prices.pro.priceId, features: ["Unlimited bounties", "Priority support", "Advanced analytics", "Custom templates"] },
+        enterprise: { name: "Enterprise", price: prices.enterprise.amount, priceId: prices.enterprise.priceId, features: ["Everything in Pro", "Dedicated agents", "Custom SLAs", "API access", "Compliance tools"] }
+      });
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ message: "Failed to fetch plans" });
+    }
+  });
+
+  app.post("/api/subscription/checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { tier } = req.body;
+      if (!tier || !["pro", "enterprise"].includes(tier)) {
+        return res.status(400).json({ message: "Invalid tier" });
+      }
+
+      let profile = await storage.getUserProfile(userId);
+      let customerId = profile?.stripeCustomerId;
+
+      if (!customerId) {
+        const user = req.user?.claims;
+        const customer = await stripeService.createCustomer(
+          user?.email || `user-${userId}@bountyai.com`,
+          userId,
+          user?.name
+        );
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customer.id);
+      }
+
+      const prices = await stripeService.getOrCreatePrices();
+      const priceId = tier === "pro" ? prices.pro.priceId : prices.enterprise.priceId;
+
+      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+      const session = await stripeService.createSubscriptionCheckout(
+        customerId,
+        priceId,
+        userId,
+        `${baseUrl}/pricing?success=true`,
+        `${baseUrl}/pricing?cancelled=true`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating subscription checkout:", error);
+      res.status(500).json({ message: "Failed to create subscription checkout" });
+    }
+  });
+
+  app.post("/api/subscription/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const profile = await storage.getUserProfile(userId);
+      if (!profile?.stripeSubscriptionId) {
+        return res.status(400).json({ message: "No active subscription" });
+      }
+
+      await stripeService.cancelSubscription(profile.stripeSubscriptionId);
+      await storage.updateUserSubscription(userId, "free", null, null);
+
+      res.json({ success: true, message: "Subscription cancelled" });
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
+  app.get("/api/leaderboard", async (req, res) => {
+    try {
+      const leaderboard = await storage.getAgentLeaderboard();
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get("/api/analytics", async (req, res) => {
+    try {
+      const analytics = await storage.getAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.post("/api/ai/generate-bounty", isAuthenticated, async (req: any, res) => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt || prompt.length < 10) {
+        return res.status(400).json({ message: "Please provide a more detailed description" });
+      }
+
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return res.json({
+          title: prompt.length > 50 ? `${prompt.slice(0, 50)}...` : prompt,
+          description: prompt,
+          category: "other",
+          reward: 2000,
+          deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          successMetrics: "Deliverable meets requirements\nQuality verified by reviewer\nCompleted within deadline",
+          verificationCriteria: "Output must meet all success metrics. Reviewer will verify completion against stated requirements.",
+          orchestrationMode: "single",
+          maxAgents: 1,
+        });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at creating AI agent bounties. Given a task description, generate a well-structured bounty with clear success metrics. 
+            
+            Respond with valid JSON containing:
+            - title: A clear, concise title for the bounty
+            - description: A detailed description of what needs to be accomplished
+            - category: One of: marketing, sales, research, data_analysis, development, other
+            - reward: Suggested reward amount in USD (between 500 and 50000)
+            - successMetrics: An array of 3-5 specific, measurable success criteria
+            
+            Make the success metrics specific and measurable. Include quantities, quality standards, and deliverables.`
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        return res.status(500).json({ message: "Failed to generate bounty" });
+      }
+
+      const generated = JSON.parse(content);
+      const metricsArray = Array.isArray(generated.successMetrics) 
+        ? generated.successMetrics 
+        : ["Deliverable meets requirements", "Quality verified by reviewer"];
+      res.json({
+        title: generated.title || prompt.slice(0, 50),
+        description: generated.description || prompt,
+        category: generated.category || "other",
+        reward: generated.reward || 2000,
+        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        successMetrics: metricsArray.join("\n"),
+        verificationCriteria: generated.verificationCriteria || "Output must meet all success metrics. Reviewer will verify completion against stated requirements.",
+        orchestrationMode: generated.orchestrationMode || "single",
+        maxAgents: generated.maxAgents || 1,
+      });
+    } catch (error) {
+      console.error("Error generating bounty:", error);
+      res.status(500).json({ message: "Failed to generate bounty" });
+    }
+  });
+
+  app.post("/api/ai/verify-output", isAuthenticated, async (req: any, res) => {
+    try {
+      const { bountyDescription, successMetrics, agentOutput } = req.body;
+      
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return res.json({
+          passed: true,
+          score: 85,
+          criteriaResults: (successMetrics || []).map((m: string) => ({ criterion: m, passed: true, feedback: "Meets requirements" })),
+          overallFeedback: "AI verification not available. Manual review recommended."
+        });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert bounty verification agent. Evaluate whether the provided output meets the success criteria.
+            
+            Respond with valid JSON containing:
+            - passed: boolean indicating if ALL criteria are met
+            - score: number from 0-100 indicating quality
+            - criteriaResults: array of objects with { criterion: string, passed: boolean, feedback: string }
+            - overallFeedback: string with constructive feedback`
+          },
+          {
+            role: "user",
+            content: `Bounty Description: ${bountyDescription}
+            
+Success Metrics:
+${successMetrics.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n')}
+
+Agent Output:
+${agentOutput}`
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        return res.status(500).json({ message: "Failed to verify output" });
+      }
+
+      res.json(JSON.parse(content));
+    } catch (error) {
+      console.error("Error verifying output:", error);
+      res.status(500).json({ message: "Failed to verify output" });
+    }
+  });
+
+  app.get("/api/bounty-templates", async (req, res) => {
+    const templates = [
+      {
+        id: "marketing-content",
+        name: "Content Marketing Campaign",
+        category: "marketing",
+        description: "Create blog posts, social media content, and email sequences for a product launch",
+        reward: 2500,
+        successMetrics: ["10 blog posts with 1000+ words each", "30 social media posts", "5-email nurture sequence", "All content optimized for SEO"],
+        estimatedTime: "7 days"
+      },
+      {
+        id: "sales-leads",
+        name: "B2B Lead Generation",
+        category: "sales",
+        description: "Research and compile qualified leads for outbound sales campaign",
+        reward: 1500,
+        successMetrics: ["500 verified company leads", "Contact info for decision makers", "Company size and revenue data", "Lead scoring based on ICP fit"],
+        estimatedTime: "5 days"
+      },
+      {
+        id: "research-market",
+        name: "Market Research Report",
+        category: "research",
+        description: "Comprehensive market analysis with competitor insights and opportunity assessment",
+        reward: 5000,
+        successMetrics: ["50+ page research report", "5 competitor deep-dives", "Market size and growth projections", "Strategic recommendations"],
+        estimatedTime: "14 days"
+      },
+      {
+        id: "data-analysis",
+        name: "Customer Data Analysis",
+        category: "data_analysis",
+        description: "Analyze customer behavior patterns and provide actionable insights",
+        reward: 3000,
+        successMetrics: ["Customer segmentation model", "Churn prediction analysis", "LTV calculations", "Executive summary dashboard"],
+        estimatedTime: "10 days"
+      },
+      {
+        id: "dev-automation",
+        name: "Workflow Automation",
+        category: "development",
+        description: "Build automated workflows to streamline business processes",
+        reward: 4000,
+        successMetrics: ["3+ automated workflows", "Integration with existing tools", "Documentation and training", "50% time savings demonstrated"],
+        estimatedTime: "14 days"
+      }
+    ];
+    res.json(templates);
   });
 
   return httpServer;

@@ -10,8 +10,10 @@ export const bountyCategories = ["marketing", "sales", "research", "data_analysi
 export const bountyStatuses = ["open", "in_progress", "under_review", "completed", "failed", "cancelled"] as const;
 export const submissionStatuses = ["pending", "in_progress", "submitted", "approved", "rejected"] as const;
 export const userRoles = ["business", "developer"] as const;
+export const subscriptionTiers = ["free", "pro", "enterprise"] as const;
 
 export const paymentStatuses = ["pending", "funded", "released", "refunded"] as const;
+export const orchestrationModes = ["single", "parallel", "sequential", "competitive"] as const;
 
 export const bounties = pgTable("bounties", {
   id: serial("id").primaryKey(),
@@ -28,6 +30,8 @@ export const bounties = pgTable("bounties", {
   paymentStatus: text("payment_status").$type<typeof paymentStatuses[number]>().default("pending"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+  orchestrationMode: text("orchestration_mode").$type<typeof orchestrationModes[number]>().default("single"),
+  maxAgents: integer("max_agents").default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -78,6 +82,11 @@ export const userProfiles = pgTable("user_profiles", {
   totalEarned: decimal("total_earned", { precision: 12, scale: 2 }).default("0"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeConnectAccountId: text("stripe_connect_account_id"),
+  subscriptionTier: text("subscription_tier").$type<typeof subscriptionTiers[number]>().default("free"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionExpiresAt: timestamp("subscription_expires_at"),
+  monthlyBountyLimit: integer("monthly_bounty_limit").default(3),
+  bountiesPostedThisMonth: integer("bounties_posted_this_month").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

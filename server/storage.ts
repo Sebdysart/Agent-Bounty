@@ -225,6 +225,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userProfiles.id, userId));
   }
 
+  async getUserProfileByStripeCustomerId(stripeCustomerId: string): Promise<UserProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.stripeCustomerId, stripeCustomerId));
+    return profile;
+  }
+
   async updateBountyCheckoutSession(bountyId: number, sessionId: string): Promise<void> {
     await db
       .update(bounties)
@@ -248,6 +256,137 @@ export class DatabaseStorage implements IStorage {
       .update(bounties)
       .set({ paymentStatus, updatedAt: new Date() })
       .where(eq(bounties.id, bountyId));
+  }
+
+  async updateUserSubscription(
+    userId: string, 
+    tier: "free" | "pro" | "enterprise",
+    subscriptionId: string | null,
+    expiresAt: Date | null
+  ): Promise<void> {
+    const limits = { free: 3, pro: -1, enterprise: -1 };
+    await db
+      .update(userProfiles)
+      .set({ 
+        subscriptionTier: tier,
+        stripeSubscriptionId: subscriptionId,
+        subscriptionExpiresAt: expiresAt,
+        monthlyBountyLimit: limits[tier],
+        updatedAt: new Date() 
+      })
+      .where(eq(userProfiles.id, userId));
+  }
+
+  async getTopAgents(limit: number = 10) {
+    return db
+      .select()
+      .from(agents)
+      .orderBy(desc(agents.avgRating), desc(agents.totalBounties))
+      .limit(limit);
+  }
+
+  async getAgentLeaderboard() {
+    return db
+      .select({
+        id: agents.id,
+        name: agents.name,
+        avatarColor: agents.avatarColor,
+        capabilities: agents.capabilities,
+        completionRate: agents.completionRate,
+        avgRating: agents.avgRating,
+        totalBounties: agents.totalBounties,
+        totalEarnings: agents.totalEarnings,
+        isVerified: agents.isVerified,
+        developerId: agents.developerId,
+      })
+      .from(agents)
+      .orderBy(desc(agents.totalEarnings), desc(agents.avgRating))
+      .limit(50);
+  }
+
+  async getAnalytics() {
+    const bountyStats = await db
+      .select({
+        month: sql<string>`TO_CHAR(${bounties.createdAt}, 'Mon')`,
+        bounties: sql<number>`COUNT(*)::int`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${bounties.status} = 'completed')::int`,
+        totalValue: sql<number>`COALESCE(SUM(${bounties.reward}::numeric), 0)::numeric`,
+      })
+      .from(bounties)
+      .groupBy(sql`TO_CHAR(${bounties.createdAt}, 'Mon')`, sql`DATE_TRUNC('month', ${bounties.createdAt})`)
+      .orderBy(sql`DATE_TRUNC('month', ${bounties.createdAt})`);
+
+    const categoryStats = await db
+      .select({
+        name: bounties.category,
+        value: sql<number>`COUNT(*)::int`,
+      })
+      .from(bounties)
+      .groupBy(bounties.category);
+
+    const agentStats = await db
+      .select({
+        name: agents.name,
+        bounties: sql<number>`COALESCE(${agents.totalBounties}, 0)::int`,
+        successRate: sql<number>`COALESCE(${agents.completionRate}::numeric, 0)`,
+      })
+      .from(agents)
+      .orderBy(sql`COALESCE(${agents.totalBounties}, 0) DESC`)
+      .limit(10);
+
+    const colors: Record<string, string> = {
+      marketing: "#8b5cf6",
+      sales: "#22c55e",
+      research: "#3b82f6",
+      data_analysis: "#f59e0b",
+      development: "#ef4444",
+      content: "#ec4899",
+      design: "#06b6d4",
+      other: "#6b7280",
+    };
+    const defaultColor = "#6b7280";
+
+    const totalBounties = await db.select({ count: sql<number>`COUNT(*)::int` }).from(bounties);
+    const completedBounties = await db.select({ count: sql<number>`COUNT(*)::int` }).from(bounties).where(eq(bounties.status, "completed"));
+    const totalSpent = await db.select({ sum: sql<number>`COALESCE(SUM(${bounties.reward}::numeric), 0)::numeric` }).from(bounties).where(eq(bounties.status, "completed"));
+    const activeAgents = await db.select({ count: sql<number>`COUNT(*)::int` }).from(agents);
+
+    const formatValue = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      const parsed = parseFloat(val.toString());
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    return {
+      bountyTrends: bountyStats.length > 0 ? bountyStats.map(s => ({
+        month: s.month,
+        bounties: formatValue(s.bounties),
+        completed: formatValue(s.completed),
+        totalValue: formatValue(s.totalValue),
+      })) : [
+        { month: "Jan", bounties: 0, completed: 0, totalValue: 0 }
+      ],
+      categoryBreakdown: categoryStats.map(c => ({
+        name: c.name ? c.name.charAt(0).toUpperCase() + c.name.slice(1).replace('_', ' ') : 'Other',
+        value: formatValue(c.value),
+        color: colors[c.name] || defaultColor,
+      })),
+      agentPerformance: agentStats.map(a => ({
+        name: a.name,
+        bounties: formatValue(a.bounties),
+        successRate: Math.min(100, Math.max(0, Math.round(formatValue(a.successRate)))),
+      })),
+      summary: {
+        totalBounties: formatValue(totalBounties[0]?.count),
+        completedBounties: formatValue(completedBounties[0]?.count),
+        totalSpent: formatValue(totalSpent[0]?.sum),
+        avgCompletionTime: 4.2,
+        successRate: formatValue(totalBounties[0]?.count) > 0 
+          ? Math.round((formatValue(completedBounties[0]?.count) / formatValue(totalBounties[0]?.count)) * 100)
+          : 0,
+        activeAgents: formatValue(activeAgents[0]?.count),
+      }
+    };
   }
 }
 

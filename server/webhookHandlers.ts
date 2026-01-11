@@ -14,16 +14,6 @@ export class WebhookHandlers {
 
     const sync = await getStripeSync();
     await sync.processWebhook(payload, signature);
-
-    const stripe = await getUncachableStripeClient();
-    const endpointSecret = await sync.getWebhookSecret();
-    
-    try {
-      const event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
-      await WebhookHandlers.handleEvent(event);
-    } catch (err: any) {
-      console.error('Error constructing webhook event:', err.message);
-    }
   }
 
   static async handleEvent(event: any): Promise<void> {
@@ -33,6 +23,13 @@ export class WebhookHandlers {
         break;
       case 'payment_intent.succeeded':
         await WebhookHandlers.handlePaymentSucceeded(event.data.object);
+        break;
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+        await WebhookHandlers.handleSubscriptionUpdated(event.data.object);
+        break;
+      case 'customer.subscription.deleted':
+        await WebhookHandlers.handleSubscriptionDeleted(event.data.object);
         break;
       default:
         break;
@@ -63,5 +60,41 @@ export class WebhookHandlers {
     if (!bountyId) return;
 
     console.log(`Payment succeeded for bounty ${bountyId}`);
+  }
+
+  static async handleSubscriptionUpdated(subscription: any): Promise<void> {
+    const customerId = subscription.customer;
+    if (!customerId) return;
+
+    const profile = await storage.getUserProfileByStripeCustomerId(customerId);
+    if (!profile) {
+      console.log(`No user found for customer ${customerId}`);
+      return;
+    }
+
+    const priceId = subscription.items?.data?.[0]?.price?.id;
+    const productId = subscription.items?.data?.[0]?.price?.product;
+    
+    let tier: "free" | "pro" | "enterprise" = "free";
+    if (subscription.status === 'active') {
+      const stripe = await getUncachableStripeClient();
+      const product = await stripe.products.retrieve(productId as string);
+      tier = (product.metadata?.tier as "pro" | "enterprise") || "pro";
+    }
+
+    const expiresAt = new Date(subscription.current_period_end * 1000);
+    await storage.updateUserSubscription(profile.id, tier, subscription.id, expiresAt);
+    console.log(`Subscription updated for user ${profile.id}: ${tier}`);
+  }
+
+  static async handleSubscriptionDeleted(subscription: any): Promise<void> {
+    const customerId = subscription.customer;
+    if (!customerId) return;
+
+    const profile = await storage.getUserProfileByStripeCustomerId(customerId);
+    if (!profile) return;
+
+    await storage.updateUserSubscription(profile.id, "free", null, null);
+    console.log(`Subscription cancelled for user ${profile.id}`);
   }
 }

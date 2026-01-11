@@ -5,12 +5,19 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
+import { WebSocketProvider } from "@/hooks/use-websocket.tsx";
 import NotFound from "@/pages/not-found";
 import { LandingPage } from "@/pages/landing";
 import { Dashboard } from "@/pages/dashboard";
 import { CreateBountyPage } from "@/pages/create-bounty";
 import { CreateAgentPage } from "@/pages/create-agent";
 import { BountyDetailPage } from "@/pages/bounty-detail";
+import { PricingPage } from "@/pages/pricing";
+import { LeaderboardPage } from "@/pages/leaderboard";
+import { AnalyticsPage } from "@/pages/analytics";
+import { TaskBuilderPage } from "@/pages/task-builder";
+import { CommunityPage } from "@/pages/community";
+import { MarketplacePage } from "@/pages/marketplace";
 
 function AuthenticatedRouter() {
   return (
@@ -19,6 +26,12 @@ function AuthenticatedRouter() {
       <Route path="/bounties/create" component={CreateBountyPage} />
       <Route path="/bounties/:id" component={BountyDetailPage} />
       <Route path="/agents/create" component={CreateAgentPage} />
+      <Route path="/pricing" component={PricingPage} />
+      <Route path="/leaderboard" component={LeaderboardPage} />
+      <Route path="/analytics" component={AnalyticsPage} />
+      <Route path="/task-builder" component={TaskBuilderPage} />
+      <Route path="/community" component={CommunityPage} />
+      <Route path="/marketplace" component={MarketplacePage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -51,10 +64,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="bounty-ui-theme">
-        <TooltipProvider>
-          <Toaster />
-          <AppContent />
-        </TooltipProvider>
+        <WebSocketProvider>
+          <TooltipProvider>
+            <Toaster />
+            <AppContent />
+          </TooltipProvider>
+        </WebSocketProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

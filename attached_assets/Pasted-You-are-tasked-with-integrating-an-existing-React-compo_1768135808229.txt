@@ -1,0 +1,1632 @@
+You are tasked with integrating an existing React component bundle into the codebase.
+
+The codebase should support:
+- React with TypeScript
+- Tailwind CSS (v3 or v4)
+- Modern build tools (Vite/Next.js)
+
+If your project doesn't support these, provide instructions on how to set them up.
+
+IMPORTANT: The App.tsx file is a showcase/example demonstrating the component usage. You should:
+1. Analyze the App component to understand how all the pieces work together
+2. Review the supporting components and utilities 
+3. Integrate the relevant parts into your project structure
+4. Adapt the implementation to match your project's patterns and requirements
+
+## Installation
+
+```bash
+npm install framer-motion lucide-react @radix-ui/react-slot class-variance-authority @radix-ui/react-scroll-area @radix-ui/react-separator clsx tailwind-merge
+```
+
+## Styles
+
+### index.css
+
+```css
+/* This is Tailwind 4 CSS file */
+/* Extending Tailwind configuration */
+/* Use shadcn/ui format to extend the configuration */
+/* Add only the styles that your component needs */
+
+/* Base imports */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Custom dark variant for targeting dark mode elements */
+@custom-variant dark (&:is(.dark *));
+
+/* CSS variables and theme definitions */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Light theme variables */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Dark theme variables */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Tailwind base styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+```
+
+
+## Component Files
+
+### components/ui/notification.types.ts
+
+```tsx
+import React from 'react';
+
+export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading';
+export type ToastPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+
+export type ToastAction = {
+  label: string;
+  onClick: () => void | Promise<void>;
+};
+
+export type ToastInput = {
+  id?: string;
+  type: ToastType;
+  title: string;
+  description?: string;
+  duration?: number;
+  action?: ToastAction;
+  icon?: React.ReactNode;
+  dismissible?: boolean;
+  groupKey?: string;
+  meta?: Record<string, unknown>;
+};
+
+export type NotificationItem = {
+  id: string;
+  createdAt: number;
+  type: ToastType;
+  title: string;
+  description?: string;
+  read: boolean;
+  action?: ToastAction;
+  meta?: Record<string, unknown>;
+};
+
+export type NotificationCenterProps = {
+  position?: ToastPosition;
+  maxVisible?: number;
+  historyLimit?: number;
+  soundEnabled?: boolean;
+};
+
+export type ActiveToast = ToastInput & {
+  id: string;
+  createdAt: number;
+  isPaused: boolean;
+  remainingDuration: number;
+};
+
+```
+
+### components/ui/notification.utils.ts
+
+```tsx
+import { ToastType } from './notification.types';
+
+export function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+export function formatRelativeTime(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
+export function getStoredNotifications(limit: number) {
+  try {
+    const stored = localStorage.getItem('notifications');
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.slice(0, limit) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function storeNotifications(notifications: unknown[]) {
+  try {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  } catch {
+    // Silent fail
+  }
+}
+
+export function getSoundPreference(): boolean {
+  try {
+    const stored = localStorage.getItem('notificationSoundEnabled');
+    return stored === null ? true : stored === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function setSoundPreference(enabled: boolean) {
+  try {
+    localStorage.setItem('notificationSoundEnabled', String(enabled));
+  } catch {
+    // Silent fail
+  }
+}
+
+export function playNotificationSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
+  } catch {
+    // Silent fail
+  }
+}
+
+export function getTypeGradient(type: ToastType): string {
+  switch (type) {
+    case 'success':
+      return 'from-emerald-500 to-green-500';
+    case 'error':
+      return 'from-red-500 to-rose-500';
+    case 'warning':
+      return 'from-amber-500 to-orange-500';
+    case 'info':
+      return 'from-violet-500 via-fuchsia-500 to-cyan-500';
+    case 'loading':
+      return 'from-blue-500 to-indigo-500';
+  }
+}
+
+export function getTypeBorderColor(type: ToastType): string {
+  switch (type) {
+    case 'success':
+      return 'border-l-emerald-500';
+    case 'error':
+      return 'border-l-red-500';
+    case 'warning':
+      return 'border-l-amber-500';
+    case 'info':
+      return 'border-l-violet-500';
+    case 'loading':
+      return 'border-l-blue-500';
+  }
+}
+
+let lastBrowserNotificationTime = 0;
+const BROWSER_NOTIFICATION_THROTTLE = 10000;
+
+export function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    return Notification.requestPermission();
+  }
+  return Promise.resolve(Notification.permission);
+}
+
+export function showBrowserNotification(title: string, body?: string, type?: ToastType) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const now = Date.now();
+    if (now - lastBrowserNotificationTime < BROWSER_NOTIFICATION_THROTTLE) {
+      return;
+    }
+    lastBrowserNotificationTime = now;
+    
+    new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+    });
+  }
+}
+
+```
+
+### components/ui/notification-provider.tsx
+
+```tsx
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { ToastInput, NotificationItem, ActiveToast, ToastType } from './notification.types';
+import {
+  generateId,
+  getStoredNotifications,
+  storeNotifications,
+  getSoundPreference,
+  setSoundPreference,
+  playNotificationSound,
+  showBrowserNotification,
+} from './notification.utils';
+
+type NotificationContextType = {
+  activeToasts: ActiveToast[];
+  notifications: NotificationItem[];
+  unreadCount: number;
+  soundEnabled: boolean;
+  toast: (input: ToastInput) => string;
+  dismiss: (id: string) => void;
+  dismissAll: () => void;
+  update: (id: string, patch: Partial<ToastInput>) => void;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  clearAll: () => void;
+  toggleSound: () => void;
+  pauseToast: (id: string) => void;
+  resumeToast: (id: string) => void;
+  historyLimit: number;
+};
+
+const NotificationContext = createContext<NotificationContextType | null>(null);
+
+export function useToast() {
+  const context = useContext(NotificationContext);
+  if (!context) throw new Error('useToast must be used within NotificationProvider');
+  return {
+    toast: context.toast,
+    dismiss: context.dismiss,
+    dismissAll: context.dismissAll,
+    update: context.update,
+  };
+}
+
+export function useNotifications() {
+  const context = useContext(NotificationContext);
+  if (!context) throw new Error('useNotifications must be used within NotificationProvider');
+  return {
+    notifications: context.notifications,
+    unreadCount: context.unreadCount,
+    markAsRead: context.markAsRead,
+    markAllAsRead: context.markAllAsRead,
+    clearAll: context.clearAll,
+  };
+}
+
+export function useNotificationContext() {
+  const context = useContext(NotificationContext);
+  if (!context) throw new Error('useNotificationContext must be used within NotificationProvider');
+  return context;
+}
+
+type NotificationProviderProps = {
+  children: React.ReactNode;
+  historyLimit?: number;
+  soundEnabled?: boolean;
+};
+
+export function NotificationProvider({
+  children,
+  historyLimit = 50,
+  soundEnabled: initialSoundEnabled,
+}: NotificationProviderProps) {
+  const [activeToasts, setActiveToasts] = useState<ActiveToast[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [soundEnabled, setSoundEnabledState] = useState(() => 
+    initialSoundEnabled !== undefined ? initialSoundEnabled : getSoundPreference()
+  );
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const groupKeysRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    const stored = getStoredNotifications(historyLimit);
+    setNotifications(stored);
+  }, [historyLimit]);
+
+  useEffect(() => {
+    storeNotifications(notifications);
+  }, [notifications]);
+
+  const pauseToast = useCallback((id: string) => {
+    setActiveToasts(prev => prev.map(toast => {
+      if (toast.id === id && !toast.isPaused) {
+        const timer = timersRef.current.get(id);
+        if (timer) {
+          clearTimeout(timer);
+          timersRef.current.delete(id);
+        }
+        return { ...toast, isPaused: true };
+      }
+      return toast;
+    }));
+  }, []);
+
+  const resumeToast = useCallback((id: string) => {
+    setActiveToasts(prev => prev.map(toast => {
+      if (toast.id === id && toast.isPaused) {
+        return { ...toast, isPaused: false };
+      }
+      return toast;
+    }));
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        activeToasts.forEach(toast => {
+          if (!toast.isPaused && toast.duration && toast.duration > 0) {
+            pauseToast(toast.id);
+          }
+        });
+      } else {
+        activeToasts.forEach(toast => {
+          if (toast.isPaused && toast.duration && toast.duration > 0) {
+            resumeToast(toast.id);
+          }
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [activeToasts, pauseToast, resumeToast]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const clearTimer = useCallback((id: string) => {
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
+  }, []);
+
+  const dismiss = useCallback((id: string) => {
+    clearTimer(id);
+    setActiveToasts(prev => prev.filter(t => t.id !== id));
+    
+    const groupKey = Array.from(groupKeysRef.current.entries()).find(([_, val]) => val === id)?.[0];
+    if (groupKey) {
+      groupKeysRef.current.delete(groupKey);
+    }
+  }, [clearTimer]);
+
+  const startTimer = useCallback((id: string, duration: number) => {
+    clearTimer(id);
+    const timer = setTimeout(() => {
+      dismiss(id);
+    }, duration);
+    timersRef.current.set(id, timer);
+  }, [clearTimer, dismiss]);
+
+  const toast = useCallback((input: ToastInput): string => {
+    const id = input.id || generateId();
+    const duration = input.duration !== undefined ? input.duration : 5000;
+    const createdAt = Date.now();
+
+    if (input.groupKey) {
+      const existingId = groupKeysRef.current.get(input.groupKey);
+      if (existingId) {
+        update(existingId, input);
+        return existingId;
+      }
+      groupKeysRef.current.set(input.groupKey, id);
+    }
+
+    const newToast: ActiveToast = {
+      ...input,
+      id,
+      createdAt,
+      isPaused: false,
+      remainingDuration: duration,
+      dismissible: input.dismissible !== false,
+    };
+
+    setActiveToasts(prev => [newToast, ...prev]);
+
+    const notificationItem: NotificationItem = {
+      id,
+      createdAt,
+      type: input.type,
+      title: input.title,
+      description: input.description,
+      read: false,
+      action: input.action,
+      meta: input.meta,
+    };
+
+    setNotifications(prev => [notificationItem, ...prev].slice(0, historyLimit));
+
+    if (soundEnabled && input.type !== 'loading') {
+      playNotificationSound();
+    }
+
+    if ((input.type === 'error' || input.type === 'warning') && 'Notification' in window) {
+      showBrowserNotification(input.title, input.description, input.type);
+    }
+
+    if (duration > 0) {
+      startTimer(id, duration);
+    }
+
+    return id;
+  }, [soundEnabled, historyLimit, startTimer]);
+
+  const dismissAll = useCallback(() => {
+    activeToasts.forEach(toast => clearTimer(toast.id));
+    setActiveToasts([]);
+    groupKeysRef.current.clear();
+  }, [activeToasts, clearTimer]);
+
+  const update = useCallback((id: string, patch: Partial<ToastInput>) => {
+    setActiveToasts(prev => prev.map(toast => {
+      if (toast.id === id) {
+        const updated = { ...toast, ...patch };
+        
+        if (patch.duration !== undefined && patch.duration !== toast.duration) {
+          clearTimer(id);
+          if (patch.duration > 0) {
+            startTimer(id, patch.duration);
+          }
+          updated.remainingDuration = patch.duration;
+        }
+        
+        return updated;
+      }
+      return toast;
+    }));
+
+    setNotifications(prev => prev.map(notif => {
+      if (notif.id === id) {
+        return {
+          ...notif,
+          ...(patch.type && { type: patch.type }),
+          ...(patch.title && { title: patch.title }),
+          ...(patch.description !== undefined && { description: patch.description }),
+          ...(patch.action && { action: patch.action }),
+          ...(patch.meta && { meta: patch.meta }),
+        };
+      }
+      return notif;
+    }));
+  }, [clearTimer, startTimer]);
+
+  const markAsRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  }, []);
+
+  const markAllAsRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  }, []);
+
+  const clearAll = useCallback(() => {
+    dismissAll();
+    setNotifications([]);
+  }, [dismissAll]);
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabledState(prev => {
+      const newValue = !prev;
+      setSoundPreference(newValue);
+      return newValue;
+    });
+  }, []);
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        activeToasts,
+        notifications,
+        unreadCount,
+        soundEnabled,
+        toast,
+        dismiss,
+        dismissAll,
+        update,
+        markAsRead,
+        markAllAsRead,
+        clearAll,
+        toggleSound,
+        pauseToast,
+        resumeToast,
+        historyLimit,
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  );
+}
+
+```
+
+### lib/utils.ts
+
+```tsx
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+```
+
+### components/ui/button.tsx
+
+```tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+
+```
+
+### components/ui/toast.tsx
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { X, CheckCircle, XCircle, AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { ActiveToast } from './notification.types';
+import { getTypeGradient, getTypeBorderColor } from './notification.utils';
+import { Button } from './button';
+
+type ToastProps = {
+  toast: ActiveToast;
+  onDismiss: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+};
+
+export function Toast({ toast, onDismiss, onMouseEnter, onMouseLeave }: ToastProps) {
+  const [progress, setProgress] = useState(100);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    if (!toast.duration || toast.duration === 0 || toast.isPaused) {
+      return;
+    }
+
+    const startTime = Date.now();
+    const endTime = startTime + toast.remainingDuration;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = endTime - now;
+      const percentage = (remaining / toast.remainingDuration) * 100;
+      
+      if (percentage <= 0) {
+        setProgress(0);
+        clearInterval(interval);
+      } else {
+        setProgress(percentage);
+      }
+    }, 16);
+
+    return () => clearInterval(interval);
+  }, [toast.duration, toast.remainingDuration, toast.isPaused]);
+
+  const handleAction = async () => {
+    if (!toast.action || actionLoading) return;
+    
+    setActionLoading(true);
+    try {
+      await toast.action.onClick();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const getDefaultIcon = () => {
+    if (toast.icon) return toast.icon;
+    
+    switch (toast.type) {
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-emerald-500" />;
+      case 'error':
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+      case 'info':
+        return <Info className="w-5 h-5 text-violet-500" />;
+      case 'loading':
+        return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
+    }
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: 100, scale: 0.9 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 100 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="relative w-full"
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+    >
+      <div
+        className={`
+          relative overflow-hidden rounded-lg border border-border
+          bg-background/70 backdrop-blur-xl shadow-lg
+          ${getTypeBorderColor(toast.type)} border-l-4
+        `}
+      >
+        <div className="p-4 flex items-start gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            {getDefaultIcon()}
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-foreground text-sm">
+              {toast.title}
+            </div>
+            {toast.description && (
+              <div className="mt-1 text-sm text-muted-foreground">
+                {toast.description}
+              </div>
+            )}
+            {toast.action && (
+              <div className="mt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAction}
+                  disabled={actionLoading}
+                  className="h-7 text-xs"
+                >
+                  {actionLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    toast.action.label
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {toast.dismissible && (
+            <button
+              onClick={onDismiss}
+              className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Dismiss notification"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        
+        {toast.duration && toast.duration > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/20">
+            <div
+              className={`h-full bg-gradient-to-r ${getTypeGradient(toast.type)} transition-all duration-100 ease-linear`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+```
+
+### components/ui/toast-stack.tsx
+
+```tsx
+import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Toast } from './toast';
+import { ToastPosition, ToastType, ActiveToast } from './notification.types';
+import { useNotificationContext } from './notification-provider';
+
+type ToastStackProps = {
+  position?: ToastPosition;
+  maxVisible?: number;
+};
+
+export function ToastStack({ position = 'top-right', maxVisible = 5 }: ToastStackProps) {
+  const { activeToasts, dismiss, pauseToast, resumeToast } = useNotificationContext();
+
+  const getPositionClasses = () => {
+    switch (position) {
+      case 'top-right':
+        return 'top-4 right-4';
+      case 'top-left':
+        return 'top-4 left-4';
+      case 'bottom-right':
+        return 'bottom-4 right-4';
+      case 'bottom-left':
+        return 'bottom-4 left-4';
+    }
+  };
+
+  const groupedByType = activeToasts.reduce((acc: Record<ToastType, ActiveToast[]>, toast) => {
+    if (!acc[toast.type]) acc[toast.type] = [];
+    acc[toast.type].push(toast);
+    return acc;
+  }, {} as Record<ToastType, ActiveToast[]>);
+
+  const collapsedTypes = Object.entries(groupedByType).filter(([_, toasts]) => toasts.length > 3);
+  
+  let visibleToasts = [...activeToasts];
+  let collapsedCount = 0;
+
+  collapsedTypes.forEach(([type, toasts]) => {
+    if (toasts.length > 3) {
+      const visible = toasts.slice(0, 3);
+      const hidden = toasts.slice(3);
+      visibleToasts = visibleToasts.filter(t => !hidden.some(h => h.id === t.id));
+      collapsedCount += hidden.length;
+    }
+  });
+
+  visibleToasts = visibleToasts.slice(0, maxVisible);
+
+  return (
+    <div className={`fixed ${getPositionClasses()} z-[9998] w-96 max-w-[calc(100vw-2rem)] pointer-events-none`}>
+      <div className="flex flex-col gap-2 pointer-events-auto">
+        <AnimatePresence mode="popLayout">
+          {visibleToasts.map((toast, index) => (
+            <motion.div
+              key={toast.id}
+              layout
+              style={{
+                zIndex: visibleToasts.length - index,
+              }}
+            >
+              <Toast
+                toast={toast}
+                onDismiss={() => dismiss(toast.id)}
+                onMouseEnter={() => pauseToast(toast.id)}
+                onMouseLeave={() => resumeToast(toast.id)}
+              />
+            </motion.div>
+          ))}
+          
+          {collapsedCount > 0 && (
+            <motion.div
+              key="collapsed-indicator"
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="px-4 py-2 rounded-lg bg-muted/80 backdrop-blur-sm border border-border text-sm text-muted-foreground text-center"
+            >
+              +{collapsedCount} more notification{collapsedCount > 1 ? 's' : ''}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+ToastStack.displayName = 'ToastStack';
+
+```
+
+### components/ui/badge.tsx
+
+```tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge, badgeVariants }
+
+```
+
+### components/ui/scroll-area.tsx
+
+```tsx
+"use client"
+
+import * as React from "react"
+import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
+
+import { cn } from "@/lib/utils"
+
+function ScrollArea({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+  return (
+    <ScrollAreaPrimitive.Root
+      data-slot="scroll-area"
+      className={cn("relative", className)}
+      {...props}
+    >
+      <ScrollAreaPrimitive.Viewport
+        data-slot="scroll-area-viewport"
+        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+      >
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  )
+}
+
+function ScrollBar({
+  className,
+  orientation = "vertical",
+  ...props
+}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+  return (
+    <ScrollAreaPrimitive.ScrollAreaScrollbar
+      data-slot="scroll-area-scrollbar"
+      orientation={orientation}
+      className={cn(
+        "flex touch-none p-px transition-colors select-none",
+        orientation === "vertical" &&
+          "h-full w-2.5 border-l border-l-transparent",
+        orientation === "horizontal" &&
+          "h-2.5 flex-col border-t border-t-transparent",
+        className
+      )}
+      {...props}
+    >
+      <ScrollAreaPrimitive.ScrollAreaThumb
+        data-slot="scroll-area-thumb"
+        className="bg-border relative flex-1 rounded-full"
+      />
+    </ScrollAreaPrimitive.ScrollAreaScrollbar>
+  )
+}
+
+export { ScrollArea, ScrollBar }
+
+```
+
+### components/ui/separator.tsx
+
+```tsx
+"use client"
+
+import * as React from "react"
+import * as SeparatorPrimitive from "@radix-ui/react-separator"
+
+import { cn } from "@/lib/utils"
+
+function Separator({
+  className,
+  orientation = "horizontal",
+  decorative = true,
+  ...props
+}: React.ComponentProps<typeof SeparatorPrimitive.Root>) {
+  return (
+    <SeparatorPrimitive.Root
+      data-slot="separator-root"
+      decorative={decorative}
+      orientation={orientation}
+      className={cn(
+        "bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Separator }
+
+```
+
+### components/ui/notification-center.tsx
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { Bell, Volume2, VolumeX, Trash2, CheckCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from './button';
+import { Badge } from './badge';
+import { ScrollArea } from './scroll-area';
+import { Separator } from './separator';
+import { formatRelativeTime, getTypeBorderColor, requestNotificationPermission } from './notification.utils';
+import { NotificationCenterProps } from './notification.types';
+import { useNotificationContext } from './notification-provider';
+
+export function NotificationCenter({ position = 'top-right' }: NotificationCenterProps) {
+  const {
+    notifications,
+    unreadCount,
+    soundEnabled,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    toggleSound,
+  } = useNotificationContext();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setBrowserPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleRequestPermission = async () => {
+    const permission = await requestNotificationPermission();
+    setBrowserPermission(permission);
+  };
+
+  const displayCount = unreadCount > 99 ? '99+' : unreadCount;
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-label="Notifications"
+      >
+        <Bell className="w-5 h-5" />
+        {unreadCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="absolute -top-1 -right-1 h-5 min-w-[1.25rem] flex items-center justify-center p-0 text-xs"
+          >
+            {displayCount}
+          </Badge>
+        )}
+      </Button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9997]"
+              onClick={() => setIsOpen(false)}
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] z-[9998] rounded-lg border border-border bg-background/95 backdrop-blur-xl shadow-2xl"
+            >
+              <div className="p-4 border-b border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">Notifications</h3>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={toggleSound}
+                      aria-label={soundEnabled ? 'Mute notifications' : 'Unmute notifications'}
+                    >
+                      {soundEnabled ? (
+                        <Volume2 className="w-4 h-4" />
+                      ) : (
+                        <VolumeX className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {browserPermission !== 'granted' && 'Notification' in window && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={handleRequestPermission}
+                  >
+                    Enable Browser Notifications
+                  </Button>
+                )}
+
+                {notifications.length > 0 && (
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={markAllAsRead}
+                    >
+                      <CheckCheck className="w-3 h-3 mr-1" />
+                      Mark All Read
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={clearAll}
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Clear All
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <ScrollArea className="h-[400px]">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Bell className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">No notifications yet</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {notifications.map((notification) => (
+                      <motion.div
+                        key={notification.id}
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className={`
+                          p-4 cursor-pointer transition-colors hover:bg-muted/50
+                          ${!notification.read ? 'bg-muted/30' : ''}
+                        `}
+                        onClick={() => markAsRead(notification.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-1 h-full rounded-full ${getTypeBorderColor(notification.type).replace('border-l-', 'bg-')}`} />
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="font-medium text-sm text-foreground">
+                                {notification.title}
+                              </div>
+                              {!notification.read && (
+                                <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                              )}
+                            </div>
+                            
+                            {notification.description && (
+                              <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                                {notification.description}
+                              </div>
+                            )}
+                            
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              {formatRelativeTime(notification.createdAt)}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+```
+
+### components/ui/card.tsx
+
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+
+```
+
+### demo/notification-demo.tsx
+
+```tsx
+import React, { useState } from 'react';
+import { NotificationProvider } from '../components/ui/notification-provider';
+import { ToastStack } from '../components/ui/toast-stack';
+import { NotificationCenter } from '../components/ui/notification-center';
+import { useToast } from '../components/ui/notification-provider';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
+
+function DemoControls() {
+  const { toast, update } = useToast();
+  const [loadingToastId, setLoadingToastId] = useState<string | null>(null);
+
+  const handleSuccessToast = () => {
+    toast({
+      type: 'success',
+      title: 'Success!',
+      description: 'Your changes have been saved successfully.',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          console.log('Undo clicked');
+        },
+      },
+    });
+  };
+
+  const handleErrorToast = () => {
+    toast({
+      type: 'error',
+      title: 'Error occurred',
+      description: 'Failed to process your request. Please try again.',
+      action: {
+        label: 'View Details',
+        onClick: async () => {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log('View details clicked');
+        },
+      },
+    });
+  };
+
+  const handleWarningToast = () => {
+    toast({
+      type: 'warning',
+      title: 'Warning',
+      description: 'This action cannot be undone.',
+      duration: 0,
+    });
+  };
+
+  const handleInfoBurst = () => {
+    for (let i = 0; i < 6; i++) {
+      setTimeout(() => {
+        toast({
+          type: 'info',
+          title: `Info notification ${i + 1}`,
+          description: 'This is an informational message.',
+        });
+      }, i * 100);
+    }
+  };
+
+  const handleLoadingToast = () => {
+    const id = toast({
+      type: 'loading',
+      title: 'Processing...',
+      description: 'Please wait while we process your request.',
+      duration: 0,
+    });
+    
+    setLoadingToastId(id);
+    
+    setTimeout(() => {
+      update(id, {
+        type: 'success',
+        title: 'Complete!',
+        description: 'Your request has been processed successfully.',
+        duration: 5000,
+      });
+      setLoadingToastId(null);
+    }, 1200);
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Button onClick={handleSuccessToast} variant="outline">
+        Success Toast
+      </Button>
+      <Button onClick={handleErrorToast} variant="outline">
+        Error Toast
+      </Button>
+      <Button onClick={handleWarningToast} variant="outline">
+        Warning Toast (Persistent)
+      </Button>
+      <Button onClick={handleInfoBurst} variant="outline">
+        Info Burst (6 toasts)
+      </Button>
+      <Button onClick={handleLoadingToast} variant="outline" disabled={loadingToastId !== null}>
+        Loading → Success
+      </Button>
+    </div>
+  );
+}
+
+export default function NotificationDemo() {
+  return (
+    <NotificationProvider historyLimit={50} soundEnabled={true}>
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Notification System Demo</h1>
+              <p className="text-muted-foreground">
+                Production-grade notification center with toast system
+              </p>
+            </div>
+            <NotificationCenter position="top-right" />
+          </div>
+
+          <Card className="p-6">
+            <h2 className="text-2xl font-semibold mb-4">Test Controls</h2>
+            <DemoControls />
+          </Card>
+
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6">
+              <h3 className="text-xl font-semibold mb-3">Features</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>✓ Animated toast stack with smooth transitions</li>
+                <li>✓ Progress bar with pause on hover</li>
+                <li>✓ Notification history with unread badges</li>
+                <li>✓ Sound effects toggle</li>
+                <li>✓ Browser notification support</li>
+                <li>✓ Action buttons with async support</li>
+                <li>✓ Auto-collapse when {'>'} 3 of same type</li>
+                <li>✓ Persistent storage</li>
+              </ul>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-xl font-semibold mb-3">Keyboard Shortcuts</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><kbd className="px-2 py-1 bg-muted rounded text-xs">Hover</kbd> - Pause toast timer</li>
+                <li><kbd className="px-2 py-1 bg-muted rounded text-xs">Click Bell</kbd> - Open notification center</li>
+                <li><kbd className="px-2 py-1 bg-muted rounded text-xs">Click Item</kbd> - Mark as read</li>
+              </ul>
+            </Card>
+          </div>
+        </div>
+
+        <ToastStack position="top-right" maxVisible={5} />
+      </div>
+    </NotificationProvider>
+  );
+}
+
+```
+
+### App.tsx
+
+```tsx
+import NotificationDemo from './demo/notification-demo';
+
+export default function App() {
+  return <NotificationDemo />;
+}
+
+```
+
+
+## Tailwind Configuration
+
+Add the following global styles:
+
+```css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+```
+
+Custom colors detected: muted-foreground, primary-foreground, accent-foreground, secondary-foreground, card-foreground, l-emerald, l-red, l-amber, l-violet, l-blue, gradient-to-r, l-transparent, t-transparent
+Make sure these are defined in your Tailwind configuration.
+
+
+## Integration Instructions
+
+1. Review the App.tsx component to understand the complete implementation
+2. Identify which components and utilities you need for your use case
+3. Analyze the Tailwind v4 styles in index.css - integrate custom styles that differ from integrating Codebase
+4. Install the required NPM dependencies listed above
+5. Integrate the components into your project, adapting them to fit your architecture
+
+Focus on:
+- Understanding projects structure, adding above components into it
+- Understanding the component composition
+- Identifying reusable utilities and helpers
+- Adapting the styling to match your design system

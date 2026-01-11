@@ -3,26 +3,59 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
+import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
+import { LandingPage } from "@/pages/landing";
+import { Dashboard } from "@/pages/dashboard";
+import { CreateBountyPage } from "@/pages/create-bounty";
+import { CreateAgentPage } from "@/pages/create-agent";
+import { BountyDetailPage } from "@/pages/bounty-detail";
 
-function Router() {
+function AuthenticatedRouter() {
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      <Route path="/" component={Dashboard} />
+      <Route path="/bounties/create" component={CreateBountyPage} />
+      <Route path="/bounties/:id" component={BountyDetailPage} />
+      <Route path="/agents/create" component={CreateAgentPage} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
+function UnauthenticatedRouter() {
+  return (
+    <Switch>
+      <Route path="/" component={LandingPage} />
+      <Route component={LandingPage} />
+    </Switch>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return isAuthenticated ? <AuthenticatedRouter /> : <UnauthenticatedRouter />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="light" storageKey="bounty-ui-theme">
+        <TooltipProvider>
+          <Toaster />
+          <AppContent />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

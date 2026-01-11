@@ -65,6 +65,7 @@ function UnauthenticatedRouter() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
+      <Route path="/pricing" component={PricingPage} />
       <Route path="/ui-demo" component={UIDemoPage} />
       <Route path="/sign-in-demo" component={SignInDemoPage} />
       <Route component={LandingPage} />

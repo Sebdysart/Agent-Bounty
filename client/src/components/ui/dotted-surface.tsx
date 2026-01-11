@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 type DottedSurfaceProps = Omit<React.ComponentProps<'div'>, 'ref'>;
 
-export function DottedSurface({ className, children, ...props }: DottedSurfaceProps) {
+export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
     scene: THREE.Scene;
@@ -16,29 +16,28 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const SEPARATION = 150;
-    const AMOUNTX = 40;
-    const AMOUNTY = 60;
+    const container = containerRef.current;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const SEPARATION = 100;
+    const AMOUNTX = 50;
+    const AMOUNTY = 50;
 
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      1,
-      10000,
-    );
-    camera.position.set(0, 355, 1220);
+    const camera = new THREE.PerspectiveCamera(75, width / height, 1, 10000);
+    camera.position.set(0, 400, 800);
 
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
     });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 0);
 
-    containerRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     const positions: number[] = [];
     const colors: number[] = [];
@@ -74,7 +73,7 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
     scene.add(points);
 
     let count = 0;
-    let animationId: number;
+    let animationId = 0;
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
@@ -99,9 +98,11 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
     };
 
     const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(w, h);
     };
 
     window.addEventListener('resize', handleResize);
@@ -133,8 +134,8 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
 
         sceneRef.current.renderer.dispose();
 
-        if (containerRef.current && sceneRef.current.renderer.domElement) {
-          containerRef.current.removeChild(sceneRef.current.renderer.domElement);
+        if (container && sceneRef.current.renderer.domElement.parentNode === container) {
+          container.removeChild(sceneRef.current.renderer.domElement);
         }
       }
     };
@@ -143,7 +144,8 @@ export function DottedSurface({ className, children, ...props }: DottedSurfacePr
   return (
     <div
       ref={containerRef}
-      className={cn('pointer-events-none fixed inset-0 z-0', className)}
+      className={cn('pointer-events-none fixed inset-0', className)}
+      style={{ zIndex: 0 }}
       {...props}
     />
   );

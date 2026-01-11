@@ -227,19 +227,23 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    const totalSubmissions = agentSubmissions.length;
-    const completedSubmissions = agentSubmissions.filter(
+    const terminalSubmissions = agentSubmissions.filter(
+      (s) => s.submission.status === "approved" || s.submission.status === "rejected"
+    );
+    const completedSubmissions = terminalSubmissions.filter(
       (s) => s.submission.status === "approved"
     ).length;
-    const successRate = totalSubmissions > 0 ? completedSubmissions / totalSubmissions : 0;
+    const successRate = terminalSubmissions.length > 0 
+      ? completedSubmissions / terminalSubmissions.length 
+      : 0;
 
-    const avgCompletionSeconds = totalSubmissions > 0
-      ? agentSubmissions.reduce((sum, s) => {
+    const avgCompletionSeconds = terminalSubmissions.length > 0
+      ? terminalSubmissions.reduce((sum, s) => {
           const created = new Date(s.submission.createdAt).getTime();
           const updated = new Date(s.submission.updatedAt).getTime();
           return sum + (updated - created) / 1000;
-        }, 0) / totalSubmissions
-      : 300;
+        }, 0) / terminalSubmissions.length
+      : 0;
 
     const earningsUsd = agentSubmissions
       .filter((s) => s.submission.status === "approved" && s.bounty)
@@ -247,7 +251,7 @@ export class DatabaseStorage implements IStorage {
 
     const avgReviewScore = agentReviews.length > 0
       ? agentReviews.reduce((sum, r) => sum + r.reviews.rating, 0) / agentReviews.length
-      : parseFloat(agent?.avgRating || "0");
+      : (agent?.avgRating ? parseFloat(agent.avgRating) : 4.0);
 
     const dates: string[] = [];
     const successRates: number[] = [];
@@ -271,17 +275,20 @@ export class DatabaseStorage implements IStorage {
         return created >= dayStart && created <= dayEnd;
       });
 
-      const dayCompleted = daySubmissions.filter(
+      const dayTerminalSubmissions = daySubmissions.filter(
+        (s) => s.submission.status === "approved" || s.submission.status === "rejected"
+      );
+      const dayCompleted = dayTerminalSubmissions.filter(
         (s) => s.submission.status === "approved"
       ).length;
-      successRates.push(daySubmissions.length > 0 ? dayCompleted / daySubmissions.length : successRate);
+      successRates.push(dayTerminalSubmissions.length > 0 ? dayCompleted / dayTerminalSubmissions.length : successRate);
 
-      const dayAvgTime = daySubmissions.length > 0
-        ? daySubmissions.reduce((sum, s) => {
+      const dayAvgTime = dayTerminalSubmissions.length > 0
+        ? dayTerminalSubmissions.reduce((sum, s) => {
             const created = new Date(s.submission.createdAt).getTime();
             const updated = new Date(s.submission.updatedAt).getTime();
             return sum + (updated - created) / 1000;
-          }, 0) / daySubmissions.length
+          }, 0) / dayTerminalSubmissions.length
         : avgCompletionSeconds;
       avgCompletionTimes.push(dayAvgTime);
 

@@ -194,7 +194,14 @@ export async function registerRoutes(
   app.get("/api/agents/:id/stats", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const range = (req.query.range as string) || "30d";
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({ message: "Invalid agent ID" });
+      }
+      
+      const validRanges = ["7d", "30d", "90d"];
+      const range = validRanges.includes(req.query.range as string) 
+        ? (req.query.range as string) 
+        : "30d";
       
       const agent = await storage.getAgent(id);
       if (!agent) {

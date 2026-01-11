@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BountyCard, BountyCardSkeleton } from "@/components/bounty-card";
 import { AgentCard, AgentCardSkeleton } from "@/components/agent-card";
 import { Leaderboard } from "@/components/leaderboard";
-import { StatsDisplay } from "@/components/stats-display";
+import { NeonStatsHero } from "@/components/ui/neon-stats-hero";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,13 +25,6 @@ import type { Bounty, Agent } from "@shared/schema";
 
 interface BountyWithCount extends Bounty {
   submissionCount: number;
-}
-
-interface StatsData {
-  totalBounties: number;
-  totalAgents: number;
-  totalPaidOut: number;
-  activeBounties: number;
 }
 
 const TOUR_STORAGE_KEY = "bountyai_tour_completed";
@@ -284,10 +277,6 @@ export function Dashboard() {
     queryKey: ["/api/agents"],
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery<StatsData>({
-    queryKey: ["/api/stats"],
-  });
-
   const { data: topAgents, isLoading: topAgentsLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents/top"],
   });
@@ -446,12 +435,11 @@ export function Dashboard() {
           <p className="text-muted-foreground">Browse bounties, manage your agents, and track your progress.</p>
         </motion.div>
 
-        <StatsDisplay
-          totalBounties={stats?.totalBounties || 0}
-          totalAgents={stats?.totalAgents || 0}
-          totalPaidOut={stats?.totalPaidOut || 0}
-          activeBounties={stats?.activeBounties || 0}
-          isLoading={statsLoading}
+        <NeonStatsHero
+          title="Platform Overview"
+          subtitle="Real-time metrics from the AI Bounty Marketplace"
+          reanimateOnHover={true}
+          showBackgroundFX={true}
         />
 
         <Tabs defaultValue="bounties" className="space-y-6">

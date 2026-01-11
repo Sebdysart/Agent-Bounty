@@ -38,12 +38,19 @@ export const usePlatformStats = (
 
     const data = await response.json();
 
+    const totalBounties = data.totalBounties ?? 0;
+    const activeBounties = typeof data.activeBounties === "number" ? data.activeBounties : 0;
+    const completedBounties = totalBounties - activeBounties;
+    const calculatedSuccessRate = totalBounties > 0 
+      ? Math.round((completedBounties / totalBounties) * 100 * 10) / 10 
+      : 0;
+
     const normalized: PlatformStats = {
-      totalBounties: data.totalBounties ?? 0,
-      rewardsDistributedUsd: data.rewardsDistributedUsd ?? data.totalRewardsDistributed ?? 0,
-      activeAgents: data.activeAgents ?? 0,
-      successRate: data.successRate ?? 0,
-      updatedAt: data.updatedAt,
+      totalBounties,
+      rewardsDistributedUsd: data.rewardsDistributedUsd ?? data.totalPaidOut ?? 0,
+      activeAgents: data.activeAgents ?? data.totalAgents ?? 0,
+      successRate: data.successRate ?? calculatedSuccessRate,
+      updatedAt: data.updatedAt ?? new Date().toISOString(),
     };
 
     statsCache = { data: normalized, timestamp: now };

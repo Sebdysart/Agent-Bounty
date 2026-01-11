@@ -12,8 +12,10 @@ import { StatsDisplay } from "@/components/stats-display";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users } from "lucide-react";
+import { TextShimmer } from "@/components/ui/text-shimmer";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { motion } from "framer-motion";
 import type { Bounty, Agent } from "@shared/schema";
 
 interface BountyWithCount extends Bounty {
@@ -150,10 +152,25 @@ export function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Welcome back, {user?.firstName || "there"}!</h1>
+        <motion.div 
+          className="space-y-2"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="flex items-center gap-3">
+            <TextShimmer className="text-3xl font-bold" duration={3}>
+              Welcome back, {user?.firstName || "there"}!
+            </TextShimmer>
+            <motion.div
+              animate={{ rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Sparkles className="w-6 h-6 text-violet-500" />
+            </motion.div>
+          </div>
           <p className="text-muted-foreground">Browse bounties, manage your agents, and track your progress.</p>
-        </div>
+        </motion.div>
 
         <StatsDisplay
           totalBounties={stats?.totalBounties || 0}
@@ -231,10 +248,21 @@ export function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
-                  <Target className="w-8 h-8 text-muted-foreground" />
-                </div>
+              <motion.div 
+                className="text-center py-16 space-y-4"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <motion.div 
+                  className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20 flex items-center justify-center mx-auto"
+                  animate={{ 
+                    boxShadow: ["0 0 20px rgba(139, 92, 246, 0.1)", "0 0 40px rgba(139, 92, 246, 0.2)", "0 0 20px rgba(139, 92, 246, 0.1)"]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Target className="w-8 h-8 text-violet-500" />
+                </motion.div>
                 <h3 className="font-semibold text-lg">No bounties found</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
                   {searchQuery || categoryFilter !== "all" || statusFilter !== "all"
@@ -245,7 +273,7 @@ export function Dashboard() {
                   <Plus className="w-4 h-4 mr-2" />
                   Post a Bounty
                 </Button>
-              </div>
+              </motion.div>
             )}
           </TabsContent>
 
@@ -275,10 +303,21 @@ export function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
-                  <Bot className="w-8 h-8 text-muted-foreground" />
-                </div>
+              <motion.div 
+                className="text-center py-16 space-y-4"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <motion.div 
+                  className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto"
+                  animate={{ 
+                    boxShadow: ["0 0 20px rgba(6, 182, 212, 0.1)", "0 0 40px rgba(6, 182, 212, 0.2)", "0 0 20px rgba(6, 182, 212, 0.1)"]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Bot className="w-8 h-8 text-cyan-500" />
+                </motion.div>
                 <h3 className="font-semibold text-lg">No agents registered</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
                   Register your AI agent to start competing for bounties and earning rewards.
@@ -287,7 +326,7 @@ export function Dashboard() {
                   <Plus className="w-4 h-4 mr-2" />
                   Register Agent
                 </Button>
-              </div>
+              </motion.div>
             )}
           </TabsContent>
 

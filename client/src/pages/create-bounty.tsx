@@ -14,10 +14,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, CalendarIcon, Target, DollarSign, CheckCircle } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Target, DollarSign, CheckCircle, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { AnimatedStepper } from "@/components/ui/animated-stepper";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { TextShimmer } from "@/components/ui/text-shimmer";
 
 const formSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters").max(100, "Title must be less than 100 characters"),
@@ -103,8 +107,8 @@ export function CreateBountyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
+    <div className="min-h-screen bg-background noise-bg">
+      <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="max-w-3xl mx-auto px-4 md:px-6 h-16 flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back">
@@ -112,46 +116,39 @@ export function CreateBountyPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="font-semibold">Create Bounty</h1>
+            <TextShimmer className="font-semibold text-lg" duration={3}>
+              Create Bounty
+            </TextShimmer>
             <p className="text-sm text-muted-foreground">Post a new challenge for AI agents</p>
           </div>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 md:px-6 py-8 space-y-8">
-        <div className="flex items-center justify-between">
-          {steps.map((s, i) => (
-            <div key={s.number} className="flex items-center">
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors",
-                step >= s.number ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-              )}>
-                {step > s.number ? <CheckCircle className="w-5 h-5" /> : s.number}
-              </div>
-              <span className={cn(
-                "ml-3 text-sm font-medium hidden sm:block",
-                step >= s.number ? "text-foreground" : "text-muted-foreground"
-              )}>
-                {s.title}
-              </span>
-              {i < steps.length - 1 && (
-                <div className={cn(
-                  "w-12 sm:w-24 h-1 mx-4 rounded",
-                  step > s.number ? "bg-primary" : "bg-muted"
-                )} />
-              )}
-            </div>
-          ))}
-        </div>
+        <AnimatedStepper steps={steps} currentStep={step} />
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <AnimatePresence mode="wait">
             {step === 1 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Basic Information</CardTitle>
-                  <CardDescription>Tell us about the challenge you want to solve</CardDescription>
-                </CardHeader>
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="relative rounded-[1.25rem] border-[0.75px] border-border p-2"
+              >
+                <GlowingEffect spread={40} glow={true} proximity={64} borderWidth={2} />
+                <Card className="relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-fuchsia-500/5" />
+                  <CardHeader className="relative">
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-violet-500" />
+                      Basic Information
+                    </CardTitle>
+                    <CardDescription>Tell us about the challenge you want to solve</CardDescription>
+                  </CardHeader>
                 <CardContent className="space-y-6">
                   <FormField
                     control={form.control}
@@ -241,14 +238,28 @@ export function CreateBountyPage() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             )}
 
             {step === 2 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Requirements & Verification</CardTitle>
-                  <CardDescription>Define how success will be measured</CardDescription>
-                </CardHeader>
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="relative rounded-[1.25rem] border-[0.75px] border-border p-2"
+              >
+                <GlowingEffect spread={40} glow={true} proximity={64} borderWidth={2} />
+                <Card className="relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-blue-500/5" />
+                  <CardHeader className="relative">
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-cyan-500" />
+                      Requirements & Verification
+                    </CardTitle>
+                    <CardDescription>Define how success will be measured</CardDescription>
+                  </CardHeader>
                 <CardContent className="space-y-6">
                   <FormField
                     control={form.control}
@@ -329,14 +340,28 @@ export function CreateBountyPage() {
                   />
                 </CardContent>
               </Card>
+              </motion.div>
             )}
 
             {step === 3 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Review Your Bounty</CardTitle>
-                  <CardDescription>Make sure everything looks correct before posting</CardDescription>
-                </CardHeader>
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="relative rounded-[1.25rem] border-[0.75px] border-border p-2"
+              >
+                <GlowingEffect spread={40} glow={true} proximity={64} borderWidth={2} />
+                <Card className="relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-green-500/5" />
+                  <CardHeader className="relative">
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      Review Your Bounty
+                    </CardTitle>
+                    <CardDescription>Make sure everything looks correct before posting</CardDescription>
+                  </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
                     <div className="flex items-start justify-between gap-4 p-4 rounded-lg bg-muted/50">
@@ -381,17 +406,29 @@ export function CreateBountyPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20">
+                  <motion.div 
+                    className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
                     <Target className="w-5 h-5 text-success" />
                     <span className="text-sm">
                       Your bounty will be live and open for agent submissions immediately after posting.
                     </span>
-                  </div>
+                  </motion.div>
                 </CardContent>
               </Card>
+              </motion.div>
             )}
+            </AnimatePresence>
 
-            <div className="flex items-center justify-between gap-4">
+            <motion.div 
+              className="flex items-center justify-between gap-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
               {step > 1 ? (
                 <Button type="button" variant="outline" onClick={() => setStep(step - 1)} data-testid="button-prev">
                   Previous
@@ -426,7 +463,7 @@ export function CreateBountyPage() {
                   </Button>
                 )}
               </div>
-            </div>
+            </motion.div>
           </form>
         </Form>
       </main>

@@ -1,0 +1,1762 @@
+You are tasked with integrating an existing React component bundle into the codebase.
+
+The codebase should support:
+- React with TypeScript
+- Tailwind CSS (v3 or v4)
+- Modern build tools (Vite/Next.js)
+
+If your project doesn't support these, provide instructions on how to set them up.
+
+IMPORTANT: The App.tsx file is a showcase/example demonstrating the component usage. You should:
+1. Analyze the App component to understand how all the pieces work together
+2. Review the supporting components and utilities 
+3. Integrate the relevant parts into your project structure
+4. Adapt the implementation to match your project's patterns and requirements
+
+## Installation
+
+```bash
+npm install framer-motion lucide-react @radix-ui/react-slot class-variance-authority clsx tailwind-merge
+```
+
+## Styles
+
+### index.css
+
+```css
+/* This is Tailwind 4 CSS file */
+/* Extending Tailwind configuration */
+/* Use shadcn/ui format to extend the configuration */
+/* Add only the styles that your component needs */
+
+/* Base imports */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Custom dark variant for targeting dark mode elements */
+@custom-variant dark (&:is(.dark *));
+
+/* CSS variables and theme definitions */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Light theme variables */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Dark theme variables */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Tailwind base styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+```
+
+
+## Component Files
+
+### lib/utils.ts
+
+```tsx
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+```
+
+### components/ui/button.tsx
+
+```tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+
+```
+
+### components/ui/card.tsx
+
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+
+```
+
+### components/ui/spotlight-utils.ts
+
+```tsx
+/**
+ * Spotlight Tour Utilities
+ * Geometry helpers, placement solvers, and rect calculations
+ */
+
+export type Placement = 'top' | 'bottom' | 'left' | 'right';
+
+export interface Rect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  right: number;
+  bottom: number;
+}
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface PlacementScore {
+  placement: Placement;
+  score: number;
+  position: Point;
+}
+
+/**
+ * Safely get bounding rect for an element
+ */
+export function getElementRect(element: HTMLElement): Rect {
+  const rect = element.getBoundingClientRect();
+  return {
+    top: rect.top,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+    right: rect.right,
+    bottom: rect.bottom,
+  };
+}
+
+/**
+ * Create a padded rect around target
+ */
+export function getPaddedRect(rect: Rect, padding: number): Rect {
+  return {
+    top: rect.top - padding,
+    left: rect.left - padding,
+    width: rect.width + padding * 2,
+    height: rect.height + padding * 2,
+    right: rect.right + padding,
+    bottom: rect.bottom + padding,
+  };
+}
+
+/**
+ * Clamp rect to viewport bounds
+ */
+export function clampRectToViewport(rect: Rect, margin = 0): Rect {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  const left = Math.max(margin, Math.min(rect.left, viewportWidth - rect.width - margin));
+  const top = Math.max(margin, Math.min(rect.top, viewportHeight - rect.height - margin));
+
+  return {
+    left,
+    top,
+    width: Math.min(rect.width, viewportWidth - 2 * margin),
+    height: Math.min(rect.height, viewportHeight - 2 * margin),
+    right: left + rect.width,
+    bottom: top + rect.height,
+  };
+}
+
+/**
+ * Check if rect fits within viewport with margin
+ */
+export function fitsInViewport(
+  rect: Rect,
+  margin = 12
+): boolean {
+  return (
+    rect.left >= margin &&
+    rect.top >= margin &&
+    rect.right <= window.innerWidth - margin &&
+    rect.bottom <= window.innerHeight - margin
+  );
+}
+
+/**
+ * Calculate available space for each placement
+ */
+export function getAvailableSpace(
+  targetRect: Rect,
+  placement: Placement,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  margin = 12
+): number {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  switch (placement) {
+    case 'top':
+      return targetRect.top - margin;
+    case 'bottom':
+      return viewportHeight - targetRect.bottom - margin;
+    case 'left':
+      return targetRect.left - margin;
+    case 'right':
+      return viewportWidth - targetRect.right - margin;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Calculate tooltip position for a given placement
+ */
+export function calculateTooltipPosition(
+  targetRect: Rect,
+  placement: Placement,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  spacing = 20
+): Point {
+  let x = 0;
+  let y = 0;
+
+  const centerX = targetRect.left + targetRect.width / 2;
+  const centerY = targetRect.top + targetRect.height / 2;
+
+  switch (placement) {
+    case 'bottom':
+      x = centerX - tooltipWidth / 2;
+      y = targetRect.bottom + spacing;
+      break;
+    case 'top':
+      x = centerX - tooltipWidth / 2;
+      y = targetRect.top - tooltipHeight - spacing;
+      break;
+    case 'left':
+      x = targetRect.left - tooltipWidth - spacing;
+      y = centerY - tooltipHeight / 2;
+      break;
+    case 'right':
+      x = targetRect.right + spacing;
+      y = centerY - tooltipHeight / 2;
+      break;
+  }
+
+  return { x, y };
+}
+
+/**
+ * Score a placement based on available space and fit
+ */
+export function scorePlacement(
+  targetRect: Rect,
+  placement: Placement,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  spacing = 20,
+  margin = 12
+): PlacementScore {
+  const position = calculateTooltipPosition(
+    targetRect,
+    placement,
+    tooltipWidth,
+    tooltipHeight,
+    spacing
+  );
+
+  const tooltipRect: Rect = {
+    left: position.x,
+    top: position.y,
+    width: tooltipWidth,
+    height: tooltipHeight,
+    right: position.x + tooltipWidth,
+    bottom: position.y + tooltipHeight,
+  };
+
+  // Check if fits
+  const fits = fitsInViewport(tooltipRect, margin);
+  
+  // Calculate available space
+  const availableSpace = getAvailableSpace(
+    targetRect,
+    placement,
+    tooltipWidth,
+    tooltipHeight,
+    margin
+  );
+
+  // Score: prefer placements that fit, with more available space
+  let score = availableSpace;
+  if (!fits) {
+    score = score * 0.1; // Heavily penalize if doesn't fit
+  }
+
+  // Bonus for not overlapping spotlight
+  const overlapsSpotlight = checkOverlap(tooltipRect, targetRect);
+  if (overlapsSpotlight) {
+    score = score * 0.5;
+  }
+
+  return {
+    placement,
+    score,
+    position,
+  };
+}
+
+/**
+ * Check if two rects overlap
+ */
+export function checkOverlap(rect1: Rect, rect2: Rect): boolean {
+  return !(
+    rect1.right < rect2.left ||
+    rect1.left > rect2.right ||
+    rect1.bottom < rect2.top ||
+    rect1.top > rect2.bottom
+  );
+}
+
+/**
+ * Find best placement for tooltip
+ */
+export function findBestPlacement(
+  targetRect: Rect,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  preferredPlacement?: Placement,
+  spacing = 20,
+  margin = 12
+): { placement: Placement; position: Point } {
+  const placements: Placement[] = preferredPlacement
+    ? [preferredPlacement, 'bottom', 'top', 'right', 'left']
+    : ['bottom', 'top', 'right', 'left'];
+
+  // Remove duplicates
+  const uniquePlacements = Array.from(new Set(placements));
+
+  // Score all placements
+  const scores = uniquePlacements.map((placement) =>
+    scorePlacement(targetRect, placement, tooltipWidth, tooltipHeight, spacing, margin)
+  );
+
+  // Find best score
+  const best = scores.reduce((prev, current) =>
+    current.score > prev.score ? current : prev
+  );
+
+  return {
+    placement: best.placement,
+    position: best.position,
+  };
+}
+
+/**
+ * Clamp position to viewport with margin
+ */
+export function clampPositionToViewport(
+  position: Point,
+  width: number,
+  height: number,
+  margin = 12
+): Point {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  return {
+    x: Math.max(margin, Math.min(position.x, viewportWidth - width - margin)),
+    y: Math.max(margin, Math.min(position.y, viewportHeight - height - margin)),
+  };
+}
+
+/**
+ * Get computed border radius of element
+ */
+export function getBorderRadius(element: HTMLElement): string {
+  try {
+    const computed = window.getComputedStyle(element);
+    const radius = computed.borderRadius;
+    return radius && radius !== '0px' ? radius : '12px';
+  } catch {
+    return '12px';
+  }
+}
+
+/**
+ * Resolve target element from selector or ref
+ */
+export function resolveTarget(
+  target: string | React.RefObject<HTMLElement>
+): HTMLElement | null {
+  if (typeof target === 'string') {
+    return document.querySelector(target) as HTMLElement;
+  }
+  return target.current;
+}
+
+/**
+ * Check if element is visible in viewport
+ */
+export function isElementVisible(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    rect.top < window.innerHeight &&
+    rect.bottom > 0 &&
+    rect.left < window.innerWidth &&
+    rect.right > 0
+  );
+}
+
+/**
+ * Scroll element into view if needed
+ */
+export function scrollIntoViewIfNeeded(element: HTMLElement, smooth = true): void {
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const viewportWidth = window.innerWidth;
+
+  const isInView =
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= viewportHeight &&
+    rect.right <= viewportWidth;
+
+  if (!isInView) {
+    element.scrollIntoView({
+      behavior: smooth ? 'smooth' : 'auto',
+      block: 'center',
+      inline: 'center',
+    });
+  }
+}
+
+```
+
+### components/ui/spotlight-tour.tsx
+
+```tsx
+/**
+ * Spotlight Tour Component
+ * Production-grade onboarding tour with intelligent positioning
+ */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { X, ArrowRight, ArrowLeft } from 'lucide-react';
+import {
+  type Placement,
+  getElementRect,
+  getPaddedRect,
+  clampPositionToViewport,
+  findBestPlacement,
+  getBorderRadius,
+  resolveTarget,
+  isElementVisible,
+  scrollIntoViewIfNeeded,
+} from './spotlight-utils';
+
+export type { Placement };
+
+export type SpotlightStep = {
+  target: string | React.RefObject<HTMLElement>;
+  title: string;
+  description: string;
+  placement?: Placement;
+};
+
+export type SpotlightTourProps = {
+  steps: SpotlightStep[];
+  isOpen: boolean;
+  onComplete: () => void;
+  onSkip?: () => void;
+  onStepChange?: (stepIndex: number) => void;
+  overlayColor?: string;
+  spotlightPadding?: number;
+  showProgress?: boolean;
+  allowSkip?: boolean;
+  initialStepIndex?: number;
+  zIndex?: number;
+  allowInteractionWithinSpotlight?: boolean;
+};
+
+interface SpotlightState {
+  targetRect: DOMRect | null;
+  tooltipPosition: { x: number; y: number };
+  tooltipPlacement: Placement;
+  borderRadius: string;
+  targetNotFound: boolean;
+}
+
+const TOOLTIP_WIDTH = 384;
+const TOOLTIP_HEIGHT = 220;
+const ANIMATION_DURATION = 0.4;
+
+export const SpotlightTour: React.FC<SpotlightTourProps> = ({
+  steps,
+  isOpen,
+  onComplete,
+  onSkip,
+  onStepChange,
+  overlayColor = 'rgba(0, 0, 0, 0.85)',
+  spotlightPadding = 8,
+  showProgress = true,
+  allowSkip = true,
+  initialStepIndex = 0,
+  zIndex = 9999,
+  allowInteractionWithinSpotlight = true,
+}) => {
+  const [currentStep, setCurrentStep] = useState(initialStepIndex);
+  const [state, setState] = useState<SpotlightState>({
+    targetRect: null,
+    tooltipPosition: { x: 0, y: 0 },
+    tooltipPlacement: 'bottom',
+    borderRadius: '12px',
+    targetNotFound: false,
+  });
+
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const primaryButtonRef = useRef<HTMLButtonElement>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const mutationObserverRef = useRef<MutationObserver | null>(null);
+
+  /**
+   * Update spotlight position and tooltip placement
+   */
+  const updatePosition = useCallback(() => {
+    if (!isOpen || currentStep >= steps.length) return;
+
+    const step = steps[currentStep];
+    const target = resolveTarget(step.target);
+
+    if (!target) {
+      setState((prev) => ({
+        ...prev,
+        targetNotFound: true,
+        targetRect: null,
+      }));
+      return;
+    }
+
+    // Check if visible
+    if (!isElementVisible(target)) {
+      scrollIntoViewIfNeeded(target, true);
+      // Wait for scroll to complete
+      setTimeout(() => updatePosition(), 300);
+      return;
+    }
+
+    const targetRect = getElementRect(target);
+    const paddedRect = getPaddedRect(targetRect, spotlightPadding);
+    const borderRadius = getBorderRadius(target);
+
+    // Find best tooltip placement
+    const { placement, position } = findBestPlacement(
+      paddedRect,
+      TOOLTIP_WIDTH,
+      TOOLTIP_HEIGHT,
+      step.placement
+    );
+
+    // Clamp to viewport
+    const clampedPosition = clampPositionToViewport(
+      position,
+      TOOLTIP_WIDTH,
+      TOOLTIP_HEIGHT
+    );
+
+    setState({
+      targetRect: target.getBoundingClientRect(),
+      tooltipPosition: clampedPosition,
+      tooltipPlacement: placement,
+      borderRadius,
+      targetNotFound: false,
+    });
+  }, [isOpen, currentStep, steps, spotlightPadding]);
+
+  /**
+   * Setup observers for target element
+   */
+  const setupObservers = useCallback(
+    (target: HTMLElement) => {
+      // Clean up existing observers
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+      if (mutationObserverRef.current) {
+        mutationObserverRef.current.disconnect();
+      }
+
+      // Resize observer for layout changes
+      resizeObserverRef.current = new ResizeObserver(() => {
+        updatePosition();
+      });
+      resizeObserverRef.current.observe(target);
+
+      // Mutation observer for DOM changes
+      mutationObserverRef.current = new MutationObserver(() => {
+        updatePosition();
+      });
+      mutationObserverRef.current.observe(target, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
+    },
+    [updatePosition]
+  );
+
+  /**
+   * Effect: Update position on step change or window events
+   */
+  useEffect(() => {
+    if (!isOpen) return;
+
+    updatePosition();
+
+    const step = steps[currentStep];
+    const target = resolveTarget(step.target);
+    if (target) {
+      setupObservers(target);
+    }
+
+    // Window event listeners
+    const handleResize = () => updatePosition();
+    const handleScroll = () => updatePosition();
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
+
+    // Delayed update for transitions
+    const timer = setTimeout(updatePosition, 100);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
+      clearTimeout(timer);
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+      if (mutationObserverRef.current) {
+        mutationObserverRef.current.disconnect();
+      }
+    };
+  }, [isOpen, currentStep, steps, updatePosition, setupObservers]);
+
+  /**
+   * Effect: Focus management
+   */
+  useEffect(() => {
+    if (isOpen && primaryButtonRef.current) {
+      primaryButtonRef.current.focus();
+    }
+  }, [isOpen, currentStep]);
+
+  /**
+   * Navigation handlers
+   */
+  const handleNext = useCallback(() => {
+    if (currentStep < steps.length - 1) {
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      onStepChange?.(nextStep);
+    } else {
+      onComplete();
+    }
+  }, [currentStep, steps.length, onComplete, onStepChange]);
+
+  const handlePrevious = useCallback(() => {
+    if (currentStep > 0) {
+      const prevStep = currentStep - 1;
+      setCurrentStep(prevStep);
+      onStepChange?.(prevStep);
+    }
+  }, [currentStep, onStepChange]);
+
+  const handleSkip = useCallback(() => {
+    if (allowSkip) {
+      onSkip?.();
+    }
+  }, [allowSkip, onSkip]);
+
+  /**
+   * Effect: Keyboard navigation
+   */
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          handleSkip();
+          break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+          e.preventDefault();
+          handleNext();
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          e.preventDefault();
+          if (currentStep > 0) handlePrevious();
+          break;
+        case 'Tab':
+          // Basic focus trap
+          e.preventDefault();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentStep, handleNext, handlePrevious, handleSkip]);
+
+  /**
+   * Render nothing if not open
+   */
+  if (!isOpen) return null;
+
+  const { targetRect, tooltipPosition, tooltipPlacement, borderRadius, targetNotFound } = state;
+
+  return (
+    <AnimatePresence mode="wait">
+      <div
+        className="fixed inset-0"
+        style={{ zIndex }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="spotlight-title"
+        aria-describedby="spotlight-description"
+      >
+        {/* Overlay */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="absolute inset-0"
+          style={{
+            backgroundColor: overlayColor,
+            pointerEvents: allowInteractionWithinSpotlight ? 'none' : 'auto',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!allowInteractionWithinSpotlight) {
+              handleSkip();
+            }
+          }}
+        />
+
+        {/* Spotlight cutout with animated glow */}
+        {targetRect && !targetNotFound && (
+          <motion.div
+            key={`spotlight-${currentStep}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+              duration: ANIMATION_DURATION,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            className="absolute"
+            style={{
+              left: targetRect.left - spotlightPadding,
+              top: targetRect.top - spotlightPadding,
+              width: targetRect.width + spotlightPadding * 2,
+              height: targetRect.height + spotlightPadding * 2,
+              pointerEvents: allowInteractionWithinSpotlight ? 'auto' : 'none',
+            }}
+          >
+            <div className="relative w-full h-full">
+              {/* Main spotlight cutout */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  borderRadius,
+                  boxShadow: `0 0 0 9999px ${overlayColor}`,
+                }}
+              />
+
+              {/* Animated gradient border */}
+              <motion.div
+                animate={{
+                  opacity: [0.6, 1, 0.6],
+                  scale: [1, 1.015, 1],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                className="absolute inset-0"
+                style={{
+                  borderRadius,
+                  background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #06b6d4)',
+                  padding: '2px',
+                  WebkitMask:
+                    'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  WebkitMaskComposite: 'xor',
+                  maskComposite: 'exclude',
+                }}
+              />
+
+              {/* Outer glow ring */}
+              <motion.div
+                animate={{
+                  opacity: [0.2, 0.5, 0.2],
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                className="absolute -inset-3 blur-lg"
+                style={{
+                  borderRadius,
+                  background: 'linear-gradient(135deg, #8b5cf6, #ec4899, #06b6d4)',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Tooltip */}
+        <motion.div
+          ref={tooltipRef}
+          key={`tooltip-${currentStep}`}
+          initial={{ opacity: 0, scale: 0.92, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 8 }}
+          transition={{
+            duration: ANIMATION_DURATION,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+          className="absolute"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            width: TOOLTIP_WIDTH,
+            pointerEvents: 'auto',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="relative">
+            {/* Gradient border */}
+            <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-500 opacity-75" />
+
+            {/* Glass morphism card */}
+            <div className="relative rounded-xl bg-background/95 backdrop-blur-xl border-0 shadow-2xl">
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1 pr-4">
+                    {targetNotFound ? (
+                      <>
+                        <h3
+                          id="spotlight-title"
+                          className="text-lg font-semibold text-foreground mb-2"
+                        >
+                          Target Not Found
+                        </h3>
+                        <p
+                          id="spotlight-description"
+                          className="text-sm text-muted-foreground leading-relaxed"
+                        >
+                          The target element for this step could not be found. Please skip to continue.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <h3
+                          id="spotlight-title"
+                          className="text-lg font-semibold text-foreground mb-2"
+                        >
+                          {steps[currentStep]?.title}
+                        </h3>
+                        <p
+                          id="spotlight-description"
+                          className="text-sm text-muted-foreground leading-relaxed"
+                        >
+                          {steps[currentStep]?.description}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  {allowSkip && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full hover:bg-muted shrink-0"
+                      onClick={handleSkip}
+                      aria-label="Skip tour"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between mt-6 gap-4">
+                  {/* Progress indicator */}
+                  {showProgress && (
+                    <div className="flex items-center gap-1.5">
+                      {steps.map((_, index) => (
+                        <motion.div
+                          key={index}
+                          initial={false}
+                          animate={{
+                            width: index === currentStep ? 24 : 6,
+                            backgroundColor:
+                              index === currentStep
+                                ? 'hsl(var(--primary))'
+                                : index < currentStep
+                                ? 'hsl(var(--primary) / 0.5)'
+                                : 'hsl(var(--muted))',
+                          }}
+                          transition={{ duration: 0.3 }}
+                          className="h-1.5 rounded-full"
+                        />
+                      ))}
+                      <span className="ml-2 text-xs text-muted-foreground font-medium tabular-nums">
+                        {currentStep + 1}/{steps.length}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Navigation buttons */}
+                  <div className="flex gap-2 ml-auto">
+                    {currentStep > 0 && !targetNotFound && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrevious}
+                        className="gap-1"
+                        aria-label="Previous step"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back
+                      </Button>
+                    )}
+                    <Button
+                      ref={primaryButtonRef}
+                      size="sm"
+                      onClick={handleNext}
+                      className="gap-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+                      aria-label={
+                        currentStep === steps.length - 1 ? 'Finish tour' : 'Next step'
+                      }
+                    >
+                      {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
+                      {currentStep < steps.length - 1 && (
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+};
+
+export default SpotlightTour;
+
+```
+
+### demo/spotlight-tour-demo.tsx
+
+```tsx
+/**
+ * Spotlight Tour Demo
+ * Demonstrates selector and ref targeting with realistic layout
+ */
+
+import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { SpotlightTour, type SpotlightStep } from '@/components/ui/spotlight-tour';
+import {
+  Settings,
+  BarChart3,
+  Zap,
+  Users,
+  Bell,
+  Moon,
+  Save,
+  Plus,
+  Download,
+  Upload,
+} from 'lucide-react';
+
+export const SpotlightTourDemo: React.FC = () => {
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  // Refs for targeting
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const settingsCardRef = useRef<HTMLDivElement>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
+
+  const tourSteps: SpotlightStep[] = [
+    {
+      target: '#header-section', // CSS selector
+      title: 'Welcome to Your Dashboard',
+      description:
+        'This is your central hub for managing all your activities. Let\'s take a quick tour to help you get started.',
+      placement: 'bottom',
+    },
+    {
+      target: sidebarRef, // RefObject
+      title: 'Navigation Sidebar',
+      description:
+        'Use this sidebar to navigate between different sections. Click on any menu item to explore various features of the application.',
+      placement: 'right',
+    },
+    {
+      target: '#analytics-card', // CSS selector with auto-placement
+      title: 'Analytics Dashboard',
+      description:
+        'Monitor your key performance metrics here. The charts update in real-time to give you the latest insights.',
+    },
+    {
+      target: quickActionsRef, // RefObject with forced placement
+      title: 'Quick Actions',
+      description:
+        'Access frequently used features quickly. Create new projects, import data, or export reports with one click.',
+      placement: 'left',
+    },
+    {
+      target: settingsCardRef, // RefObject
+      title: 'Customize Your Settings',
+      description:
+        'Personalize your experience by adjusting notifications, themes, and other preferences. Changes are saved automatically.',
+      placement: 'left',
+    },
+  ];
+
+  const startTour = () => {
+    setCurrentStepIndex(0);
+    setIsTourOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/20 to-fuchsia-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Header */}
+      <header
+        id="header-section"
+        className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      >
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-6">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+              Dashboard Pro
+            </h1>
+            <nav className="hidden md:flex items-center gap-4 text-sm">
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                Overview
+              </a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                Analytics
+              </a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                Reports
+              </a>
+            </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={startTour}
+              size="sm"
+              className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+            >
+              Start Tour
+            </Button>
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Bell className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="container px-4 py-6">
+        <div className="flex gap-6">
+          {/* Sidebar */}
+          <aside
+            ref={sidebarRef}
+            className="hidden lg:block w-64 shrink-0"
+          >
+            <Card className="sticky top-20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Navigation</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 bg-primary/10 text-primary"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Dashboard
+                </Button>
+                <Button variant="ghost" className="w-full justify-start gap-2">
+                  <Users className="h-4 w-4" />
+                  Team
+                </Button>
+                <Button variant="ghost" className="w-full justify-start gap-2">
+                  <Zap className="h-4 w-4" />
+                  Activities
+                </Button>
+                <Button variant="ghost" className="w-full justify-start gap-2">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+              </CardContent>
+            </Card>
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 space-y-6">
+            {/* Welcome Banner */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="border-2 border-violet-200/50 dark:border-violet-800/50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-foreground">
+                        Welcome back! 👋
+                      </h2>
+                      <p className="text-muted-foreground mt-1">
+                        Here's what's happening with your projects today.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={startTour}
+                      variant="outline"
+                      className="hidden sm:inline-flex"
+                    >
+                      Take a Tour
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <Card id="analytics-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-violet-600" />
+                      Total Revenue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">$45,231.89</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      +20.1% from last month
+                    </p>
+                    <div className="mt-4 h-20 bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-950/50 dark:to-fuchsia-950/50 rounded-lg flex items-end p-2 gap-1">
+                      {[40, 60, 45, 70, 55, 80, 65].map((height, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 bg-gradient-to-t from-violet-600 to-fuchsia-600 rounded-sm"
+                          style={{ height: `${height}%` }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Users className="h-4 w-4 text-fuchsia-600" />
+                      Active Users
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">2,350</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      +180 since last week
+                    </p>
+                    <div className="mt-4 h-20 flex items-center justify-center">
+                      <div className="relative w-16 h-16">
+                        <svg className="w-full h-full transform -rotate-90">
+                          <circle
+                            cx="32"
+                            cy="32"
+                            r="28"
+                            stroke="currentColor"
+                            strokeWidth="6"
+                            fill="none"
+                            className="text-muted"
+                          />
+                          <circle
+                            cx="32"
+                            cy="32"
+                            r="28"
+                            stroke="url(#gradient)"
+                            strokeWidth="6"
+                            fill="none"
+                            strokeDasharray={`${2 * Math.PI * 28 * 0.75} ${
+                              2 * Math.PI * 28
+                            }`}
+                            className="transition-all duration-500"
+                          />
+                          <defs>
+                            <linearGradient id="gradient">
+                              <stop offset="0%" stopColor="#8b5cf6" />
+                              <stop offset="100%" stopColor="#ec4899" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                          75%
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-cyan-600" />
+                      Conversion Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">3.24%</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      +0.5% from yesterday
+                    </p>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full w-[85%] bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full" />
+                        </div>
+                        <span className="text-xs text-muted-foreground">85%</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full w-[65%] bg-gradient-to-r from-fuchsia-600 to-pink-600 rounded-full" />
+                        </div>
+                        <span className="text-xs text-muted-foreground">65%</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full w-[45%] bg-gradient-to-r from-cyan-600 to-blue-600 rounded-full" />
+                        </div>
+                        <span className="text-xs text-muted-foreground">45%</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* Actions and Settings Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Quick Actions */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Card ref={quickActionsRef} className="h-full">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-violet-600" />
+                      Quick Actions
+                    </CardTitle>
+                    <CardDescription>
+                      Frequently used actions for productivity
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Create New Project
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Import Data
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2 hover:bg-cyan-50 dark:hover:bg-cyan-950/30"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export Report
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2 hover:bg-pink-50 dark:hover:bg-pink-950/30"
+                    >
+                      <Users className="h-4 w-4" />
+                      Invite Team Member
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Settings */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <Card ref={settingsCardRef} className="h-full">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5 text-fuchsia-600" />
+                      Settings
+                    </CardTitle>
+                    <CardDescription>
+                      Customize your preferences and experience
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Bell className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Notifications</p>
+                          <p className="text-xs text-muted-foreground">
+                            Receive email updates
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-6 w-11 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full" />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Moon className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Dark Mode</p>
+                          <p className="text-xs text-muted-foreground">
+                            Toggle theme appearance
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-6 w-11 bg-muted rounded-full" />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Save className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Auto-save</p>
+                          <p className="text-xs text-muted-foreground">
+                            Save changes automatically
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-6 w-11 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* Feature Highlights */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <Card className="border-2 border-dashed border-violet-200 dark:border-violet-800">
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <span className="text-2xl">✨</span>
+                    Tour Features
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="font-medium text-violet-600 dark:text-violet-400">
+                        🎯 Smart Positioning
+                      </p>
+                      <p className="text-muted-foreground mt-1">
+                        Auto-detects optimal placement
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-fuchsia-600 dark:text-fuchsia-400">
+                        ⌨️ Keyboard Nav
+                      </p>
+                      <p className="text-muted-foreground mt-1">
+                        Arrow keys & ESC support
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-cyan-600 dark:text-cyan-400">
+                        🔍 Ref & Selector
+                      </p>
+                      <p className="text-muted-foreground mt-1">
+                        Flexible element targeting
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-pink-600 dark:text-pink-400">
+                        🎨 Glass Morphism
+                      </p>
+                      <p className="text-muted-foreground mt-1">
+                        Beautiful backdrop blur
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </main>
+        </div>
+      </div>
+
+      {/* Spotlight Tour */}
+      <SpotlightTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onComplete={() => setIsTourOpen(false)}
+        onSkip={() => setIsTourOpen(false)}
+        onStepChange={setCurrentStepIndex}
+        showProgress
+        allowSkip
+      />
+    </div>
+  );
+};
+
+export default SpotlightTourDemo;
+
+```
+
+### App.tsx
+
+```tsx
+import { SpotlightTourDemo } from './demo/spotlight-tour-demo';
+
+export default SpotlightTourDemo;
+
+```
+
+
+## Tailwind Configuration
+
+Add the following global styles:
+
+```css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+```
+
+Custom colors detected: gradient-to-br, gradient-to-r, clip-text, muted-foreground, gradient-to-t, primary-foreground, accent-foreground, secondary-foreground, card-foreground
+Make sure these are defined in your Tailwind configuration.
+
+
+## Integration Instructions
+
+1. Review the App.tsx component to understand the complete implementation
+2. Identify which components and utilities you need for your use case
+3. Analyze the Tailwind v4 styles in index.css - integrate custom styles that differ from integrating Codebase
+4. Install the required NPM dependencies listed above
+5. Integrate the components into your project, adapting them to fit your architecture
+
+Focus on:
+- Understanding projects structure, adding above components into it
+- Understanding the component composition
+- Identifying reusable utilities and helpers
+- Adapting the styling to match your design system

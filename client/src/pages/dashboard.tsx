@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useCommandPalette } from "@/hooks/use-command-palette";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,11 +11,13 @@ import { AgentCard, AgentCardSkeleton } from "@/components/agent-card";
 import { Leaderboard } from "@/components/leaderboard";
 import { StatsDisplay } from "@/components/stats-display";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { SpotlightTour, type SpotlightStep } from "@/components/ui/spotlight-tour";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle } from "lucide-react";
+import { CommandPalette, type CommandItem } from "@/components/ui/command-palette";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import type { Bounty, Agent } from "@shared/schema";
@@ -78,6 +81,191 @@ export function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isTourOpen, setIsTourOpen] = useState(false);
+  const { isOpen: isCommandPaletteOpen, open: openCommandPalette, close: closeCommandPalette } = useCommandPalette();
+  const { theme, setTheme } = useTheme();
+
+  const commands: CommandItem[] = useMemo(() => [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: <Home className="h-4 w-4" />,
+      shortcut: '⌘1',
+      group: 'Navigation',
+      keywords: ['home', 'overview'],
+      action: () => navigate('/dashboard'),
+    },
+    {
+      id: 'bounties',
+      label: 'Browse Bounties',
+      icon: <Target className="h-4 w-4" />,
+      shortcut: '⌘2',
+      group: 'Navigation',
+      keywords: ['tasks', 'rewards', 'challenges'],
+      action: () => navigate('/dashboard'),
+    },
+    {
+      id: 'agents',
+      label: 'Agents',
+      icon: <Bot className="h-4 w-4" />,
+      shortcut: '⌘3',
+      group: 'Navigation',
+      keywords: ['bots', 'ai'],
+      action: () => navigate('/my-agents'),
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: <BarChart3 className="h-4 w-4" />,
+      shortcut: '⌘4',
+      group: 'Navigation',
+      keywords: ['stats', 'metrics', 'data'],
+      action: () => navigate('/analytics'),
+    },
+    {
+      id: 'leaderboard',
+      label: 'Leaderboard',
+      icon: <Trophy className="h-4 w-4" />,
+      group: 'Navigation',
+      keywords: ['ranking', 'top', 'best'],
+      action: () => navigate('/leaderboard'),
+    },
+    {
+      id: 'community',
+      label: 'Community',
+      icon: <Users className="h-4 w-4" />,
+      group: 'Navigation',
+      keywords: ['discussions', 'forum'],
+      action: () => navigate('/community'),
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: <Settings className="h-4 w-4" />,
+      shortcut: '⌘,',
+      group: 'Navigation',
+      keywords: ['preferences', 'config'],
+      action: () => navigate('/settings'),
+    },
+    {
+      id: 'create-bounty',
+      label: 'Create Bounty',
+      icon: <Plus className="h-4 w-4" />,
+      shortcut: '⌘N',
+      group: 'Actions',
+      keywords: ['new', 'add', 'task', 'post'],
+      action: () => navigate('/bounties/create'),
+    },
+    {
+      id: 'register-agent',
+      label: 'Register Agent',
+      icon: <Bot className="h-4 w-4" />,
+      group: 'Actions',
+      keywords: ['add', 'new', 'bot'],
+      action: () => navigate('/agents/create'),
+    },
+    {
+      id: 'task-builder',
+      label: 'AI Task Builder',
+      icon: <Wand2 className="h-4 w-4" />,
+      group: 'Actions',
+      keywords: ['ai', 'chat', 'assistant'],
+      action: () => navigate('/task-builder'),
+    },
+    {
+      id: 'start-tour',
+      label: 'Start Tour',
+      icon: <Compass className="h-4 w-4" />,
+      group: 'Actions',
+      keywords: ['guide', 'help', 'tutorial', 'onboarding'],
+      action: () => {
+        closeCommandPalette();
+        setTimeout(() => setIsTourOpen(true), 100);
+      },
+    },
+    {
+      id: 'theme',
+      label: 'Theme',
+      icon: <Sun className="h-4 w-4" />,
+      group: 'Settings',
+      keywords: ['appearance', 'dark', 'light'],
+      children: [
+        {
+          id: 'theme-light',
+          label: 'Light',
+          icon: <Sun className="h-4 w-4" />,
+          group: 'Settings',
+          action: () => setTheme('light'),
+        },
+        {
+          id: 'theme-dark',
+          label: 'Dark',
+          icon: <Moon className="h-4 w-4" />,
+          group: 'Settings',
+          action: () => setTheme('dark'),
+        },
+        {
+          id: 'theme-system',
+          label: 'System',
+          icon: <Monitor className="h-4 w-4" />,
+          group: 'Settings',
+          action: () => setTheme('system'),
+        },
+      ],
+    },
+    {
+      id: 'docs',
+      label: 'Documentation',
+      icon: <BookOpen className="h-4 w-4" />,
+      group: 'Help',
+      keywords: ['guides', 'learn', 'api'],
+      action: () => { window.open('/docs', '_blank'); },
+    },
+    {
+      id: 'shortcuts',
+      label: 'Keyboard Shortcuts',
+      icon: <Keyboard className="h-4 w-4" />,
+      group: 'Help',
+      keywords: ['keys', 'hotkeys'],
+      children: [
+        {
+          id: 'shortcut-cmd-k',
+          label: '⌘K / Ctrl+K - Open Command Palette',
+          icon: <Command className="h-4 w-4" />,
+          group: 'Help',
+          action: () => {},
+        },
+        {
+          id: 'shortcut-esc',
+          label: 'ESC - Close / Go Back',
+          icon: <Keyboard className="h-4 w-4" />,
+          group: 'Help',
+          action: () => {},
+        },
+        {
+          id: 'shortcut-arrows',
+          label: '↑↓ - Navigate Items',
+          icon: <Keyboard className="h-4 w-4" />,
+          group: 'Help',
+          action: () => {},
+        },
+        {
+          id: 'shortcut-enter',
+          label: 'Enter - Select Command',
+          icon: <Keyboard className="h-4 w-4" />,
+          group: 'Help',
+          action: () => {},
+        },
+      ],
+    },
+    {
+      id: 'support',
+      label: 'Contact Support',
+      icon: <Mail className="h-4 w-4" />,
+      group: 'Help',
+      keywords: ['help', 'email', 'contact'],
+      action: () => { window.open('mailto:support@bountyai.com', '_blank'); },
+    },
+  ], [navigate, setTheme, closeCommandPalette]);
 
   useEffect(() => {
     const tourCompleted = localStorage.getItem(TOUR_STORAGE_KEY);
@@ -165,6 +353,16 @@ export function Dashboard() {
               title="Start Tour"
             >
               <HelpCircle className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openCommandPalette}
+              className="hidden md:flex items-center gap-2 glass"
+              data-testid="button-command-palette"
+            >
+              <Command className="w-3 h-3" />
+              <span className="text-xs text-muted-foreground">⌘K</span>
             </Button>
             <Link href="/task-builder">
               <Button variant="outline" className="gap-2 glass" data-testid="button-task-builder">
@@ -417,6 +615,14 @@ export function Dashboard() {
         onSkip={handleTourSkip}
         showProgress={true}
         allowSkip={true}
+      />
+
+      <CommandPalette
+        commands={commands}
+        isOpen={isCommandPaletteOpen}
+        onOpenChange={closeCommandPalette}
+        placeholder="Type a command or search..."
+        recentLimit={5}
       />
     </div>
   );

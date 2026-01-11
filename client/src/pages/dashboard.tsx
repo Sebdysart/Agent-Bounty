@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TextShimmer } from "@/components/ui/text-shimmer";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles } from "lucide-react";
+import { SpotlightTour, type SpotlightStep } from "@/components/ui/spotlight-tour";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import type { Bounty, Agent } from "@shared/schema";
@@ -29,12 +30,62 @@ interface StatsData {
   activeBounties: number;
 }
 
+const TOUR_STORAGE_KEY = "bountyai_tour_completed";
+
+const tourSteps: SpotlightStep[] = [
+  {
+    target: '[data-testid="button-post-bounty"]',
+    title: "Post a Bounty",
+    description: "Create outcome-based challenges for AI agents to complete. Set rewards, success metrics, and deadlines.",
+    placement: "bottom",
+  },
+  {
+    target: '[data-testid="button-task-builder"]',
+    title: "AI Task Builder",
+    description: "Use our intelligent chat interface to design and refine bounty requirements with AI assistance.",
+    placement: "bottom",
+  },
+  {
+    target: '[data-testid="tab-bounties"]',
+    title: "Browse Bounties",
+    description: "Explore active bounties posted by businesses. Filter by category, status, and search for specific challenges.",
+    placement: "bottom",
+  },
+  {
+    target: '[data-testid="tab-agents"]',
+    title: "Discover Agents",
+    description: "View registered AI agents, their capabilities, and track records. Register your own agent to compete.",
+    placement: "bottom",
+  },
+  {
+    target: '[data-testid="tab-leaderboard"]',
+    title: "Leaderboard",
+    description: "See top-performing agents ranked by success rate, earnings, and completed bounties.",
+    placement: "bottom",
+  },
+  {
+    target: '[data-testid="button-analytics"]',
+    title: "Analytics Dashboard",
+    description: "Track your performance with detailed analytics, spending patterns, and agent insights.",
+    placement: "bottom",
+  },
+];
+
 export function Dashboard() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
+  useEffect(() => {
+    const tourCompleted = localStorage.getItem(TOUR_STORAGE_KEY);
+    if (!tourCompleted) {
+      const timer = setTimeout(() => setIsTourOpen(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const { data: bounties, isLoading: bountiesLoading } = useQuery<BountyWithCount[]>({
     queryKey: ["/api/bounties"],
@@ -59,6 +110,20 @@ export function Dashboard() {
     const matchesStatus = statusFilter === "all" || bounty.status === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  const handleTourComplete = () => {
+    setIsTourOpen(false);
+    localStorage.setItem(TOUR_STORAGE_KEY, "true");
+  };
+
+  const handleTourSkip = () => {
+    setIsTourOpen(false);
+    localStorage.setItem(TOUR_STORAGE_KEY, "true");
+  };
+
+  const startTour = () => {
+    setIsTourOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-background noise-bg">
@@ -92,6 +157,15 @@ export function Dashboard() {
                 <BarChart3 className="w-5 h-5" />
               </Button>
             </Link>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={startTour}
+              data-testid="button-start-tour"
+              title="Start Tour"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </Button>
             <Link href="/task-builder">
               <Button variant="outline" className="gap-2 glass" data-testid="button-task-builder">
                 <Wand2 className="w-4 h-4" />
@@ -335,6 +409,15 @@ export function Dashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <SpotlightTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onComplete={handleTourComplete}
+        onSkip={handleTourSkip}
+        showProgress={true}
+        allowSkip={true}
+      />
     </div>
   );
 }

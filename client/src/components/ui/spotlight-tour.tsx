@@ -72,6 +72,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
     borderRadius: '12px',
     targetNotFound: false,
   });
+  const prevIsOpenRef = useRef(isOpen);
 
   const tooltipRef = useRef<HTMLDivElement>(null);
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
@@ -182,6 +183,14 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
       }
     };
   }, [isOpen, currentStep, steps, updatePosition, setupObservers]);
+
+  useEffect(() => {
+    if (isOpen && !prevIsOpenRef.current) {
+      setCurrentStep(initialStepIndex);
+      onStepChange?.(initialStepIndex);
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialStepIndex, onStepChange]);
 
   useEffect(() => {
     if (isOpen && primaryButtonRef.current) {

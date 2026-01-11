@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Sparkles, FileText, DollarSign, Clock, Target, CheckCircle, Loader2, Plus, X, ArrowDown } from "lucide-react";
+import { ArrowLeft, Sparkles, DollarSign, Clock, Target, CheckCircle, Loader2, Plus, X, ArrowDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { AITaskChat } from "@/components/ai-task-chat";
+import { DottedSurface } from "@/components/ui/dotted-surface";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Template {
@@ -127,11 +128,10 @@ export function TaskBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-violet-500/5 via-transparent to-fuchsia-500/5 pointer-events-none" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-radial from-violet-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+    <DottedSurface className="min-h-screen bg-black">
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 pointer-events-none" />
       
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
+      <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-lg border-b border-neutral-800">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back">
@@ -366,6 +366,6 @@ export function TaskBuilderPage() {
           </div>
         </section>
       </main>
-    </div>
+    </DottedSurface>
   );
 }

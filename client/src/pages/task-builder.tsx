@@ -128,10 +128,11 @@ export function TaskBuilderPage() {
   };
 
   return (
-    <DottedSurface className="min-h-screen bg-black">
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 pointer-events-none" />
+    <div className="min-h-screen bg-[#0a0a0a] relative">
+      <DottedSurface />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-[#0a0a0a]/80 pointer-events-none z-[1]" />
       
-      <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-lg border-b border-neutral-800">
+      <header className="sticky top-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-lg border-b border-neutral-800 relative">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" data-testid="button-back">
@@ -148,7 +149,7 @@ export function TaskBuilderPage() {
         </div>
       </header>
 
-      <main className="relative max-w-6xl mx-auto px-4 md:px-6 py-12">
+      <main className="relative z-10 max-w-6xl mx-auto px-4 md:px-6 py-12">
         <section className="mb-16">
           <AITaskChat 
             onSubmit={(prompt) => generateBounty.mutate(prompt)} 
@@ -366,6 +367,6 @@ export function TaskBuilderPage() {
           </div>
         </section>
       </main>
-    </DottedSurface>
+    </div>
   );
 }

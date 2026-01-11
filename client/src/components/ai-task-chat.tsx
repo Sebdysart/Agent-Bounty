@@ -3,24 +3,21 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { RainbowButton } from "@/components/ui/rainbow-button";
 import { cn } from "@/lib/utils";
 import {
-  ArrowUpIcon,
+  Sparkles,
   Paperclip,
   Code2,
-  Rocket,
-  Layers,
   Target,
   BarChart3,
   FileText,
-  Zap,
   Brain,
   Search,
   Database,
-  Palette,
   Globe,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 
 interface AutoResizeProps {
@@ -147,44 +144,16 @@ export function AITaskChat({ onSubmit, isGenerating = false }: AITaskChatProps) 
               <Paperclip className="w-5 h-5" />
             </Button>
 
-            <div className="flex items-center gap-2">
-              <AnimatePresence mode="wait">
-                {isGenerating ? (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white"
-                  >
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span className="text-sm font-medium">Generating...</span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="button"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                  >
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={!message.trim()}
-                      className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-xl transition-all",
-                        message.trim()
-                          ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                      data-testid="button-generate-bounty"
-                    >
-                      <ArrowUpIcon className="w-4 h-4" />
-                      <span className="text-sm font-medium">Generate</span>
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <RainbowButton
+              onClick={handleSubmit}
+              isActive={!!message.trim()}
+              isLoading={isGenerating}
+              disabled={!message.trim()}
+              data-testid="button-generate-bounty"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Generate</span>
+            </RainbowButton>
           </div>
         </div>
 

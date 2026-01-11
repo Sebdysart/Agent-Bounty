@@ -1,0 +1,76 @@
+You are given a task to integrate an existing React component in the codebase
+
+The codebase should support:
+- shadcn project structure  
+- Tailwind CSS
+- Typescript
+
+If it doesn't, provide instructions on how to setup project via shadcn CLI, install Tailwind or Typescript.
+
+Determine the default path for components and styles. 
+If default path for components is not /components/ui, provide instructions on why it's important to create this folder
+Copy-paste this component to /components/ui folder:
+```tsx
+rainbow-borders-button.tsx
+import React from 'react';
+
+export const Button = () => {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <button className="rainbow-border relative w-[140px] h-10 flex items-center justify-center gap-2.5 px-4 bg-black rounded-xl border-none text-white cursor-pointer font-black transition-all duration-200">
+        Button
+      </button>
+      
+      <style jsx>{`
+        .rainbow-border::before,
+        .rainbow-border::after {
+          content: '';
+          position: absolute;
+          left: -2px;
+          top: -2px;
+          border-radius: 12px;
+          background: linear-gradient(45deg, #fb0094, #0000ff, #00ff00, #ffff00, #ff0000, #fb0094, #0000ff, #00ff00, #ffff00, #ff0000);
+          background-size: 400%;
+          width: calc(100% + 4px);
+          height: calc(100% + 4px);
+          z-index: -1;
+          animation: rainbow 20s linear infinite;
+        }
+        .rainbow-border::after {
+          filter: blur(50px);
+        }
+        @keyframes rainbow {
+          0% { background-position: 0 0; }
+          50% { background-position: 400% 0; }
+          100% { background-position: 0 0; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+demo.tsx
+import { Button } from "@/components/ui/rainbow-borders-button";
+
+export default function DemoOne() {
+  return <Button />;
+}
+
+```
+
+Implementation Guidelines
+ 1. Analyze the component structure and identify all required dependencies
+ 2. Review the component's argumens and state
+ 3. Identify any required context providers or hooks and install them
+ 4. Questions to Ask
+ - What data/props will be passed to this component?
+ - Are there any specific state management requirements?
+ - Are there any required assets (images, icons, etc.)?
+ - What is the expected responsive behavior?
+ - What is the best place to use this component in the app?
+
+Steps to integrate
+ 0. Copy paste all the code above in the correct directories
+ 1. Install external dependencies
+ 2. Fill image assets with Unsplash stock images you know exist
+ 3. Use lucide-react icons for svgs or logos if component requires them

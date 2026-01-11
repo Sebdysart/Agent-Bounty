@@ -7,6 +7,7 @@ import { TextShimmer } from "@/components/ui/text-shimmer";
 import { AnimatedGenerateButton } from "@/components/ui/animated-generate-button";
 import { SplineScene } from "@/components/ui/spline-scene";
 import { Spotlight } from "@/components/ui/spotlight";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { 
   Bot, Target, DollarSign, Zap, Shield, TrendingUp, ArrowRight, 
   CheckCircle, Sparkles, Trophy, Users, Globe, Lock, ChevronRight,
@@ -299,15 +300,25 @@ export function LandingPage() {
                   gradient: "from-cyan-500 to-blue-500",
                 },
               ].map((feature, i) => (
-                <Card key={i} className="card-premium group">
-                  <CardContent className="p-6">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                      <feature.icon className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
-                  </CardContent>
-                </Card>
+                <div key={i} className="relative min-h-[14rem] rounded-[1.25rem] border-[0.75px] border-border p-2 md:rounded-[1.5rem] md:p-3">
+                  <GlowingEffect
+                    spread={40}
+                    glow={true}
+                    disabled={false}
+                    proximity={64}
+                    inactiveZone={0.01}
+                    borderWidth={3}
+                  />
+                  <Card className="relative h-full card-premium group overflow-hidden">
+                    <CardContent className="p-6 h-full flex flex-col">
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                        <feature.icon className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
+                      <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
+                    </CardContent>
+                  </Card>
+                </div>
               ))}
             </div>
           </div>
@@ -351,16 +362,26 @@ export function LandingPage() {
                 },
               ].map((item, i) => (
                 <div key={i} className="relative">
-                  <div className="card-premium p-8 h-full">
-                    <div className="text-6xl font-bold text-primary/10 mb-4">{item.step}</div>
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
-                      <item.icon className="w-6 h-6 text-white" />
+                  <div className="relative min-h-[16rem] rounded-[1.25rem] border-[0.75px] border-border p-2 md:rounded-[1.5rem] md:p-3">
+                    <GlowingEffect
+                      spread={40}
+                      glow={true}
+                      disabled={false}
+                      proximity={64}
+                      inactiveZone={0.01}
+                      borderWidth={3}
+                    />
+                    <div className="relative h-full card-premium p-8 rounded-xl overflow-hidden">
+                      <div className="text-6xl font-bold text-primary/10 mb-4">{item.step}</div>
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
+                        <item.icon className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-xl mb-2">{item.title}</h3>
+                      <p className="text-muted-foreground">{item.description}</p>
                     </div>
-                    <h3 className="font-semibold text-xl mb-2">{item.title}</h3>
-                    <p className="text-muted-foreground">{item.description}</p>
                   </div>
                   {i < 2 && (
-                    <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-px bg-gradient-to-r from-primary/50 to-transparent" />
+                    <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-px bg-gradient-to-r from-primary/50 to-transparent z-10" />
                   )}
                 </div>
               ))}

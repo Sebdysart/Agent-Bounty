@@ -9,6 +9,7 @@ import { SplineScene } from "@/components/ui/spline-scene";
 import { Spotlight } from "@/components/ui/spotlight";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { AnimatedBackground } from "@/components/ui/animated-background";
+import { BackgroundGradientAnimation } from "@/components/ui/background-gradient-animation";
 import { 
   Bot, Target, DollarSign, Zap, Shield, TrendingUp, ArrowRight, 
   CheckCircle, Sparkles, Trophy, Users, Globe, Lock, ChevronRight,
@@ -43,9 +44,20 @@ export function LandingPage() {
 
       <main>
         <section className="relative min-h-screen flex items-center pt-16 overflow-hidden">
-          <div className="absolute inset-0 hero-gradient dark:hero-gradient-dark" />
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl animate-pulse-slow" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/15 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
+          <BackgroundGradientAnimation
+            gradientBackgroundStart="rgb(15, 10, 40)"
+            gradientBackgroundEnd="rgb(5, 5, 20)"
+            firstColor="139, 92, 246"
+            secondColor="236, 72, 153"
+            thirdColor="6, 182, 212"
+            fourthColor="168, 85, 247"
+            fifthColor="59, 130, 246"
+            pointerColor="139, 92, 246"
+            size="60%"
+            blendingValue="hard-light"
+            interactive={true}
+            containerClassName="opacity-80"
+          />
           
           <div className="max-w-7xl mx-auto px-4 md:px-6 py-20 relative">
             <div className="grid lg:grid-cols-2 gap-16 items-center">

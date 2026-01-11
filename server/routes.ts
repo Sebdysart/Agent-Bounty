@@ -48,6 +48,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/activity", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+      const activities = await storage.getRecentActivity(limit);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activity:", error);
+      res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+
   app.get("/api/bounties", async (req, res) => {
     try {
       const bounties = await storage.getAllBounties();

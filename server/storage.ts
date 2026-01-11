@@ -54,6 +54,18 @@ export interface IStorage {
 
   getStats(): Promise<{ totalBounties: number; totalAgents: number; totalPaidOut: number; activeBounties: number }>;
 
+  getRecentActivity(limit?: number): Promise<Array<{
+    id: string;
+    type: 'bounty_created' | 'bounty_funded' | 'bounty_completed' | 'agent_registered' | 'submission_created' | 'payment_released';
+    title: string;
+    description: string;
+    amount?: number;
+    actorName?: string;
+    actorAvatar?: string;
+    metadata?: Record<string, any>;
+    createdAt: Date;
+  }>>;
+
   getAgentUpload(id: number): Promise<AgentUpload | undefined>;
   getAgentUploadsByDeveloper(developerId: string): Promise<AgentUpload[]>;
   getPublishedAgentUploads(filters?: { category?: string; search?: string }): Promise<AgentUpload[]>;
@@ -255,6 +267,104 @@ export class DatabaseStorage implements IStorage {
       totalPaidOut: parseFloat(bountyStats?.paidOut?.toString() || "0"),
       activeBounties: bountyStats?.active || 0,
     };
+  }
+
+  async getRecentActivity(limit: number = 20): Promise<Array<{
+    id: string;
+    type: 'bounty_created' | 'bounty_funded' | 'bounty_completed' | 'agent_registered' | 'submission_created' | 'payment_released';
+    title: string;
+    description: string;
+    amount?: number;
+    actorName?: string;
+    actorAvatar?: string;
+    metadata?: Record<string, any>;
+    createdAt: Date;
+  }>> {
+    const activities: Array<{
+      id: string;
+      type: 'bounty_created' | 'bounty_funded' | 'bounty_completed' | 'agent_registered' | 'submission_created' | 'payment_released';
+      title: string;
+      description: string;
+      amount?: number;
+      actorName?: string;
+      actorAvatar?: string;
+      metadata?: Record<string, any>;
+      createdAt: Date;
+    }> = [];
+
+    const recentBounties = await db
+      .select()
+      .from(bounties)
+      .orderBy(desc(bounties.createdAt))
+      .limit(Math.min(limit, 10));
+
+    for (const bounty of recentBounties) {
+      activities.push({
+        id: `bounty-${bounty.id}`,
+        type: bounty.paymentStatus === 'funded' ? 'bounty_funded' : 
+              bounty.status === 'completed' ? 'bounty_completed' : 'bounty_created',
+        title: bounty.title,
+        description: bounty.status === 'completed' 
+          ? `Bounty completed successfully` 
+          : bounty.paymentStatus === 'funded'
+          ? `Bounty funded with $${bounty.reward}`
+          : `New bounty posted with $${bounty.reward} reward`,
+        amount: parseFloat(bounty.reward),
+        metadata: { bountyId: bounty.id, category: bounty.category },
+        createdAt: bounty.createdAt,
+      });
+    }
+
+    const recentAgents = await db
+      .select()
+      .from(agents)
+      .orderBy(desc(agents.createdAt))
+      .limit(Math.min(limit, 10));
+
+    for (const agent of recentAgents) {
+      activities.push({
+        id: `agent-${agent.id}`,
+        type: 'agent_registered',
+        title: agent.name,
+        description: `New AI agent registered with ${agent.capabilities.length} capabilities`,
+        actorName: agent.name,
+        actorAvatar: agent.avatarColor,
+        metadata: { agentId: agent.id, capabilities: agent.capabilities },
+        createdAt: agent.createdAt,
+      });
+    }
+
+    const recentSubmissions = await db
+      .select({
+        submission: submissions,
+        agent: agents,
+        bounty: bounties,
+      })
+      .from(submissions)
+      .leftJoin(agents, eq(submissions.agentId, agents.id))
+      .leftJoin(bounties, eq(submissions.bountyId, bounties.id))
+      .orderBy(desc(submissions.createdAt))
+      .limit(Math.min(limit, 10));
+
+    for (const { submission, agent, bounty } of recentSubmissions) {
+      if (agent && bounty) {
+        activities.push({
+          id: `submission-${submission.id}`,
+          type: 'submission_created',
+          title: `${agent.name} submitted to "${bounty.title}"`,
+          description: `Agent started working on bounty`,
+          actorName: agent.name,
+          actorAvatar: agent.avatarColor,
+          amount: parseFloat(bounty.reward),
+          metadata: { submissionId: submission.id, agentId: agent.id, bountyId: bounty.id },
+          createdAt: submission.createdAt,
+        });
+      }
+    }
+
+    return activities
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
   }
 
   async updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<void> {

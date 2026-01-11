@@ -6,7 +6,8 @@ import { wsService } from "./websocket";
 import { 
   insertBountySchema, insertAgentSchema, insertSubmissionSchema, insertReviewSchema,
   insertAgentUploadSchema, insertAgentTestSchema, insertAgentListingSchema, insertAgentReviewSchema,
-  bountyStatuses, submissionStatuses, agentUploadTypes
+  insertSupportTicketSchema, insertDisputeSchema, insertTicketMessageSchema, insertDisputeMessageSchema,
+  bountyStatuses, submissionStatuses, agentUploadTypes, ticketCategories, ticketPriorities, disputeCategories
 } from "@shared/schema";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -1711,6 +1712,251 @@ ${agentOutput}`
     } catch (error) {
       console.error("Error fetching security scans:", error);
       res.status(500).json({ message: "Failed to fetch security scans" });
+    }
+  });
+
+  // Support Ticket Routes
+  app.get("/api/support/tickets", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const tickets = await storage.getUserSupportTickets(userId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  const createTicketSchema = z.object({
+    category: z.enum(ticketCategories),
+    priority: z.enum(ticketPriorities).default("medium"),
+    subject: z.string().min(1).max(200),
+    description: z.string().min(1).max(5000),
+  });
+
+  app.post("/api/support/tickets", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const parsed = createTicketSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid ticket data", errors: parsed.error.errors });
+      }
+      
+      const ticket = await storage.createSupportTicket({ ...parsed.data, userId });
+      res.status(201).json(ticket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ message: "Failed to create ticket" });
+    }
+  });
+
+  const ticketMessageSchema = z.object({
+    content: z.string().min(1).max(10000),
+  });
+
+  app.post("/api/support/tickets/:id/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const parsed = ticketMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid message", errors: parsed.error.errors });
+      }
+      
+      const message = await storage.createTicketMessage({
+        ticketId: parseInt(req.params.id),
+        senderId: userId,
+        senderType: "user",
+        content: parsed.data.content,
+      });
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Dispute Routes
+  app.get("/api/disputes", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const disputes = await storage.getUserDisputes(userId);
+      res.json(disputes);
+    } catch (error) {
+      console.error("Error fetching disputes:", error);
+      res.status(500).json({ message: "Failed to fetch disputes" });
+    }
+  });
+
+  app.get("/api/bounties/mine", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const bounties = await storage.getUserBounties(userId);
+      res.json(bounties);
+    } catch (error) {
+      console.error("Error fetching user bounties:", error);
+      res.status(500).json({ message: "Failed to fetch bounties" });
+    }
+  });
+
+  const createDisputeSchema = z.object({
+    bountyId: z.number().int().positive(),
+    category: z.enum(disputeCategories),
+    title: z.string().min(1).max(200),
+    description: z.string().min(1).max(5000),
+    evidence: z.string().max(10000).optional(),
+    respondentId: z.string().optional(),
+  });
+
+  app.post("/api/disputes", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const parsed = createDisputeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid dispute data", errors: parsed.error.errors });
+      }
+      
+      const dispute = await storage.createDispute({
+        ...parsed.data,
+        initiatorId: userId,
+        respondentId: parsed.data.respondentId || userId,
+      });
+      res.status(201).json(dispute);
+    } catch (error) {
+      console.error("Error creating dispute:", error);
+      res.status(500).json({ message: "Failed to create dispute" });
+    }
+  });
+
+  const disputeMessageSchema = z.object({
+    content: z.string().min(1).max(10000),
+  });
+
+  app.post("/api/disputes/:id/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const parsed = disputeMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid message", errors: parsed.error.errors });
+      }
+      
+      const message = await storage.createDisputeMessage({
+        disputeId: parseInt(req.params.id),
+        senderId: userId,
+        senderType: "user",
+        content: parsed.data.content,
+      });
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error creating dispute message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Admin Routes - Robust admin authorization with defensive checks
+  const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
+  
+  const requireAdmin = async (req: any, res: any, next: any) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      // First priority: Check if user is in explicit admin list (environment variable)
+      if (ADMIN_USER_IDS.length > 0) {
+        if (ADMIN_USER_IDS.includes(userId)) {
+          return next();
+        }
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      // Second priority: Check isAdmin flag in user profile (database-backed authorization)
+      const profile = await storage.getUserProfile(userId);
+      
+      // Defensive: Missing profile = deny access
+      if (!profile) {
+        console.error(`Admin check failed: No profile found for user ${userId}`);
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      // Defensive: isAdmin must be explicitly true (not null, undefined, or false)
+      // This handles legacy rows where isAdmin column may be NULL
+      if (profile.isAdmin !== true) {
+        console.error(`Admin check failed: User ${userId} isAdmin=${profile.isAdmin} (not true)`);
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      return next();
+    } catch (error) {
+      console.error("Admin authorization error:", error);
+      return res.status(500).json({ message: "Authorization check failed" });
+    }
+  };
+
+  // Admin stats - protected with admin authorization
+  app.get("/api/admin/stats", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Protected admin routes - require admin role
+  app.get("/api/admin/agents/pending", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const agents = await storage.getPendingAgents();
+      res.json(agents);
+    } catch (error) {
+      console.error("Error fetching pending agents:", error);
+      res.status(500).json({ message: "Failed to fetch pending agents" });
+    }
+  });
+
+  app.get("/api/admin/flags", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const flags = await storage.getContentFlags();
+      res.json(flags);
+    } catch (error) {
+      console.error("Error fetching content flags:", error);
+      res.status(500).json({ message: "Failed to fetch flags" });
+    }
+  });
+
+  const approveRejectSchema = z.object({
+    reason: z.string().optional(),
+  });
+
+  app.post("/api/admin/agents/:id/approve", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const agent = await storage.approveAgent(parseInt(req.params.id));
+      res.json(agent);
+    } catch (error) {
+      console.error("Error approving agent:", error);
+      res.status(500).json({ message: "Failed to approve agent" });
+    }
+  });
+
+  app.post("/api/admin/agents/:id/reject", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const parsed = approveRejectSchema.safeParse(req.body);
+      const reason = parsed.success ? parsed.data.reason : "Rejected";
+      const agent = await storage.rejectAgent(parseInt(req.params.id), reason || "Rejected");
+      res.json(agent);
+    } catch (error) {
+      console.error("Error rejecting agent:", error);
+      res.status(500).json({ message: "Failed to reject agent" });
     }
   });
 

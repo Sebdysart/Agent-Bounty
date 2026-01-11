@@ -3,6 +3,7 @@ import {
   agentUploads, agentVersions, agentTools, agentUploadTools, agentTests, agentListings, agentReviews,
   agentBadges, integrationConnectors, agentIntegrations, agentForks, agentAnalytics, agentRunLogs,
   discussions, discussionReplies, votes, securitySettings, securityAuditLog, agentSecurityScans,
+  supportTickets, ticketMessages, disputes, disputeMessages, contentFlags,
   type Bounty, type InsertBounty, type Agent, type InsertAgent,
   type Submission, type InsertSubmission, type Review, type InsertReview,
   type UserProfile, type InsertUserProfile, type BountyTimeline,
@@ -15,6 +16,8 @@ import {
   type DiscussionReply, type InsertDiscussionReply, type Vote, type InsertVote,
   type SecuritySettings, type InsertSecuritySettings, type SecurityAuditLog, type InsertSecurityAuditLog,
   type AgentSecurityScan, type InsertAgentSecurityScan,
+  type SupportTicket, type InsertSupportTicket, type TicketMessage, type InsertTicketMessage,
+  type Dispute, type InsertDispute, type DisputeMessage, type InsertDisputeMessage, type ContentFlag,
   bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes
 } from "@shared/schema";
 import { db } from "./db";
@@ -1037,6 +1040,103 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db.update(agentSecurityScans)
       .set({ ...result, completedAt: new Date() })
       .where(eq(agentSecurityScans.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Support Ticket Methods
+  async getUserSupportTickets(userId: string): Promise<SupportTicket[]> {
+    return db.select().from(supportTickets)
+      .where(eq(supportTickets.userId, userId))
+      .orderBy(desc(supportTickets.createdAt));
+  }
+
+  async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
+    const [created] = await db.insert(supportTickets).values(ticket).returning();
+    return created;
+  }
+
+  async createTicketMessage(message: InsertTicketMessage): Promise<TicketMessage> {
+    const [created] = await db.insert(ticketMessages).values(message).returning();
+    return created;
+  }
+
+  // Dispute Methods
+  async getUserDisputes(userId: string): Promise<Dispute[]> {
+    return db.select().from(disputes)
+      .where(eq(disputes.initiatorId, userId))
+      .orderBy(desc(disputes.createdAt));
+  }
+
+  async getUserBounties(userId: string): Promise<Bounty[]> {
+    return db.select().from(bounties)
+      .where(eq(bounties.posterId, userId))
+      .orderBy(desc(bounties.createdAt));
+  }
+
+  async createDispute(dispute: InsertDispute): Promise<Dispute> {
+    const [created] = await db.insert(disputes).values(dispute).returning();
+    return created;
+  }
+
+  async createDisputeMessage(message: InsertDisputeMessage): Promise<DisputeMessage> {
+    const [created] = await db.insert(disputeMessages).values(message).returning();
+    return created;
+  }
+
+  // Admin Methods
+  async getAdminStats(): Promise<{
+    totalUsers: number;
+    totalBounties: number;
+    totalAgents: number;
+    pendingReviews: number;
+    openDisputes: number;
+    openTickets: number;
+  }> {
+    const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(userProfiles);
+    const [bountyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(bounties);
+    const [agentCount] = await db.select({ count: sql<number>`count(*)::int` }).from(agents);
+    const [pendingCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(agentUploads).where(eq(agentUploads.status, "under_review"));
+    const [disputeCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(disputes).where(eq(disputes.status, "open"));
+    const [ticketCount] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(supportTickets).where(eq(supportTickets.status, "open"));
+    
+    return {
+      totalUsers: userCount?.count || 0,
+      totalBounties: bountyCount?.count || 0,
+      totalAgents: agentCount?.count || 0,
+      pendingReviews: pendingCount?.count || 0,
+      openDisputes: disputeCount?.count || 0,
+      openTickets: ticketCount?.count || 0,
+    };
+  }
+
+  async getPendingAgents(): Promise<AgentUpload[]> {
+    return db.select().from(agentUploads)
+      .where(eq(agentUploads.status, "under_review"))
+      .orderBy(desc(agentUploads.createdAt));
+  }
+
+  async getContentFlags(): Promise<ContentFlag[]> {
+    return db.select().from(contentFlags)
+      .where(eq(contentFlags.status, "pending"))
+      .orderBy(desc(contentFlags.createdAt));
+  }
+
+  async approveAgent(id: number): Promise<AgentUpload | undefined> {
+    const [updated] = await db.update(agentUploads)
+      .set({ status: "published", updatedAt: new Date() })
+      .where(eq(agentUploads.id, id))
+      .returning();
+    return updated;
+  }
+
+  async rejectAgent(id: number, reason: string): Promise<AgentUpload | undefined> {
+    const [updated] = await db.update(agentUploads)
+      .set({ status: "rejected", updatedAt: new Date() })
+      .where(eq(agentUploads.id, id))
       .returning();
     return updated;
   }

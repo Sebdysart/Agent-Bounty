@@ -26,6 +26,16 @@ export const discussionTypes = ["question", "feedback", "feature_request", "bug_
 export const voteTypes = ["upvote", "downvote"] as const;
 export const securityEventTypes = ["login", "upload", "publish", "api_key_created", "settings_changed", "2fa_enabled", "2fa_disabled"] as const;
 
+export const executionStatuses = ["queued", "initializing", "running", "completed", "failed", "cancelled", "timeout"] as const;
+export const verificationStatuses = ["pending", "approved", "rejected", "needs_revision"] as const;
+export const disputeStatuses = ["open", "under_review", "awaiting_response", "resolved", "escalated", "closed"] as const;
+export const disputeResolutions = ["in_favor_business", "in_favor_developer", "partial_refund", "full_refund", "no_action", "mediated"] as const;
+export const disputeCategories = ["quality", "incomplete", "criteria_mismatch", "deadline_missed", "payment_issue", "other"] as const;
+export const ticketStatuses = ["open", "in_progress", "awaiting_response", "resolved", "closed"] as const;
+export const ticketPriorities = ["low", "medium", "high", "urgent"] as const;
+export const ticketCategories = ["billing", "technical", "account", "bounty", "agent", "dispute", "other"] as const;
+export const moderationActions = ["approve", "reject", "flag", "suspend", "ban", "warn", "restore"] as const;
+
 export const bounties = pgTable("bounties", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -87,6 +97,7 @@ export const reviews = pgTable("reviews", {
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey(),
   role: text("role").notNull().$type<typeof userRoles[number]>().default("business"),
+  isAdmin: boolean("is_admin").default(false),
   companyName: text("company_name"),
   bio: text("bio"),
   totalSpent: decimal("total_spent", { precision: 12, scale: 2 }).default("0"),
@@ -374,6 +385,160 @@ export const agentSecurityScans = pgTable("agent_security_scans", {
   completedAt: timestamp("completed_at"),
 });
 
+// Agent Execution Environment - Sandbox job system
+export const agentExecutions = pgTable("agent_executions", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  agentId: integer("agent_id").notNull().references(() => agents.id),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  status: text("status").notNull().$type<typeof executionStatuses[number]>().default("queued"),
+  priority: integer("priority").default(5),
+  input: text("input"),
+  output: text("output"),
+  logs: text("logs"),
+  errorMessage: text("error_message"),
+  metrics: text("metrics"),
+  resourceUsage: text("resource_usage"),
+  executionTimeMs: integer("execution_time_ms"),
+  tokensUsed: integer("tokens_used").default(0),
+  cost: decimal("cost", { precision: 12, scale: 4 }).default("0"),
+  retryCount: integer("retry_count").default(0),
+  maxRetries: integer("max_retries").default(3),
+  timeoutMs: integer("timeout_ms").default(300000),
+  sandboxId: text("sandbox_id"),
+  queuedAt: timestamp("queued_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+// Output Verification System
+export const outputVerifications = pgTable("output_verifications", {
+  id: serial("id").primaryKey(),
+  executionId: integer("execution_id").notNull().references(() => agentExecutions.id, { onDelete: "cascade" }),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  reviewerId: varchar("reviewer_id"),
+  status: text("status").notNull().$type<typeof verificationStatuses[number]>().default("pending"),
+  automatedScore: decimal("automated_score", { precision: 5, scale: 2 }),
+  automatedChecks: text("automated_checks"),
+  manualScore: decimal("manual_score", { precision: 5, scale: 2 }),
+  criteriaResults: text("criteria_results"),
+  feedback: text("feedback"),
+  revisionNotes: text("revision_notes"),
+  isAutomatedPass: boolean("is_automated_pass"),
+  requiresManualReview: boolean("requires_manual_review").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+// Dispute Resolution System
+export const disputes = pgTable("disputes", {
+  id: serial("id").primaryKey(),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  submissionId: integer("submission_id").references(() => submissions.id),
+  initiatorId: varchar("initiator_id").notNull(),
+  respondentId: varchar("respondent_id").notNull(),
+  status: text("status").notNull().$type<typeof disputeStatuses[number]>().default("open"),
+  resolution: text("resolution").$type<typeof disputeResolutions[number]>(),
+  category: text("category").notNull().$type<typeof disputeCategories[number]>(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  evidence: text("evidence"),
+  businessClaim: text("business_claim"),
+  developerResponse: text("developer_response"),
+  mediatorNotes: text("mediator_notes"),
+  resolutionNotes: text("resolution_notes"),
+  refundAmount: decimal("refund_amount", { precision: 12, scale: 2 }),
+  assignedMediatorId: varchar("assigned_mediator_id"),
+  priority: text("priority").$type<typeof ticketPriorities[number]>().default("medium"),
+  escalatedAt: timestamp("escalated_at"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const disputeMessages = pgTable("dispute_messages", {
+  id: serial("id").primaryKey(),
+  disputeId: integer("dispute_id").notNull().references(() => disputes.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull(),
+  senderRole: text("sender_role").notNull(),
+  content: text("content").notNull(),
+  attachments: text("attachments").array().default([]),
+  isInternal: boolean("is_internal").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Support Ticket System
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  category: text("category").notNull().$type<typeof ticketCategories[number]>(),
+  priority: text("priority").notNull().$type<typeof ticketPriorities[number]>().default("medium"),
+  status: text("status").notNull().$type<typeof ticketStatuses[number]>().default("open"),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  relatedBountyId: integer("related_bounty_id").references(() => bounties.id),
+  relatedAgentId: integer("related_agent_id").references(() => agents.id),
+  relatedDisputeId: integer("related_dispute_id").references(() => disputes.id),
+  assignedToId: varchar("assigned_to_id"),
+  tags: text("tags").array().default([]),
+  resolvedAt: timestamp("resolved_at"),
+  firstResponseAt: timestamp("first_response_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const ticketMessages = pgTable("ticket_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull().references(() => supportTickets.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull(),
+  senderType: text("sender_type").notNull(),
+  content: text("content").notNull(),
+  attachments: text("attachments").array().default([]),
+  isInternal: boolean("is_internal").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Admin/Moderation System
+export const moderationLog = pgTable("moderation_log", {
+  id: serial("id").primaryKey(),
+  moderatorId: varchar("moderator_id").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: integer("target_id").notNull(),
+  action: text("action").notNull().$type<typeof moderationActions[number]>(),
+  reason: text("reason"),
+  details: text("details"),
+  previousState: text("previous_state"),
+  newState: text("new_state"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const contentFlags = pgTable("content_flags", {
+  id: serial("id").primaryKey(),
+  reporterId: varchar("reporter_id").notNull(),
+  contentType: text("content_type").notNull(),
+  contentId: integer("content_id").notNull(),
+  reason: text("reason").notNull(),
+  description: text("description"),
+  status: text("status").default("pending"),
+  reviewedById: varchar("reviewed_by_id"),
+  reviewedAt: timestamp("reviewed_at"),
+  resolution: text("resolution"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Quality Control Metrics
+export const qualityMetrics = pgTable("quality_metrics", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").references(() => agents.id),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  metricType: text("metric_type").notNull(),
+  score: decimal("score", { precision: 5, scale: 2 }),
+  details: text("details"),
+  period: text("period"),
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+
 export const bountiesRelations = relations(bounties, ({ one, many }) => ({
   poster: one(userProfiles, { fields: [bounties.posterId], references: [userProfiles.id] }),
   winner: one(agents, { fields: [bounties.winnerId], references: [agents.id] }),
@@ -476,6 +641,40 @@ export const securitySettingsRelations = relations(securitySettings, ({ one }) =
 
 export const agentSecurityScansRelations = relations(agentSecurityScans, ({ one }) => ({
   agentUpload: one(agentUploads, { fields: [agentSecurityScans.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const agentExecutionsRelations = relations(agentExecutions, ({ one, many }) => ({
+  submission: one(submissions, { fields: [agentExecutions.submissionId], references: [submissions.id] }),
+  agent: one(agents, { fields: [agentExecutions.agentId], references: [agents.id] }),
+  bounty: one(bounties, { fields: [agentExecutions.bountyId], references: [bounties.id] }),
+  verifications: many(outputVerifications),
+}));
+
+export const outputVerificationsRelations = relations(outputVerifications, ({ one }) => ({
+  execution: one(agentExecutions, { fields: [outputVerifications.executionId], references: [agentExecutions.id] }),
+  submission: one(submissions, { fields: [outputVerifications.submissionId], references: [submissions.id] }),
+  bounty: one(bounties, { fields: [outputVerifications.bountyId], references: [bounties.id] }),
+}));
+
+export const disputesRelations = relations(disputes, ({ one, many }) => ({
+  bounty: one(bounties, { fields: [disputes.bountyId], references: [bounties.id] }),
+  submission: one(submissions, { fields: [disputes.submissionId], references: [submissions.id] }),
+  messages: many(disputeMessages),
+}));
+
+export const disputeMessagesRelations = relations(disputeMessages, ({ one }) => ({
+  dispute: one(disputes, { fields: [disputeMessages.disputeId], references: [disputes.id] }),
+}));
+
+export const supportTicketsRelations = relations(supportTickets, ({ one, many }) => ({
+  relatedBounty: one(bounties, { fields: [supportTickets.relatedBountyId], references: [bounties.id] }),
+  relatedAgent: one(agents, { fields: [supportTickets.relatedAgentId], references: [agents.id] }),
+  relatedDispute: one(disputes, { fields: [supportTickets.relatedDisputeId], references: [disputes.id] }),
+  messages: many(ticketMessages),
+}));
+
+export const ticketMessagesRelations = relations(ticketMessages, ({ one }) => ({
+  ticket: one(supportTickets, { fields: [ticketMessages.ticketId], references: [supportTickets.id] }),
 }));
 
 export const insertBountySchema = createInsertSchema(bounties, {
@@ -688,3 +887,96 @@ export type SecurityAuditLog = typeof securityAuditLog.$inferSelect;
 export type InsertSecurityAuditLog = z.infer<typeof insertSecurityAuditLogSchema>;
 export type AgentSecurityScan = typeof agentSecurityScans.$inferSelect;
 export type InsertAgentSecurityScan = z.infer<typeof insertAgentSecurityScanSchema>;
+
+// Agent Execution schemas and types
+export const insertAgentExecutionSchema = createInsertSchema(agentExecutions).omit({
+  id: true,
+  queuedAt: true,
+  startedAt: true,
+  completedAt: true,
+  status: true,
+  output: true,
+  logs: true,
+  errorMessage: true,
+  executionTimeMs: true,
+  tokensUsed: true,
+  cost: true,
+  retryCount: true,
+  sandboxId: true,
+});
+
+export const insertOutputVerificationSchema = createInsertSchema(outputVerifications).omit({
+  id: true,
+  createdAt: true,
+  reviewedAt: true,
+  status: true,
+  automatedScore: true,
+  automatedChecks: true,
+  isAutomatedPass: true,
+});
+
+export const insertDisputeSchema = createInsertSchema(disputes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  resolution: true,
+  mediatorNotes: true,
+  resolutionNotes: true,
+  refundAmount: true,
+  assignedMediatorId: true,
+  escalatedAt: true,
+  resolvedAt: true,
+});
+
+export const insertDisputeMessageSchema = createInsertSchema(disputeMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  assignedToId: true,
+  resolvedAt: true,
+  firstResponseAt: true,
+});
+
+export const insertTicketMessageSchema = createInsertSchema(ticketMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertModerationLogSchema = createInsertSchema(moderationLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertContentFlagSchema = createInsertSchema(contentFlags).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+  reviewedById: true,
+  reviewedAt: true,
+  resolution: true,
+});
+
+export type AgentExecution = typeof agentExecutions.$inferSelect;
+export type InsertAgentExecution = z.infer<typeof insertAgentExecutionSchema>;
+export type OutputVerification = typeof outputVerifications.$inferSelect;
+export type InsertOutputVerification = z.infer<typeof insertOutputVerificationSchema>;
+export type Dispute = typeof disputes.$inferSelect;
+export type InsertDispute = z.infer<typeof insertDisputeSchema>;
+export type DisputeMessage = typeof disputeMessages.$inferSelect;
+export type InsertDisputeMessage = z.infer<typeof insertDisputeMessageSchema>;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type TicketMessage = typeof ticketMessages.$inferSelect;
+export type InsertTicketMessage = z.infer<typeof insertTicketMessageSchema>;
+export type ModerationLog = typeof moderationLog.$inferSelect;
+export type InsertModerationLog = z.infer<typeof insertModerationLogSchema>;
+export type ContentFlag = typeof contentFlags.$inferSelect;
+export type InsertContentFlag = z.infer<typeof insertContentFlagSchema>;
+export type QualityMetric = typeof qualityMetrics.$inferSelect;

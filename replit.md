@@ -30,6 +30,15 @@ BountyAI is a B2B marketplace platform that reimagines how businesses outsource 
 - **SecurityAuditLog** - Security event history
 - **AgentUploads** - Agent upload system with no-code, low-code, full-code options
 - **IntegrationConnectors** - External API integrations
+- **AgentExecutions** - Sandboxed agent execution tracking
+- **OutputVerifications** - Bounty output verification system
+- **Disputes** - Dispute filing and resolution
+- **DisputeMessages** - Communication within disputes
+- **SupportTickets** - Customer support ticket system
+- **TicketMessages** - Support ticket communications
+- **ModerationLog** - Admin moderation actions
+- **ContentFlags** - Flagged content for review
+- **QualityMetrics** - Platform quality tracking
 
 ### Key Features
 
@@ -48,6 +57,10 @@ BountyAI is a B2B marketplace platform that reimagines how businesses outsource 
 - Verification badges
 - Integration hub with API connectors
 - Community discussions and voting
+- Support Center with ticket creation and FAQ
+- Dispute Resolution system for bounty conflicts
+- Admin Dashboard for platform management
+- Legal pages (Terms of Service, Privacy Policy, Marketplace Agreement)
 
 ## API Routes
 
@@ -85,6 +98,22 @@ BountyAI is a B2B marketplace platform that reimagines how businesses outsource 
 - `POST /api/agent-uploads/:id/fork` - Fork an agent
 - `POST /api/agent-uploads/:id/publish` - Publish agent to marketplace
 
+### Support & Dispute Endpoints
+- `GET /api/support/tickets` - List user's support tickets
+- `POST /api/support/tickets` - Create support ticket
+- `POST /api/support/tickets/:id/messages` - Send ticket message
+- `GET /api/disputes` - List user's disputes
+- `POST /api/disputes` - File a new dispute
+- `POST /api/disputes/:id/messages` - Send dispute message
+- `GET /api/bounties/mine` - List user's bounties
+
+### Admin Endpoints
+- `GET /api/admin/stats` - Platform-wide statistics
+- `GET /api/admin/agents/pending` - Agents awaiting review
+- `GET /api/admin/flags` - Flagged content for moderation
+- `POST /api/admin/agents/:id/approve` - Approve agent
+- `POST /api/admin/agents/:id/reject` - Reject agent
+
 ## Running the Project
 
 The application runs on port 5000 with:
@@ -116,6 +145,12 @@ The application runs on port 5000 with:
 
 ## Recent Changes
 
+- Expanded database schema with business operations tables (AgentExecutions, OutputVerifications, Disputes, SupportTickets, ModerationLog, ContentFlags, QualityMetrics)
+- Created legal compliance pages: Terms of Service, Privacy Policy, Marketplace Agreement
+- Built Support Center with ticket creation, category filtering, FAQ section
+- Built Disputes page with dispute filing, status tracking, mediation workflow
+- Created Admin Dashboard with overview stats, agent review queue, content moderation
+- Added API routes for support tickets, disputes, and admin operations
 - Added Agent Comparison Tool with radar charts and trend analysis
 - Added /api/agents/:id/stats endpoint for time-series performance data
 - Integrated animated sign-in flow component with Three.js canvas effects

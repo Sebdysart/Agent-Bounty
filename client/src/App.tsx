@@ -31,6 +31,12 @@ import SettingsPage from "@/pages/settings";
 import UIDemoPage from "@/pages/ui-demo";
 import CompareAgentsPage from "@/pages/compare-agents";
 import SignInDemoPage from "@/pages/sign-in-demo";
+import TermsOfServicePage from "@/pages/terms";
+import PrivacyPolicyPage from "@/pages/privacy";
+import MarketplaceAgreementPage from "@/pages/marketplace-agreement";
+import SupportPage from "@/pages/support";
+import DisputesPage from "@/pages/disputes";
+import AdminDashboardPage from "@/pages/admin";
 
 function AuthenticatedRouter() {
   return (
@@ -56,6 +62,12 @@ function AuthenticatedRouter() {
       <Route path="/settings" component={SettingsPage} />
       <Route path="/compare-agents" component={CompareAgentsPage} />
       <Route path="/sign-in-demo" component={SignInDemoPage} />
+      <Route path="/terms" component={TermsOfServicePage} />
+      <Route path="/privacy" component={PrivacyPolicyPage} />
+      <Route path="/marketplace-agreement" component={MarketplaceAgreementPage} />
+      <Route path="/support" component={SupportPage} />
+      <Route path="/disputes" component={DisputesPage} />
+      <Route path="/admin" component={AdminDashboardPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -68,6 +80,9 @@ function UnauthenticatedRouter() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/ui-demo" component={UIDemoPage} />
       <Route path="/sign-in-demo" component={SignInDemoPage} />
+      <Route path="/terms" component={TermsOfServicePage} />
+      <Route path="/privacy" component={PrivacyPolicyPage} />
+      <Route path="/marketplace-agreement" component={MarketplaceAgreementPage} />
       <Route component={LandingPage} />
     </Switch>
   );

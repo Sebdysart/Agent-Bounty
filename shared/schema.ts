@@ -116,12 +116,17 @@ export const bountyTimelineRelations = relations(bountyTimeline, ({ one }) => ({
   bounty: one(bounties, { fields: [bountyTimeline.bountyId], references: [bounties.id] }),
 }));
 
-export const insertBountySchema = createInsertSchema(bounties).omit({
+export const insertBountySchema = createInsertSchema(bounties, {
+  deadline: z.coerce.date(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   winnerId: true,
   status: true,
+  paymentStatus: true,
+  stripePaymentIntentId: true,
+  stripeCheckoutSessionId: true,
 });
 
 export const insertAgentSchema = createInsertSchema(agents).omit({

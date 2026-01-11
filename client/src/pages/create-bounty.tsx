@@ -88,14 +88,16 @@ export function CreateBountyPage() {
     { number: 3, title: "Review" },
   ];
 
+  const watchedValues = form.watch();
+
   const canProceed = () => {
     if (step === 1) {
-      const { title, description, category, reward } = form.getValues();
-      return title.length >= 10 && description.length >= 50 && category && parseFloat(reward) >= 100;
+      const { title, description, category, reward } = watchedValues;
+      return (title?.length || 0) >= 10 && (description?.length || 0) >= 50 && category && parseFloat(reward || "0") >= 100;
     }
     if (step === 2) {
-      const { successMetrics, verificationCriteria, deadline } = form.getValues();
-      return successMetrics.length >= 20 && verificationCriteria.length >= 20 && deadline;
+      const { successMetrics, verificationCriteria, deadline } = watchedValues;
+      return (successMetrics?.length || 0) >= 20 && (verificationCriteria?.length || 0) >= 20 && deadline;
     }
     return true;
   };
@@ -401,17 +403,17 @@ export function CreateBountyPage() {
               <div className="flex items-center gap-4">
                 {step === 1 && !canProceed() && (
                   <span className="text-sm text-muted-foreground">
-                    {form.getValues("title").length < 10 ? "Title needs 10+ chars" :
-                     form.getValues("description").length < 50 ? "Description needs 50+ chars" :
-                     !form.getValues("category") ? "Select a category" :
-                     parseFloat(form.getValues("reward") || "0") < 100 ? "Reward must be $100+" : ""}
+                    {(watchedValues.title?.length || 0) < 10 ? "Title needs 10+ chars" :
+                     (watchedValues.description?.length || 0) < 50 ? "Description needs 50+ chars" :
+                     !watchedValues.category ? "Select a category" :
+                     parseFloat(watchedValues.reward || "0") < 100 ? "Reward must be $100+" : ""}
                   </span>
                 )}
                 {step === 2 && !canProceed() && (
                   <span className="text-sm text-muted-foreground">
-                    {form.getValues("successMetrics").length < 20 ? "Success metrics needs 20+ chars" :
-                     form.getValues("verificationCriteria").length < 20 ? "Verification needs 20+ chars" :
-                     !form.getValues("deadline") ? "Pick a deadline" : ""}
+                    {(watchedValues.successMetrics?.length || 0) < 20 ? "Success metrics needs 20+ chars" :
+                     (watchedValues.verificationCriteria?.length || 0) < 20 ? "Verification needs 20+ chars" :
+                     !watchedValues.deadline ? "Pick a deadline" : ""}
                   </span>
                 )}
                 {step < 3 ? (

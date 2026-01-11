@@ -19,7 +19,7 @@ import { TextShimmer } from "@/components/ui/text-shimmer";
 import { SpotlightTour, type SpotlightStep } from "@/components/ui/spotlight-tour";
 import { CommandPalette, type CommandItem } from "@/components/ui/command-palette";
 import { NotificationCenter } from "@/components/ui/notification-center";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command, Activity } from "lucide-react";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command, Activity, Scale } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import type { Bounty, Agent } from "@shared/schema";
@@ -131,6 +131,14 @@ export function Dashboard() {
       group: 'Navigation',
       keywords: ['discussions', 'forum'],
       action: () => navigate('/community'),
+    },
+    {
+      id: 'compare-agents',
+      label: 'Compare Agents',
+      icon: <Scale className="h-4 w-4" />,
+      group: 'Navigation',
+      keywords: ['comparison', 'benchmark', 'versus', 'vs'],
+      action: () => navigate('/compare-agents'),
     },
     {
       id: 'settings',
@@ -334,6 +342,11 @@ export function Dashboard() {
             <Link href="/analytics">
               <Button variant="ghost" size="icon" data-testid="button-analytics">
                 <BarChart3 className="w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="/compare-agents">
+              <Button variant="ghost" size="icon" data-testid="button-compare-agents" title="Compare Agents">
+                <Scale className="w-5 h-5" />
               </Button>
             </Link>
             <Button 

@@ -100,7 +100,7 @@ export const BackgroundGradientAnimation = ({
   return (
     <div
       className={cn(
-        "absolute inset-0 overflow-hidden bg-[linear-gradient(40deg,var(--gradient-background-start),var(--gradient-background-end))]",
+        "absolute inset-0 overflow-hidden bg-[linear-gradient(40deg,var(--gradient-background-start),var(--gradient-background-end))] pointer-events-none",
         containerClassName
       )}
     >

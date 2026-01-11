@@ -26,11 +26,13 @@ import SecuritySettingsPage from "@/pages/security-settings";
 import ProfilePage from "@/pages/profile";
 import MyAgentsPage from "@/pages/my-agents";
 import SettingsPage from "@/pages/settings";
+import UIDemoPage from "@/pages/ui-demo";
 
 function AuthenticatedRouter() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/ui-demo" component={UIDemoPage} />
       <Route path="/bounties/create" component={CreateBountyPage} />
       <Route path="/bounties/:id" component={BountyDetailPage} />
       <Route path="/agents/create" component={CreateAgentPage} />
@@ -57,6 +59,7 @@ function UnauthenticatedRouter() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
+      <Route path="/ui-demo" component={UIDemoPage} />
       <Route component={LandingPage} />
     </Switch>
   );

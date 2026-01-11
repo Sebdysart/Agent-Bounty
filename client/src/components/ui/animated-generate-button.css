@@ -1,0 +1,132 @@
+.animated-generate-button {
+  --button-bg: hsl(var(--primary));
+  --button-hover-bg: hsl(var(--primary) / 0.9);
+  --button-text: hsl(var(--primary-foreground));
+  --shimmer-color: rgba(255, 255, 255, 0.2);
+  
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.animated-generate-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--shimmer-color) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.animated-generate-button.generating::before {
+  animation: shimmer 1.5s infinite;
+}
+
+.animated-generate-button:not(.generating)::before {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animated-generate-button .sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.animated-generate-button.generating .sparkle {
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+.animated-generate-button .sparkle:nth-child(1) {
+  top: 20%;
+  left: 15%;
+  animation-delay: 0s;
+}
+
+.animated-generate-button .sparkle:nth-child(2) {
+  top: 60%;
+  left: 30%;
+  animation-delay: 0.3s;
+}
+
+.animated-generate-button .sparkle:nth-child(3) {
+  top: 30%;
+  right: 25%;
+  animation-delay: 0.6s;
+}
+
+.animated-generate-button .sparkle:nth-child(4) {
+  top: 70%;
+  right: 15%;
+  animation-delay: 0.9s;
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+.glow-effect {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.animated-generate-button:hover .glow-effect,
+.animated-generate-button.generating .glow-effect {
+  opacity: 1;
+}
+
+.pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.animated-generate-button.generating .pulse-ring {
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}

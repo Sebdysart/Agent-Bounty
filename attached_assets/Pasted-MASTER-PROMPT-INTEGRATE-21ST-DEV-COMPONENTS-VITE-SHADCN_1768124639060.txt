@@ -1,0 +1,142 @@
+MASTER PROMPT — INTEGRATE 21ST.DEV COMPONENTS (VITE + SHADCN + TAILWIND + TS)
+
+You are integrating existing React components into an existing codebase. You must NOT assume Next.js. This repo is Vite + React + TypeScript + Tailwind and uses a shadcn-style structure.
+
+NON-NEGOTIABLES
+
+* No Next-only features: remove/replace `use client` directives and `<style jsx>` blocks (they do not work in Vite).
+* All UI components live in a single canonical folder: `client/src/components/ui`.
+* Use TypeScript, Tailwind classes, and shadcn conventions.
+* Add dependencies only if they are required. Update package.json accordingly.
+* Ensure imports use the project’s alias (prefer `@/` if configured; otherwise fix alias config).
+
+STEP 0 — VERIFY PROJECT BASE
+
+1. Confirm Tailwind + TS exist:
+
+* tailwind.config.* exists
+* tsconfig.json exists
+* postcss config exists
+
+2. Confirm shadcn structure:
+
+* There is a `components.json` (shadcn) OR establish it if missing.
+
+3. Determine component root:
+
+* This repo has a `client/` folder, so UI components must go into:
+  `client/src/components/ui`
+  If `client/src/components/ui` does not exist, create it.
+  Why it matters: centralizing UI avoids path drift, duplicate primitives, and inconsistent styling. It also matches shadcn’s generator defaults and keeps imports stable.
+
+STEP 1 — INSTALL DEPENDENCIES (ONLY ONCE)
+Install:
+
+* framer-motion
+* clsx
+  If not present, also ensure:
+* tailwind-merge (usually used by shadcn utils)
+* class-variance-authority (only if existing codebase uses it)
+  Command:
+  npm install framer-motion clsx
+
+STEP 2 — ENSURE SHADCN UTILS + ALIAS
+
+1. Ensure `client/src/lib/utils.ts` exists with `cn()` helper (shadcn standard).
+2. Ensure TS path alias works:
+
+* tsconfig should map `@/*` -> `client/src/*`
+* vite.config should alias `@` -> `client/src`
+  If alias is missing, add it (Vite resolve.alias).
+
+STEP 3 — ADD COMPONENTS (ADAPTED FOR VITE)
+
+A) TextShimmer
+Create: `client/src/components/ui/text-shimmer.tsx`
+
+* Remove `'use client'` line.
+* Keep framer-motion usage.
+* Keep `cn` import from `@/lib/utils`.
+
+B) AnimatedGenerateButton
+Create: `client/src/components/ui/animated-generate-button.tsx`
+IMPORTANT: `<style jsx>` MUST be replaced.
+
+Implementation rule:
+
+* Move the CSS from `<style jsx>` into a plain CSS file:
+  `client/src/components/ui/animated-generate-button.css`
+* In `animated-generate-button.tsx`, import it with:
+  import "./animated-generate-button.css";
+* Keep the component otherwise equivalent.
+* Rename default export to a named export if that matches the codebase convention; otherwise keep default export but standardize file naming.
+
+Also fix obvious bug:
+
+* `highlightHueDeg={5000}` is invalid hue. Clamp hue to [0,360] OR modulo 360 inside component:
+  const safeHue = ((highlightHueDeg % 360) + 360) % 360;
+
+C) Hero Odyssey (HeroSection)
+Create: `client/src/components/ui/hero-odyssey.tsx`
+CRITICAL FIXES REQUIRED:
+
+1. The ElasticHueSlider thumb is empty (motion.div contains nothing). Add a visible thumb element.
+2. Replace invalid Tailwind classes:
+
+* `rounded-50` is not a Tailwind class. Use `rounded-full` or `rounded-3xl`.
+* `z-9999` is not a default Tailwind class. Use `z-50` or `z-[9999]` if arbitrary values are enabled.
+
+3. Ensure the WebGL Lightning canvas is not causing layout issues:
+
+* Use `absolute inset-0` and pointer-events none if needed.
+
+4. Remove stray text like “ai chat: Build this as my initial prototype” inside JSX.
+5. Ensure the component exports `HeroSection` and is importable from `@/components/ui/hero-odyssey`.
+
+STEP 4 — TAILWIND GLOBALS
+Do NOT blindly paste Tailwind v4 directives unless verified.
+
+* If the project uses Tailwind v3: you should already have `@tailwind base; @tailwind components; @tailwind utilities;`
+* If Tailwind v4 is used: `@import "tailwindcss";` is valid.
+  Check the existing `client/src/index.css` or global css and extend appropriately without duplicating directives.
+  Do not add `tw-animate-css` unless the project actually uses it.
+
+STEP 5 — DEMO/USAGE WIRES
+Create a local demo route/page in the existing routing system.
+
+* If React Router exists, add a `/ui-demo` route rendering:
+
+  * <HeroSection />
+  * <TextShimmer>Generating code...</TextShimmer>
+  * <AnimatedGenerateButton generating={...} />
+
+If no router, add a temporary component mounted in the main App for validation, then remove after verification.
+
+STEP 6 — QUALITY GATES (MUST PASS)
+
+1. Typecheck passes (no any, no TS errors).
+2. Build passes (Vite production build).
+3. No Next-only syntax remains.
+4. Hero renders without console errors (WebGL shader compiles; if WebGL unavailable, degrade gracefully with a fallback div).
+5. Button animation styles actually apply (CSS file imported and scoped classnames match).
+6. Components are responsive and do not overflow horizontally on mobile.
+
+DELIVERABLES (FILES)
+
+* client/src/components/ui/text-shimmer.tsx
+* client/src/components/ui/animated-generate-button.tsx
+* client/src/components/ui/animated-generate-button.css
+* client/src/components/ui/hero-odyssey.tsx
+* Any required alias/util fixes in:
+
+  * client/src/lib/utils.ts
+  * tsconfig paths
+  * vite.config.ts
+* A demo render path (route or temporary mount) proving it works.
+
+DONE CRITERIA
+Reply with:
+
+* A list of files created/modified
+* Exact install commands run
+* Screenshot or confirmation that `/ui-demo` renders all three components correctly with no console errors

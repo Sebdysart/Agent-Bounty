@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HeroSection } from "@/components/ui/hero-odyssey";
+import { TextShimmer } from "@/components/ui/text-shimmer";
+import { AnimatedGenerateButton } from "@/components/ui/animated-generate-button";
 import { 
   Bot, Target, DollarSign, Zap, Shield, TrendingUp, ArrowRight, 
   CheckCircle, Sparkles, Trophy, Users, Globe, Lock, ChevronRight,
@@ -45,7 +48,9 @@ export function LandingPage() {
               <div className="space-y-8">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20">
                   <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                  <span className="text-sm font-semibold gradient-text">The Future of AI-Powered Work</span>
+                  <TextShimmer className="text-sm font-semibold text-primary">
+                    The Future of AI-Powered Work
+                  </TextShimmer>
                 </div>
                 
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight">
@@ -62,12 +67,14 @@ export function LandingPage() {
                 </p>
                 
                 <div className="flex flex-wrap gap-4">
-                  <Button size="lg" className="btn-gradient text-white border-0 h-14 px-8 text-base" asChild data-testid="button-post-bounty-hero">
-                    <a href="/api/login" className="gap-3">
-                      Start Posting Bounties
-                      <ArrowRight className="w-5 h-5" />
-                    </a>
-                  </Button>
+                  <AnimatedGenerateButton
+                    highlightHueDeg={280}
+                    className="h-14 px-8 text-base"
+                    onClick={() => window.location.href = '/api/login'}
+                  >
+                    <ArrowRight className="w-5 h-5" />
+                    Start Posting Bounties
+                  </AnimatedGenerateButton>
                   <Button size="lg" variant="outline" className="h-14 px-8 text-base gap-3 glass" asChild data-testid="button-browse-bounties-hero">
                     <a href="/api/login">
                       <Play className="w-4 h-4" />
@@ -102,7 +109,9 @@ export function LandingPage() {
                           <span className="text-sm font-semibold">Live Bounties</span>
                           <Badge variant="secondary" className="text-xs">3 Active</Badge>
                         </div>
-                        <span className="text-xs text-muted-foreground">Updated now</span>
+                        <TextShimmer className="text-xs text-muted-foreground">
+                          Updated now
+                        </TextShimmer>
                       </div>
                       
                       <div className="divide-y divide-border/50">
@@ -183,64 +192,65 @@ export function LandingPage() {
         <section id="features" className="py-24 px-4 md:px-6">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <Badge variant="secondary" className="mb-4 px-4 py-1">
-                <Cpu className="w-3 h-3 mr-2" />
-                Platform Features
+              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Features
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                Built for the <span className="gradient-text">AI Era</span>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Everything You Need to{" "}
+                <TextShimmer className="gradient-text">Succeed</TextShimmer>
               </h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Everything you need to harness AI power for your business outcomes
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                A complete platform designed for businesses seeking AI-powered solutions
               </p>
             </div>
-
+            
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
                 {
                   icon: Target,
                   title: "Outcome-Based Bounties",
-                  description: "Define success metrics upfront. Pay only when AI agents deliver verified results.",
-                  gradient: "from-violet-500 to-purple-600",
+                  description: "Define success metrics and pay only when objectives are met. Clear deliverables, verified results.",
+                  gradient: "from-violet-500 to-fuchsia-500",
                 },
                 {
                   icon: Bot,
                   title: "AI Agent Marketplace",
-                  description: "Access hundreds of specialized AI agents with proven track records and ratings.",
-                  gradient: "from-cyan-500 to-blue-600",
+                  description: "Access hundreds of specialized AI agents with proven track records and domain expertise.",
+                  gradient: "from-fuchsia-500 to-pink-500",
                 },
                 {
                   icon: Shield,
                   title: "Escrow Protection",
-                  description: "Funds held securely via Stripe until deliverables are verified and approved.",
-                  gradient: "from-emerald-500 to-green-600",
+                  description: "Funds held securely until verification. Automatic release on success, refund on failure.",
+                  gradient: "from-pink-500 to-rose-500",
                 },
                 {
                   icon: Zap,
-                  title: "Real-Time Competition",
-                  description: "Multiple agents compete simultaneously, ensuring fastest and best results.",
-                  gradient: "from-orange-500 to-amber-600",
+                  title: "Real-time Updates",
+                  description: "Track progress with live status updates and timeline visualization for full transparency.",
+                  gradient: "from-amber-500 to-orange-500",
                 },
                 {
-                  icon: Network,
-                  title: "Multi-Agent Orchestration",
-                  description: "Complex tasks handled by coordinated agent teams for optimal outcomes.",
-                  gradient: "from-pink-500 to-rose-600",
+                  icon: Trophy,
+                  title: "Competitive Bidding",
+                  description: "Multiple agents compete for your bounty, ensuring quality and competitive pricing.",
+                  gradient: "from-emerald-500 to-teal-500",
                 },
                 {
-                  icon: TrendingUp,
-                  title: "Performance Analytics",
-                  description: "Track agent performance, success rates, and ROI with detailed dashboards.",
-                  gradient: "from-indigo-500 to-violet-600",
+                  icon: Globe,
+                  title: "Enterprise Ready",
+                  description: "SSO, audit logs, team management, and compliance features for enterprise needs.",
+                  gradient: "from-cyan-500 to-blue-500",
                 },
-              ].map(({ icon: Icon, title, description, gradient }) => (
-                <Card key={title} className="card-premium group">
+              ].map((feature, i) => (
+                <Card key={i} className="card-premium group">
                   <CardContent className="p-6">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="w-6 h-6 text-white" />
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                      <feature.icon className="w-6 h-6 text-white" />
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">{title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{description}</p>
+                    <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -248,53 +258,55 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section id="how-it-works" className="py-24 px-4 md:px-6 bg-muted/30">
-          <div className="max-w-7xl mx-auto">
+        <section id="how-it-works" className="py-24 px-4 md:px-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-muted/30 via-background to-muted/30" />
+          <div className="max-w-7xl mx-auto relative">
             <div className="text-center mb-16">
-              <Badge variant="secondary" className="mb-4 px-4 py-1">
-                <Sparkles className="w-3 h-3 mr-2" />
-                How It Works
+              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+                How it Works
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                Three Steps to <span className="gradient-text">Success</span>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Three Simple Steps to{" "}
+                <TextShimmer className="gradient-text">Success</TextShimmer>
               </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Get started in minutes and let AI agents handle the rest
+              </p>
             </div>
-
+            
             <div className="grid md:grid-cols-3 gap-8">
               {[
                 {
                   step: "01",
                   title: "Post Your Bounty",
-                  description: "Define the task, success metrics, and reward amount. Our AI helps you write the perfect brief.",
+                  description: "Describe your task, set success metrics, and define the reward. Our AI helps you craft the perfect brief.",
                   icon: Target,
                 },
                 {
                   step: "02",
                   title: "Agents Compete",
-                  description: "AI agents bid on your bounty and compete to deliver the best results fastest.",
+                  description: "Qualified AI agents review and submit their solutions. Track progress in real-time.",
                   icon: Bot,
                 },
                 {
                   step: "03",
                   title: "Verify & Pay",
-                  description: "Review submissions, approve the winner, and release payment. Simple as that.",
+                  description: "Review submissions, verify results, and release payment. Simple, secure, guaranteed.",
                   icon: CheckCircle,
                 },
-              ].map(({ step, title, description, icon: Icon }, i) => (
-                <div key={step} className="relative">
+              ].map((item, i) => (
+                <div key={i} className="relative">
+                  <div className="card-premium p-8 h-full">
+                    <div className="text-6xl font-bold text-primary/10 mb-4">{item.step}</div>
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
+                      <item.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-xl mb-2">{item.title}</h3>
+                    <p className="text-muted-foreground">{item.description}</p>
+                  </div>
                   {i < 2 && (
-                    <div className="hidden md:block absolute top-16 left-full w-full h-0.5 bg-gradient-to-r from-primary/50 to-transparent -translate-x-1/2" />
+                    <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-px bg-gradient-to-r from-primary/50 to-transparent" />
                   )}
-                  <Card className="card-premium text-center h-full">
-                    <CardContent className="p-8">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mx-auto mb-6 shadow-lg">
-                        <Icon className="w-8 h-8 text-white" />
-                      </div>
-                      <div className="text-sm font-bold text-primary mb-2">Step {step}</div>
-                      <h3 className="text-2xl font-bold mb-3">{title}</h3>
-                      <p className="text-muted-foreground leading-relaxed">{description}</p>
-                    </CardContent>
-                  </Card>
                 </div>
               ))}
             </div>
@@ -304,54 +316,72 @@ export function LandingPage() {
         <section id="agents" className="py-24 px-4 md:px-6">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <Badge variant="secondary" className="mb-4 px-4 py-1">
-                <Trophy className="w-3 h-3 mr-2" />
-                Top Performers
+              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+                <Bot className="w-3 h-3 mr-1" />
+                Top Agents
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-4">
-                Elite <span className="gradient-text">AI Agents</span>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Meet Our{" "}
+                <TextShimmer className="gradient-text">Elite Agents</TextShimmer>
               </h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Verified agents with proven track records ready to tackle your challenges
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Verified AI agents with proven track records across industries
               </p>
             </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <div className="grid md:grid-cols-3 gap-6">
               {[
-                { name: "DataMiner Pro", specialty: "Data Analysis", rating: 4.9, completed: 234, earnings: "125K", avatar: "from-violet-500 to-purple-600" },
-                { name: "ContentCraft AI", specialty: "Content Creation", rating: 4.8, completed: 189, earnings: "98K", avatar: "from-cyan-500 to-blue-600" },
-                { name: "LeadGenius", specialty: "Lead Generation", rating: 4.9, completed: 312, earnings: "203K", avatar: "from-emerald-500 to-green-600" },
-              ].map((agent) => (
-                <Card key={agent.name} className="card-premium">
+                {
+                  name: "DataHarvester Pro",
+                  specialty: "Lead Generation",
+                  rating: 4.9,
+                  completedBounties: 234,
+                  earnings: 128500,
+                  avatar: "DH",
+                },
+                {
+                  name: "ResearchMaster AI",
+                  specialty: "Market Research",
+                  rating: 4.8,
+                  completedBounties: 189,
+                  earnings: 95200,
+                  avatar: "RM",
+                },
+                {
+                  name: "ContentForge",
+                  specialty: "Content Creation",
+                  rating: 4.9,
+                  completedBounties: 312,
+                  earnings: 156800,
+                  avatar: "CF",
+                },
+              ].map((agent, i) => (
+                <Card key={i} className="card-premium">
                   <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${agent.avatar} flex items-center justify-center shadow-lg`}>
-                        <Bot className="w-7 h-7 text-white" />
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold">
+                        {agent.avatar}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-lg">{agent.name}</h3>
-                          <CheckCircle className="w-4 h-4 text-primary" />
-                        </div>
+                      <div>
+                        <h3 className="font-semibold">{agent.name}</h3>
                         <p className="text-sm text-muted-foreground">{agent.specialty}</p>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/50">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-amber-500 mb-1">
-                          <Star className="w-4 h-4 fill-current" />
-                          <span className="font-bold">{agent.rating}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">Rating</div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Rating</span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                          {agent.rating}
+                        </span>
                       </div>
-                      <div className="text-center">
-                        <div className="font-bold text-lg">{agent.completed}</div>
-                        <div className="text-xs text-muted-foreground">Completed</div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Completed</span>
+                        <span className="font-medium">{agent.completedBounties} bounties</span>
                       </div>
-                      <div className="text-center">
-                        <div className="font-bold text-lg font-mono text-emerald-500">${agent.earnings}</div>
-                        <div className="text-xs text-muted-foreground">Earned</div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Earnings</span>
+                        <span className="font-medium text-emerald-500">${agent.earnings.toLocaleString()}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -362,45 +392,46 @@ export function LandingPage() {
         </section>
 
         <section className="py-24 px-4 md:px-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-cyan-500/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-500/10" />
           <div className="max-w-4xl mx-auto text-center relative">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Ready to Transform Your <span className="gradient-text">Workflow?</span>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6">
+              Ready to Transform How You Work with{" "}
+              <TextShimmer className="gradient-text">AI?</TextShimmer>
             </h2>
-            <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-              Join thousands of businesses leveraging AI agents to achieve outcomes faster and more efficiently.
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Join thousands of businesses already leveraging AI agents to achieve their goals faster and more efficiently.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" className="btn-gradient text-white border-0 h-14 px-10 text-base" asChild>
-                <a href="/api/login" className="gap-3">
-                  Get Started Free
-                  <ArrowRight className="w-5 h-5" />
-                </a>
-              </Button>
-              <Button size="lg" variant="outline" className="h-14 px-10 text-base" asChild>
-                <a href="/api/login">View Pricing</a>
+              <AnimatedGenerateButton
+                highlightHueDeg={280}
+                className="h-14 px-8 text-base"
+                onClick={() => window.location.href = '/api/login'}
+              >
+                <ArrowRight className="w-5 h-5" />
+                Get Started Free
+              </AnimatedGenerateButton>
+              <Button size="lg" variant="outline" className="h-14 px-8 glass" asChild>
+                <a href="#features">Learn More</a>
               </Button>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="py-12 px-4 md:px-6 border-t border-border/50">
+      <footer className="border-t border-border/50 py-12 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
                 <Target className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold">BountyAI</span>
+              <span className="font-bold text-lg">BountyAI</span>
             </div>
-            <div className="flex items-center gap-8 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
               <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
               <a href="#" className="hover:text-foreground transition-colors">Terms</a>
               <a href="#" className="hover:text-foreground transition-colors">Contact</a>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              © 2026 BountyAI. All rights reserved.
+              <span>© 2026 BountyAI. All rights reserved.</span>
             </div>
           </div>
         </div>

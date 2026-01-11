@@ -1,0 +1,182 @@
+MASTER PROMPT v1.0 — APPLY 21ST.DEV UI UPGRADE SET (HERO ODYSSEY + TEXT SHIMMER + ANIMATED GENERATE BUTTON) TO THIS CODEBASE
+
+You are integrating 21st.dev components into an existing React codebase. This codebase is Vite + React + TypeScript + Tailwind and uses a shadcn-style structure (components.json exists). You must not assume Next.js.
+
+GOAL
+Integrate and wire these components so they build and render correctly:
+
+1. Hero Odyssey (HeroSection) — hero-odyssey.tsx
+2. Text Shimmer — text-shimmer.tsx
+3. Animated Generate Button — animated-generate-button-shadcn-tailwind.tsx
+
+NON-NEGOTIABLE RULES
+
+* Vite build must pass (npm run build).
+* Typecheck must pass (no TS errors).
+* No Next-only syntax: remove/replace `use client` and `<style jsx>`.
+* Canonical UI folder must be: client/src/components/ui
+* All component imports must use the repo’s alias (`@/…`) if configured; if not, configure it.
+* Do not introduce duplicate className utilities. Use existing shadcn `cn()` helper.
+
+STEP 0 — AUDIT & BASELINE (DO THIS FIRST)
+
+1. Confirm these exist:
+
+* tailwind.config.ts
+* tsconfig.json
+* vite.config.ts
+* postcss.config.js
+* components.json
+
+2. Locate source root:
+
+* UI lives under client/src (because repo has /client folder).
+
+3. Confirm alias:
+
+* In tsconfig, ensure paths map `@/*` -> `client/src/*`
+* In vite.config.ts, ensure resolve.alias `{ "@": path.resolve(__dirname, "client/src") }`
+  If missing, add them.
+
+STEP 1 — ENSURE SHADCN STRUCTURE & UTILITIES
+
+1. Ensure folder exists:
+
+* client/src/components/ui
+  Create if missing.
+
+2. Ensure `client/src/lib/utils.ts` exists with `cn()` helper. If missing, create it with the standard shadcn approach (clsx + tailwind-merge).
+
+STEP 2 — DEPENDENCIES
+Install required dependencies if not already installed:
+
+* framer-motion
+* clsx
+* tailwind-merge (if cn() uses it)
+  Command:
+  npm install framer-motion clsx
+  (only install tailwind-merge if needed by existing utils)
+
+STEP 3 — COMPONENT INTEGRATION (CREATE/UPDATE FILES)
+
+A) TEXT SHIMMER (from 21st.dev)
+Create file:
+
+* client/src/components/ui/text-shimmer.tsx
+
+Apply these transformations for Vite:
+
+* Remove the line: 'use client';
+* Keep framer-motion import.
+* Keep `cn` import from `@/lib/utils`.
+
+Export:
+
+* export function TextShimmer(...) { ... }
+
+B) ANIMATED GENERATE BUTTON (from 21st.dev)
+Create file:
+
+* client/src/components/ui/animated-generate-button.tsx
+
+Required transformations:
+
+1. Replace `<style jsx>{`…`}</style>` (Next-only) with a regular CSS file:
+
+* client/src/components/ui/animated-generate-button.css
+  Move the entire CSS content into that file unchanged except:
+* Remove template literal wrappers.
+* Keep the same classnames: `.ui-anim-btn`, `.ui-anim-letter`, etc.
+
+2. Import the CSS in the TSX component:
+
+* import "./animated-generate-button.css";
+
+3. Fix hue handling:
+
+* `highlightHueDeg` must be clamped/modded to [0,360], because 21st.dev demo used highlightHueDeg={5000}.
+  Implement:
+  const safeHue = ((highlightHueDeg % 360) + 360) % 360;
+  and use safeHue for CSS variable.
+
+4. Ensure SVG path uses valid attributes:
+
+* The given SVG uses only `d=` and some stroke properties on the path; keep as provided.
+
+Export:
+
+* Prefer named export:
+  export function AnimatedGenerateButton(...) { ... }
+  If the codebase uses default exports in ui folder, keep default, but stay consistent.
+
+C) HERO ODYSSEY (from 21st.dev)
+Create file:
+
+* client/src/components/ui/hero-odyssey.tsx
+
+Required transformations/fixes (must do all):
+
+1. Remove any stray non-code text embedded in JSX (example: “ai chat: Build this as my initial prototype”).
+2. Fix invalid Tailwind classes:
+
+* Replace `rounded-50` with `rounded-full` (or `rounded-3xl` if intended).
+* Replace `z-9999` with `z-[9999]` OR `z-50` depending on Tailwind config. Prefer `z-50` unless you confirm arbitrary values are enabled.
+* Replace `z-200` with `z-[200]` or a valid z index. Prefer `z-30` / `z-40` / `z-50`.
+
+3. ElasticHueSlider currently renders an empty thumb (motion.div contains nothing). Add a visible thumb:
+
+* A circular thumb with glow, e.g.:
+
+  <div className="h-4 w-4 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.6)]" />
+
+4. WebGL fallback:
+
+* If WebGL context is null, render a non-crashing fallback (a div) and do not spam console errors.
+
+5. Ensure component exports:
+
+* export const HeroSection: React.FC = () => { ... }
+
+6. Keep the hue slider controlling lightningHue and pass it into <Lightning hue={lightningHue} …/>
+
+STEP 4 — TAILWIND GLOBALS (DO NOT BREAK EXISTING)
+You must not blindly paste Tailwind v4 imports.
+
+1. Inspect existing global CSS (likely client/src/index.css or client/src/main.css).
+2. If Tailwind v3: keep @tailwind directives; do not add `@import "tailwindcss";`
+3. If Tailwind v4: ensure correct `@import "tailwindcss";` ordering and do not duplicate.
+   Do NOT add `tw-animate-css` unless the project already uses it.
+
+STEP 5 — DEMO WIRING (PROVE IT RENDERS)
+Create a demo page/route, depending on how routing is set up:
+
+Option A (React Router exists):
+
+* Add route `/ui-demo` that renders:
+
+  * <HeroSection />
+  * <TextShimmer>Generating code...</TextShimmer>
+  * <AnimatedGenerateButton labelIdle="Generate" labelActive="Building" generating={someState} />
+
+Option B (no router):
+
+* Temporarily mount a `UiDemo` component in App.tsx and render these components in a vertical stack.
+* Leave a clear comment “TEMP DEMO — remove after verification”.
+
+STEP 6 — VERIFICATION (DONE CRITERIA)
+You are not done until all are true:
+
+* `npm run dev` renders demo without runtime errors.
+* `npm run build` succeeds.
+* No TypeScript errors.
+* No Next-only remnants remain.
+* Animated button CSS applies (hover/active/focus styles visible).
+* Hero Odyssey renders without horizontal overflow on mobile widths.
+
+OUTPUT REQUIREMENTS
+After implementation, report:
+
+* Exact files created/modified and their paths
+* Packages installed (diff from package.json)
+* Where the demo is accessible (route or component mount)
+* Any deviations required by the existing project structure

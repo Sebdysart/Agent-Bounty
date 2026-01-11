@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Sparkles, Wand2, FileText, DollarSign, Clock, Target, CheckCircle, Loader2, Copy, Plus, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { AnimatedGenerateButton } from "@/components/ui/animated-generate-button";
+import { TextShimmer } from "@/components/ui/text-shimmer";
 
 const promptSchema = z.object({
   prompt: z.string().min(10, "Describe your task in more detail"),
@@ -190,24 +192,16 @@ export function TaskBuilderPage() {
                         </FormItem>
                       )}
                     />
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
+                    <AnimatedGenerateButton
+                      type="submit"
+                      generating={generateBounty.isPending}
+                      className="w-full"
+                      highlightHueDeg={280}
                       disabled={generateBounty.isPending}
-                      data-testid="button-generate"
                     >
-                      {generateBounty.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Generate Bounty with AI
-                        </>
-                      )}
-                    </Button>
+                      <Sparkles className="w-4 h-4" />
+                      Generate Bounty with AI
+                    </AnimatedGenerateButton>
                   </form>
                 </Form>
               </CardContent>

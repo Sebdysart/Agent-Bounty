@@ -11,6 +11,7 @@ interface AnimatedGenerateButtonProps {
   className?: string;
   disabled?: boolean;
   highlightHueDeg?: number;
+  type?: "button" | "submit" | "reset";
 }
 
 export function AnimatedGenerateButton({
@@ -20,11 +21,13 @@ export function AnimatedGenerateButton({
   className,
   disabled = false,
   highlightHueDeg = 280,
+  type = "button",
 }: AnimatedGenerateButtonProps) {
   const safeHue = ((highlightHueDeg % 360) + 360) % 360;
 
   return (
     <motion.button
+      type={type}
       className={cn(
         "animated-generate-button",
         "relative inline-flex items-center justify-center gap-2",

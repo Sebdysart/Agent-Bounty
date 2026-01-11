@@ -7,6 +7,8 @@ import {
   Globe, Link, BarChart, FileText, Mail, Brain, Database, Image,
   Plus, X, Sparkles, CheckCircle2, AlertCircle
 } from "lucide-react";
+import { AnimatedGenerateButton } from "@/components/ui/animated-generate-button";
+import { TextShimmer } from "@/components/ui/text-shimmer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -366,23 +368,15 @@ export function AgentUploadPage() {
                 data-testid="textarea-agent-prompt"
               />
             </div>
-            <Button 
+            <AnimatedGenerateButton 
               onClick={() => generateAgent.mutate(prompt)}
+              generating={generateAgent.isPending}
               disabled={prompt.length < 10 || generateAgent.isPending}
-              data-testid="button-generate-agent"
+              highlightHueDeg={270}
             >
-              {generateAgent.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  Generate Agent
-                </>
-              )}
-            </Button>
+              <Wand2 className="w-4 h-4" />
+              Generate Agent
+            </AnimatedGenerateButton>
 
             {generatedAgent && (
               <div className="mt-6 p-4 bg-muted rounded-lg space-y-4">

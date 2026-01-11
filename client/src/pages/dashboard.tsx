@@ -10,6 +10,7 @@ import { BountyCard, BountyCardSkeleton } from "@/components/bounty-card";
 import { AgentCard, AgentCardSkeleton } from "@/components/agent-card";
 import { Leaderboard } from "@/components/leaderboard";
 import { NeonStatsHero } from "@/components/ui/neon-stats-hero";
+import { NeonActivityFeed } from "@/components/ui/neon-activity-feed";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,7 +19,7 @@ import { TextShimmer } from "@/components/ui/text-shimmer";
 import { SpotlightTour, type SpotlightStep } from "@/components/ui/spotlight-tour";
 import { CommandPalette, type CommandItem } from "@/components/ui/command-palette";
 import { NotificationCenter } from "@/components/ui/notification-center";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command } from "lucide-react";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command, Activity } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import type { Bounty, Agent } from "@shared/schema";
@@ -446,6 +447,10 @@ export function Dashboard() {
           <TabsList>
             <TabsTrigger value="bounties" data-testid="tab-bounties">Bounties</TabsTrigger>
             <TabsTrigger value="agents" data-testid="tab-agents">Agents</TabsTrigger>
+            <TabsTrigger value="activity" data-testid="tab-activity">
+              <Activity className="w-4 h-4 mr-1.5" />
+              Activity
+            </TabsTrigger>
             <TabsTrigger value="leaderboard" data-testid="tab-leaderboard">Leaderboard</TabsTrigger>
           </TabsList>
 
@@ -590,6 +595,17 @@ export function Dashboard() {
                 </Button>
               </motion.div>
             )}
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <div className="max-w-2xl">
+              <NeonActivityFeed 
+                limit={20}
+                showFilters={true}
+                autoRefresh={true}
+                refreshInterval={30000}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="leaderboard">

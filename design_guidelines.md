@@ -1,146 +1,182 @@
-# AI Bounty Marketplace Design Guidelines
+# BountyAI Design Guidelines - MAX Tier Premium Edition
 
-## Design Approach
-**Selected Approach:** Design System (Hybrid inspiration from Linear + Stripe + Kaggle)
+## Design Philosophy
+**"Neon Nexus"** - A premium B2B marketplace design that stands out from generic AI-generated layouts through strategic use of gradients, glass morphism, depth, and purposeful motion.
 
-This is a professional B2B marketplace focused on efficiency, trust, and data clarity. The design prioritizes information density, quick decision-making, and establishing credibility over pure aesthetics.
+**Core Principles:**
+- **Cinematic depth** - Layered backgrounds with radial gradients, subtle glow effects, and noise textures
+- **Branded identity** - Consistent violet→fuchsia→cyan gradient as the signature visual element
+- **Premium surfaces** - Glass morphism panels with backdrop blur, subtle borders, and hover lift effects
+- **Information hierarchy** - Clear typography scale with Space Grotesk display font for headings
+- **Purposeful motion** - Subtle animations that enhance UX without distraction
 
-**Key Principles:**
-- Clarity over decoration: Every element serves a functional purpose
-- Trust through transparency: Clear metrics, status indicators, and verification signals
-- Efficiency-first navigation: Users should complete tasks with minimal friction
-- Data-driven hierarchy: Metrics and outcomes take visual priority
+---
+
+## Color System
+
+### Primary Palette
+- **Primary**: Violet (`hsl(252, 100%, 67%)`) - Main brand color
+- **Gradient Start**: Violet-500 (`#8B5CF6`)
+- **Gradient Mid**: Fuchsia-500 (`#D946EF`)
+- **Gradient End**: Cyan-400 (`#22D3EE`)
+
+### Semantic Colors
+- **Success**: Emerald-500 (`#10B981`) - Monetary values, completion, positive states
+- **Warning**: Amber-500 (`#F59E0B`) - Alerts, pending states
+- **Error**: Red-500 (`#EF4444`) - Failed states, destructive actions
+- **Info**: Cyan-500 (`#06B6D4`) - Informational highlights
+
+### Surface Colors
+- **Background**: Soft warm gray with subtle blue undertone
+- **Card**: Pure white (light) / Deep navy (`#0f172a` dark)
+- **Glass**: `backdrop-blur-xl` with 80% opacity card background
 
 ---
 
 ## Typography
 
-**Font Families:**
-- Primary: Inter (via Google Fonts) - headings, UI elements, data
-- Monospace: JetBrains Mono - monetary values, IDs, technical specs
+### Font Families
+- **Display**: Space Grotesk - All headings (h1-h6), hero text, feature titles
+- **Body**: Inter - UI elements, body text, labels, descriptions
+- **Mono**: JetBrains Mono - Monetary values, IDs, code, technical specs
 
-**Scale:**
-- Hero/Large headings: text-4xl to text-5xl, font-bold
-- Section headings: text-2xl to text-3xl, font-semibold
-- Card titles: text-lg to text-xl, font-semibold
-- Body text: text-base, font-normal
-- Small labels/metadata: text-sm, font-medium
-- Captions/timestamps: text-xs
-
----
-
-## Layout System
-
-**Spacing Primitives:** Use Tailwind units of 1, 2, 4, 6, 8, 12, 16, 20 consistently
-- Tight spacing (form fields, card internals): p-4, gap-2
-- Standard spacing (between cards, sections): p-6 to p-8, gap-4
-- Large spacing (page sections): py-12 to py-20, gap-8
-
-**Grid System:**
-- Dashboard cards: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
-- Bounty listings: Single column with rich preview cards
-- Agent profiles: Two-column split (info + stats)
-- Container: max-w-7xl mx-auto px-4 md:px-6
+### Scale
+- **Hero**: `text-5xl md:text-6xl lg:text-7xl`, Space Grotesk, `font-bold`, `-tracking-tight`
+- **Section headings**: `text-4xl md:text-5xl`, Space Grotesk, `font-bold`
+- **Card titles**: `text-lg font-semibold`
+- **Body**: `text-base`, Inter, `leading-relaxed`
+- **Small/Labels**: `text-sm font-medium`, `text-muted-foreground`
+- **Micro**: `text-xs font-medium uppercase tracking-wide`
 
 ---
 
-## Component Library
+## Component Patterns
 
-### Core Navigation
-- **Top Navigation Bar:** Full-width, sticky, height h-16, contains logo, main nav links, user profile dropdown, "Post Bounty" CTA button
-- **Sidebar (Dashboard):** w-64, collapsible on mobile, contains category filters, saved searches, quick stats
+### Premium Card (`card-premium`)
+```css
+- Rounded-xl corners
+- Subtle border with 50% opacity
+- Hover: lift effect (-2px translateY), increased shadow, gradient top border reveal
+- Optional: gradient left accent bar for status indication
+```
 
-### Bounty Cards
-Rich preview cards displaying:
-- Bounty title (text-xl font-semibold)
-- Reward amount (prominent, text-2xl font-bold in monospace)
-- Category badge (rounded-full px-3 py-1 text-xs)
-- Success metrics (bulleted list, text-sm)
-- Status indicator (border-l-4 with status-specific accent)
-- Deadline countdown (text-sm with icon)
-- "Agent submissions: X" counter
+### Glass Panels (`glass`)
+```css
+- backdrop-blur-xl
+- 80% opacity background
+- 50% opacity border
+- Used for: headers, floating panels, modal overlays
+```
 
-### Agent Cards
-- Agent avatar/logo (w-12 h-12 rounded-lg)
-- Agent name and developer (text-lg font-semibold)
-- Performance metrics (completion rate %, total earnings)
-- Capability tags (flex-wrap gap-2, small badges)
-- Star rating display (5-star with average)
-- "View Profile" link
+### Gradient Button (`btn-gradient`)
+```css
+- Background: linear-gradient violet→fuchsia
+- Box-shadow glow effect
+- Hover: intensified shadow, slight lift
+- Used for primary CTAs only
+```
+
+### Stat Cards (`stat-card`)
+```css
+- Gradient icon containers (12x12, rounded-xl)
+- Trend indicators with color-coded percentages
+- Hover scale animation on icons
+```
+
+---
+
+## Layout Patterns
+
+### Hero Section
+- Full viewport height option
+- Layered radial gradients (hero-gradient class)
+- Floating decorative blur circles with slow pulse animation
+- Split layout: content left, interactive preview right
+- Noise texture overlay for depth
+
+### Stats Bar
+- 4-column grid on desktop, 2-column on mobile
+- Each stat: icon (gradient bg) + value + label + trend
+- Subtle dividers or card separation
+
+### Card Grids
+- 1 col mobile → 2 col tablet → 3 col desktop
+- Consistent gap-6 spacing
+- Staggered hover effects (not simultaneous)
+
+---
+
+## Micro-interactions
+
+### Hover States
+- Cards: `translateY(-2px)`, increased shadow, gradient top line appears
+- Buttons: shadow intensifies, slight scale for icon buttons
+- Links: color transition to primary
+- Icons: scale(1.1) with smooth transition
+
+### Loading States
+- Skeleton with shimmer animation
+- Pulse animation for live indicators
+- Slow float animation for decorative elements
 
 ### Status Indicators
-Border-left accent bars (4px width) for bounty statuses:
-- Open: Neutral accent
-- In Progress: Active accent
-- Under Review: Warning accent
-- Completed: Success accent
-- Failed: Error accent
-
-### Data Visualizations
-- Progress bars (h-2 rounded-full) for agent completion status
-- Mini line charts (Recharts) in agent profile cards showing performance trends
-- Leaderboard table with alternating row backgrounds, sticky header
-
-### Forms
-- Bounty creation: Multi-step form with progress indicator at top
-- Clean input fields with floating labels
-- Monetary inputs with currency symbol prefix
-- Deadline picker with calendar dropdown
-- Verification criteria: Textarea with character count
-- Rich text editor for detailed descriptions
-
-### Modals & Overlays
-- Agent submission modal: Centered, max-w-2xl, backdrop blur
-- Bounty details: Full-screen drawer slide-in from right on mobile, centered modal on desktop
-- Verification workflow: Step-by-step modal with action buttons at bottom
+- Gradient left border (1px width, full height)
+- Color-coded badges with matching border colors
+- Pulsing dot for "live" or "in progress" states
 
 ---
 
-## Images
+## Spacing
 
-**Hero Section:** 
-Full-width hero (h-96 to h-[32rem]) with gradient overlay featuring:
-- Background: Abstract illustration of AI agents/nodes connecting (subtle, low opacity)
-- Centered content: Large heading "Post Bounties, Deploy AI Agents, Get Results" + subheading + dual CTAs ("Post Bounty" + "Browse Bounties")
-- Trust indicators below: "X active agents • Y bounties completed • $Z paid out"
+### Consistent Scale
+- **Tight**: 2-3 (badge padding, inline gaps)
+- **Base**: 4 (card content gaps)
+- **Comfortable**: 6 (between card sections)
+- **Section**: 16-24 (between page sections)
 
-**Throughout Platform:**
-- Agent avatars: Colorful geometric patterns or uploaded logos
-- Success story sections: Screenshots of completed bounty outcomes
-- Empty states: Friendly illustrations when no bounties/agents match filters
-
-**Note:** CTA buttons on hero have backdrop-blur-sm bg-white/10 treatment
+### Container
+- `max-w-7xl mx-auto px-4 md:px-6`
 
 ---
 
-## Key Features Implementation
+## Dark Mode Considerations
 
-**Leaderboard:**
-- Table layout with rank, agent name, completion rate, total earnings, avg rating
-- Top 3 highlighted with subtle background accent
-- Sortable columns
-
-**Timeline Visualization:**
-- Vertical timeline for bounty status history
-- Circular status nodes connected by lines
-- Timestamps on right, status descriptions on left
-
-**Real-time Updates:**
-- Toast notifications (top-right) for new agent submissions
-- Pulsing indicator badges for "In Progress" bounties
-- Live counter animations when agents join bounties
-
-**Trust Signals:**
-- Verification checkmarks for reviewed agents
-- "Escrow Protected" badge on bounty cards
-- Star ratings with review count (e.g., "4.8 ★ (127 reviews)")
-- Platform fee disclosure (subtle, text-xs in footer of bounty cards)
+- Gradients reduce opacity (25% vs 30%)
+- Glow effects become more prominent
+- Noise texture increases opacity (5% vs 3%)
+- Card backgrounds shift to deep navy
+- Maintain same gradient accent colors
 
 ---
 
-## Animations
-Minimal, purposeful only:
-- Smooth transitions on card hovers (transform: scale(1.02))
-- Fade-in on page load for dashboard cards (stagger by 50ms)
-- Number counter animations for leaderboard earnings
-- Progress bar fill animations when viewing agent attempts
+## Animation Keyframes
+
+```css
+@keyframes float - 6s infinite, subtle Y translation
+@keyframes glow - 2s alternate, pulsing shadow
+@keyframes gradient - 8s infinite, background position shift
+@keyframes shimmer - 2s infinite, loading skeleton effect
+@keyframes pulse - 4s infinite, subtle opacity pulse
+```
+
+---
+
+## Accessibility
+
+- All interactive elements have visible focus states
+- Color contrast ratios meet WCAG AA standards
+- Animations respect `prefers-reduced-motion`
+- Clear visual hierarchy through size and weight, not color alone
+
+---
+
+## Implementation Checklist
+
+- [ ] All headings use Space Grotesk font
+- [ ] Primary CTAs use gradient buttons
+- [ ] Cards use `card-premium` class with hover effects
+- [ ] Monetary values use `font-mono` and emerald-500 color
+- [ ] Status badges use gradient left borders
+- [ ] Hero sections include gradient background and noise overlay
+- [ ] Glass effect used for sticky headers and overlays
+- [ ] Icons inside gradient-colored containers

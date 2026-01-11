@@ -1,0 +1,913 @@
+You are tasked with integrating an existing React component bundle into the codebase.
+
+The codebase should support:
+- React with TypeScript
+- Tailwind CSS (v3 or v4)
+- Modern build tools (Vite/Next.js)
+
+If your project doesn't support these, provide instructions on how to set them up.
+
+IMPORTANT: The App.tsx file is a showcase/example demonstrating the component usage. You should:
+1. Analyze the App component to understand how all the pieces work together
+2. Review the supporting components and utilities 
+3. Integrate the relevant parts into your project structure
+4. Adapt the implementation to match your project's patterns and requirements
+
+## Installation
+
+```bash
+npm install framer-motion lucide-react @radix-ui/react-slot class-variance-authority clsx tailwind-merge
+```
+
+## Styles
+
+### index.css
+
+```css
+/* This is Tailwind 4 CSS file */
+/* Extending Tailwind configuration */
+/* Use shadcn/ui format to extend the configuration */
+/* Add only the styles that your component needs */
+
+/* Base imports */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Custom dark variant for targeting dark mode elements */
+@custom-variant dark (&:is(.dark *));
+
+/* CSS variables and theme definitions */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Light theme variables */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Dark theme variables */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Tailwind base styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+```
+
+
+## Component Files
+
+### hooks/use-platform-stats.ts
+
+```tsx
+import * as React from "react";
+
+export type PlatformStats = {
+  totalBounties: number;
+  rewardsDistributedUsd: number;
+  activeAgents: number;
+  successRate: number;
+  updatedAt?: string;
+};
+
+type StatsState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: PlatformStats }
+  | { status: "error"; error: string; lastKnownData?: PlatformStats };
+
+let statsCache: { data: PlatformStats; timestamp: number } | null = null;
+const CACHE_TTL = 60000; // 1 minute
+
+export const usePlatformStats = (
+  endpoint: string = "/api/stats",
+  pollingMs: number = 0
+) => {
+  const [state, setState] = React.useState<StatsState>({ status: "idle" });
+  const pollingRef = React.useRef<number | null>(null);
+  const mountedRef = React.useRef<boolean>(true);
+
+  const fetchStats = React.useCallback(async (): Promise<PlatformStats> => {
+    const now = Date.now();
+    if (statsCache && now - statsCache.timestamp < CACHE_TTL) {
+      return statsCache.data;
+    }
+
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stats: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Normalize data shape
+    const normalized: PlatformStats = {
+      totalBounties: data.totalBounties ?? 0,
+      rewardsDistributedUsd: data.rewardsDistributedUsd ?? 0,
+      activeAgents: data.activeAgents ?? 0,
+      successRate: data.successRate ?? 0,
+      updatedAt: data.updatedAt,
+    };
+
+    statsCache = { data: normalized, timestamp: now };
+    return normalized;
+  }, [endpoint]);
+
+  const retry = React.useCallback(() => {
+    setState({ status: "loading" });
+
+    fetchStats()
+      .then((data) => {
+        if (mountedRef.current) {
+          setState({ status: "success", data });
+        }
+      })
+      .catch((error) => {
+        if (mountedRef.current) {
+          const lastKnownData =
+            state.status === "success" ? state.data : undefined;
+          setState({
+            status: "error",
+            error: error.message || "Unable to load platform stats",
+            lastKnownData,
+          });
+        }
+      });
+  }, [fetchStats, state]);
+
+  React.useEffect(() => {
+    mountedRef.current = true;
+    setState({ status: "loading" });
+
+    fetchStats()
+      .then((data) => {
+        if (mountedRef.current) {
+          setState({ status: "success", data });
+        }
+      })
+      .catch((error) => {
+        if (mountedRef.current) {
+          setState({
+            status: "error",
+            error: error.message || "Unable to load platform stats",
+          });
+        }
+      });
+
+    return () => {
+      mountedRef.current = false;
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [fetchStats]);
+
+  React.useEffect(() => {
+    if (pollingMs > 0 && state.status === "success") {
+      pollingRef.current = window.setInterval(() => {
+        fetchStats()
+          .then((data) => {
+            if (mountedRef.current) {
+              setState({ status: "success", data });
+            }
+          })
+          .catch(() => {
+            // Silent fail on polling errors
+          });
+      }, pollingMs);
+
+      return () => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+        }
+      };
+    }
+  }, [pollingMs, state.status, fetchStats]);
+
+  return { ...state, retry };
+};
+
+```
+
+### hooks/use-count-up.ts
+
+```tsx
+import * as React from "react";
+
+export type CountUpConfig = {
+  end: number;
+  duration?: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+  separator?: string;
+  easingFn?: (t: number) => number;
+  onComplete?: () => void;
+};
+
+const easeOutCubic = (t: number): number => {
+  return 1 - Math.pow(1 - t, 3);
+};
+
+export const useCountUp = (config: CountUpConfig) => {
+  const {
+    end,
+    duration = 1800,
+    decimals = 0,
+    prefix = "",
+    suffix = "",
+    separator = ",",
+    easingFn = easeOutCubic,
+    onComplete,
+  } = config;
+
+  const [count, setCount] = React.useState<number>(0);
+  const [isAnimating, setIsAnimating] = React.useState<boolean>(false);
+  const frameRef = React.useRef<number | null>(null);
+  const startTimeRef = React.useRef<number | null>(null);
+
+  const prefersReducedMotion =
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false;
+
+  const formatNumber = React.useCallback(
+    (value: number): string => {
+      const fixed = value.toFixed(decimals);
+      const [integer, decimal] = fixed.split(".");
+      const formattedInteger = integer.replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        separator
+      );
+      const result = decimal ? `${formattedInteger}.${decimal}` : formattedInteger;
+      return `${prefix}${result}${suffix}`;
+    },
+    [decimals, prefix, suffix, separator]
+  );
+
+  const animate = React.useCallback(
+    (timestamp: number) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+      }
+
+      const progress = Math.min((timestamp - startTimeRef.current) / duration, 1);
+      const easedProgress = easingFn(progress);
+      const currentCount = easedProgress * end;
+
+      setCount(currentCount);
+
+      if (progress < 1) {
+        frameRef.current = requestAnimationFrame(animate);
+      } else {
+        setCount(end);
+        setIsAnimating(false);
+        startTimeRef.current = null;
+        if (onComplete) onComplete();
+      }
+    },
+    [end, duration, easingFn, onComplete]
+  );
+
+  const start = React.useCallback(() => {
+    if (prefersReducedMotion) {
+      setCount(end);
+      setIsAnimating(false);
+      if (onComplete) onComplete();
+      return;
+    }
+
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+
+    setIsAnimating(true);
+    startTimeRef.current = null;
+    frameRef.current = requestAnimationFrame(animate);
+  }, [prefersReducedMotion, end, animate, onComplete]);
+
+  const reset = React.useCallback(() => {
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+    }
+    setCount(0);
+    setIsAnimating(false);
+    startTimeRef.current = null;
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    count,
+    formattedValue: formatNumber(count),
+    isAnimating,
+    start,
+    reset,
+  };
+};
+
+```
+
+### components/ui/neon-stats-card.tsx
+
+```tsx
+import * as React from "react";
+import { motion } from "framer-motion";
+import { LucideIcon } from "lucide-react";
+import { useCountUp } from "@/hooks/use-count-up";
+
+export type NeonStatCardProps = {
+  icon: LucideIcon;
+  value: number;
+  label: string;
+  format: "number" | "currency" | "percentage";
+  index: number;
+  reanimateOnHover?: boolean;
+  updatedAt?: string;
+};
+
+export const NeonStatCard: React.FC<NeonStatCardProps> = ({
+  icon: Icon,
+  value,
+  label,
+  format,
+  index,
+  reanimateOnHover = false,
+  updatedAt,
+}) => {
+  const [hasAnimated, setHasAnimated] = React.useState(false);
+  const [isInView, setIsInView] = React.useState(false);
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const getFormatConfig = () => {
+    switch (format) {
+      case "currency":
+        return {
+          prefix: "$",
+          suffix: "",
+          decimals: 0,
+          separator: ",",
+        };
+      case "percentage":
+        return {
+          prefix: "",
+          suffix: "%",
+          decimals: 1,
+          separator: "",
+        };
+      default:
+        return {
+          prefix: "",
+          suffix: "",
+          decimals: 0,
+          separator: ",",
+        };
+    }
+  };
+
+  const config = getFormatConfig();
+
+  const { formattedValue, start, reset } = useCountUp({
+    end: value,
+    duration: 1800,
+    ...config,
+  });
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setIsInView(true);
+          setHasAnimated(true);
+          setTimeout(() => {
+            start();
+          }, index * 120);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => {
+      if (cardRef.current) {
+        observer.unobserve(cardRef.current);
+      }
+    };
+  }, [hasAnimated, start, index]);
+
+  const handleHoverStart = () => {
+    if (reanimateOnHover && hasAnimated) {
+      reset();
+      setTimeout(() => start(), 50);
+    }
+  };
+
+  return (
+    <motion.div
+      ref={cardRef}
+      initial={{ opacity: 0, y: 12 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.12,
+        ease: [0.25, 0.1, 0.25, 1],
+      }}
+      onHoverStart={handleHoverStart}
+      className="relative rounded-xl p-[1px] bg-gradient-to-br from-violet-500/40 via-fuchsia-500/40 to-cyan-500/40 group"
+      tabIndex={reanimateOnHover ? 0 : undefined}
+      role={reanimateOnHover ? "button" : undefined}
+      aria-label={`${label}: ${formattedValue}`}
+    >
+      <div className="relative h-full w-full rounded-xl bg-background/60 backdrop-blur-xl border border-border/40 p-6 shadow-lg transition-shadow duration-300 group-hover:shadow-[0_0_24px_rgba(168,85,247,0.15)]">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20">
+              <Icon
+                className="w-5 h-5 text-violet-400"
+                style={{
+                  filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.5))",
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            className="text-4xl font-bold text-foreground tracking-tight"
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            {formattedValue}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <div className="text-sm text-muted-foreground">{label}</div>
+            {updatedAt && (
+              <div className="text-xs text-muted-foreground/60">
+                Updated just now
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+```
+
+### components/ui/neon-stats-skeleton.tsx
+
+```tsx
+import * as React from "react";
+
+export const NeonStatsSkeleton: React.FC = () => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="relative rounded-xl p-[1px] bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-cyan-500/20"
+        >
+          <div className="relative h-full w-full rounded-xl bg-background/60 backdrop-blur-xl border border-border/40 p-6">
+            <div className="flex flex-col gap-3">
+              <div className="w-6 h-6 rounded-md bg-muted/30 animate-pulse" />
+              <div className="h-10 w-32 rounded-md bg-muted/30 animate-pulse" />
+              <div className="h-4 w-24 rounded-md bg-muted/30 animate-pulse" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+```
+
+### lib/utils.ts
+
+```tsx
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+```
+
+### components/ui/button.tsx
+
+```tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+
+```
+
+### components/ui/neon-stats-hero.tsx
+
+```tsx
+import * as React from "react";
+import { motion } from "framer-motion";
+import { Trophy, DollarSign, Users, TrendingUp, AlertCircle } from "lucide-react";
+import { usePlatformStats } from "@/hooks/use-platform-stats";
+import { NeonStatCard } from "@/components/ui/neon-stats-card";
+import { NeonStatsSkeleton } from "@/components/ui/neon-stats-skeleton";
+import { Button } from "@/components/ui/button";
+
+export type NeonStatsHeroProps = {
+  endpoint?: string;
+  title?: string;
+  subtitle?: string;
+  reanimateOnHover?: boolean;
+  showBackgroundFX?: boolean;
+  pollingMs?: number;
+};
+
+export const NeonStatsHero: React.FC<NeonStatsHeroProps> = ({
+  endpoint = "/api/stats",
+  title = "Platform Overview",
+  subtitle,
+  reanimateOnHover = false,
+  showBackgroundFX = false,
+  pollingMs = 0,
+}) => {
+  const statsQuery = usePlatformStats(endpoint, pollingMs);
+
+  const stats = React.useMemo(() => {
+    if (statsQuery.status !== "success") return null;
+
+    return [
+      {
+        icon: Trophy,
+        value: statsQuery.data.totalBounties,
+        label: "Total Bounties",
+        format: "number" as const,
+      },
+      {
+        icon: DollarSign,
+        value: statsQuery.data.rewardsDistributedUsd,
+        label: "Rewards Distributed",
+        format: "currency" as const,
+      },
+      {
+        icon: Users,
+        value: statsQuery.data.activeAgents,
+        label: "Active Agents",
+        format: "number" as const,
+      },
+      {
+        icon: TrendingUp,
+        value: statsQuery.data.successRate,
+        label: "Success Rate",
+        format: "percentage" as const,
+      },
+    ];
+  }, [statsQuery]);
+
+  return (
+    <section className="relative w-full py-12 px-6 lg:px-8" aria-labelledby="stats-heading">
+      {showBackgroundFX && (
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-500/10 rounded-full blur-3xl" />
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8 text-center"
+        >
+          <h2
+            id="stats-heading"
+            className="text-3xl lg:text-4xl font-bold text-foreground mb-2"
+          >
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="text-muted-foreground text-lg">{subtitle}</p>
+          )}
+        </motion.div>
+
+        {statsQuery.status === "loading" && <NeonStatsSkeleton />}
+
+        {statsQuery.status === "success" && stats && (
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+            role="region"
+            aria-live="polite"
+            aria-label="Platform statistics"
+          >
+            {stats.map((stat, index) => (
+              <NeonStatCard
+                key={stat.label}
+                icon={stat.icon}
+                value={stat.value}
+                label={stat.label}
+                format={stat.format}
+                index={index}
+                reanimateOnHover={reanimateOnHover}
+                updatedAt={statsQuery.data.updatedAt}
+              />
+            ))}
+          </div>
+        )}
+
+        {statsQuery.status === "error" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center gap-4 p-12 rounded-xl bg-background/60 backdrop-blur-xl border border-border/40"
+          >
+            <AlertCircle className="w-12 h-12 text-muted-foreground" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-1">
+                Unable to load stats
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {statsQuery.error}
+              </p>
+              <Button onClick={statsQuery.retry} variant="outline">
+                Retry
+              </Button>
+            </div>
+            {statsQuery.lastKnownData && (
+              <p className="text-xs text-muted-foreground/60 mt-2">
+                Last known values available
+              </p>
+            )}
+          </motion.div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+```
+
+### demo/neon-stats-demo.tsx
+
+```tsx
+import * as React from "react";
+import { NeonStatsHero } from "@/components/ui/neon-stats-hero";
+import type { PlatformStats } from "@/hooks/use-platform-stats";
+
+// Mock API fallback
+const mockStats: PlatformStats = {
+  totalBounties: 1247,
+  rewardsDistributedUsd: 384250,
+  activeAgents: 892,
+  successRate: 94.3,
+  updatedAt: new Date().toISOString(),
+};
+
+// Intercept fetch for demo
+const originalFetch = window.fetch;
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === "string" ? input : input.toString();
+  
+  if (url.includes("/api/stats")) {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    
+    return new Response(JSON.stringify(mockStats), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  
+  return originalFetch(input, init);
+};
+
+export const NeonStatsDemo: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-background">
+      <NeonStatsHero
+        title="Platform Overview"
+        subtitle="Real-time metrics from our AI Bounty Marketplace"
+        reanimateOnHover={true}
+        showBackgroundFX={true}
+      />
+    </div>
+  );
+};
+
+```
+
+### App.tsx
+
+```tsx
+import { NeonStatsDemo } from "@/demo/neon-stats-demo";
+
+function App() {
+  return (
+    <div className="w-screen min-h-screen flex justify-center items-center">
+      <NeonStatsDemo />
+    </div>
+  );
+}
+
+export default App;
+
+```
+
+
+## Tailwind Configuration
+
+Add the following global styles:
+
+```css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+```
+
+Custom colors detected: muted-foreground, gradient-to-br, primary-foreground, accent-foreground, secondary-foreground
+Make sure these are defined in your Tailwind configuration.
+
+
+## Integration Instructions
+
+1. Review the App.tsx component to understand the complete implementation
+2. Identify which components and utilities you need for your use case
+3. Analyze the Tailwind v4 styles in index.css - integrate custom styles that differ from integrating Codebase
+4. Install the required NPM dependencies listed above
+5. Integrate the components into your project, adapting them to fit your architecture
+
+Focus on:
+- Understanding projects structure, adding above components into it
+- Understanding the component composition
+- Identifying reusable utilities and helpers
+- Adapting the styling to match your design system

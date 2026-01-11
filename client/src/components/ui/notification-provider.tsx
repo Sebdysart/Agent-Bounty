@@ -77,6 +77,8 @@ export function NotificationProvider({
   );
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const groupKeysRef = useRef<Map<string, string>>(new Map());
+  const pauseStartRef = useRef<Map<string, number>>(new Map());
+  const timerStartRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const stored = getStoredNotifications(historyLimit);
@@ -87,28 +89,62 @@ export function NotificationProvider({
     storeNotifications(notifications);
   }, [notifications]);
 
-  const pauseToast = useCallback((id: string) => {
-    setActiveToasts(prev => prev.map(toast => {
-      if (toast.id === id && !toast.isPaused) {
-        const timer = timersRef.current.get(id);
-        if (timer) {
-          clearTimeout(timer);
-          timersRef.current.delete(id);
-        }
-        return { ...toast, isPaused: true };
-      }
-      return toast;
-    }));
+  const clearTimer = useCallback((id: string) => {
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
   }, []);
 
-  const resumeToast = useCallback((id: string) => {
+  const dismiss = useCallback((id: string) => {
+    clearTimer(id);
+    pauseStartRef.current.delete(id);
+    timerStartRef.current.delete(id);
+    setActiveToasts(prev => prev.filter(t => t.id !== id));
+    
+    const groupKey = Array.from(groupKeysRef.current.entries()).find(([_, val]) => val === id)?.[0];
+    if (groupKey) {
+      groupKeysRef.current.delete(groupKey);
+    }
+  }, [clearTimer]);
+
+  const startTimer = useCallback((id: string, duration: number) => {
+    clearTimer(id);
+    timerStartRef.current.set(id, Date.now());
+    const timer = setTimeout(() => {
+      dismiss(id);
+    }, duration);
+    timersRef.current.set(id, timer);
+  }, [clearTimer, dismiss]);
+
+  const pauseToast = useCallback((id: string) => {
     setActiveToasts(prev => prev.map(toast => {
-      if (toast.id === id && toast.isPaused) {
-        return { ...toast, isPaused: false };
+      if (toast.id === id && !toast.isPaused && toast.duration && toast.duration > 0) {
+        clearTimer(id);
+        const timerStart = timerStartRef.current.get(id) || toast.createdAt;
+        const elapsed = Date.now() - timerStart;
+        const remaining = Math.max(0, toast.remainingDuration - elapsed);
+        pauseStartRef.current.set(id, Date.now());
+        return { ...toast, isPaused: true, remainingDuration: remaining };
       }
       return toast;
     }));
-  }, []);
+  }, [clearTimer]);
+
+  const resumeToast = useCallback((id: string) => {
+    setActiveToasts(prev => {
+      const newToasts = prev.map(toast => {
+        if (toast.id === id && toast.isPaused && toast.remainingDuration > 0) {
+          pauseStartRef.current.delete(id);
+          startTimer(id, toast.remainingDuration);
+          return { ...toast, isPaused: false };
+        }
+        return toast;
+      });
+      return newToasts;
+    });
+  }, [startTimer]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -132,32 +168,6 @@ export function NotificationProvider({
   }, [activeToasts, pauseToast, resumeToast]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-
-  const clearTimer = useCallback((id: string) => {
-    const timer = timersRef.current.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      timersRef.current.delete(id);
-    }
-  }, []);
-
-  const dismiss = useCallback((id: string) => {
-    clearTimer(id);
-    setActiveToasts(prev => prev.filter(t => t.id !== id));
-    
-    const groupKey = Array.from(groupKeysRef.current.entries()).find(([_, val]) => val === id)?.[0];
-    if (groupKey) {
-      groupKeysRef.current.delete(groupKey);
-    }
-  }, [clearTimer]);
-
-  const startTimer = useCallback((id: string, duration: number) => {
-    clearTimer(id);
-    const timer = setTimeout(() => {
-      dismiss(id);
-    }, duration);
-    timersRef.current.set(id, timer);
-  }, [clearTimer, dismiss]);
 
   const update = useCallback((id: string, patch: Partial<ToastInput>) => {
     setActiveToasts(prev => prev.map(toast => {

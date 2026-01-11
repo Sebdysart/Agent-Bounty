@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { SpotlightTour, type SpotlightStep } from "@/components/ui/spotlight-tour";
 import { CommandPalette, type CommandItem } from "@/components/ui/command-palette";
+import { NotificationCenter } from "@/components/ui/notification-center";
 import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
@@ -354,6 +355,7 @@ export function Dashboard() {
             >
               <HelpCircle className="w-5 h-5" />
             </Button>
+            <NotificationCenter position="top-right" />
             <Button
               variant="outline"
               size="sm"

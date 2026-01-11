@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { X, CheckCircle, XCircle, AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { ActiveToast } from './notification.types';
 import { getTypeGradient, getTypeBorderColor } from './notification.utils';
-import { Button } from './button';
+import { Button } from '@/components/ui/button';
 
 type NexusToastProps = {
   toast: ActiveToast;

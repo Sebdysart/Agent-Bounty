@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { NotificationProvider } from "@/components/ui/notification-provider";
+import { ToastStack } from "@/components/ui/toast-stack";
 import { useAuth } from "@/hooks/use-auth";
 import { WebSocketProvider } from "@/hooks/use-websocket.tsx";
 import NotFound from "@/pages/not-found";
@@ -84,10 +86,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="bounty-ui-theme">
         <WebSocketProvider>
-          <TooltipProvider>
-            <Toaster />
-            <AppContent />
-          </TooltipProvider>
+          <NotificationProvider historyLimit={50} soundEnabled={true}>
+            <TooltipProvider>
+              <Toaster />
+              <ToastStack position="top-right" maxVisible={5} />
+              <AppContent />
+            </TooltipProvider>
+          </NotificationProvider>
         </WebSocketProvider>
       </ThemeProvider>
     </QueryClientProvider>

@@ -792,7 +792,17 @@ export function AgentUploadPage() {
         </Card>
 
         <div className="flex justify-between mt-8">
-          <Button variant="outline" onClick={() => navigate("/dashboard")} data-testid="button-save-draft">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              toast({
+                title: "Draft saved!",
+                description: "Your agent has been saved as a draft. You can find it in My Agents.",
+              });
+              navigate("/my-agents");
+            }} 
+            data-testid="button-save-draft"
+          >
             Save as Draft
           </Button>
           <Button 

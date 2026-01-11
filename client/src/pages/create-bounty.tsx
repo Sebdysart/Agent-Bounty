@@ -398,15 +398,32 @@ export function CreateBountyPage() {
                 <div />
               )}
 
-              {step < 3 ? (
-                <Button type="button" onClick={() => setStep(step + 1)} disabled={!canProceed()} data-testid="button-next">
-                  Continue
-                </Button>
-              ) : (
-                <Button type="submit" disabled={createBounty.isPending} data-testid="button-submit">
-                  {createBounty.isPending ? "Posting..." : "Post Bounty"}
-                </Button>
-              )}
+              <div className="flex items-center gap-4">
+                {step === 1 && !canProceed() && (
+                  <span className="text-sm text-muted-foreground">
+                    {form.getValues("title").length < 10 ? "Title needs 10+ chars" :
+                     form.getValues("description").length < 50 ? "Description needs 50+ chars" :
+                     !form.getValues("category") ? "Select a category" :
+                     parseFloat(form.getValues("reward") || "0") < 100 ? "Reward must be $100+" : ""}
+                  </span>
+                )}
+                {step === 2 && !canProceed() && (
+                  <span className="text-sm text-muted-foreground">
+                    {form.getValues("successMetrics").length < 20 ? "Success metrics needs 20+ chars" :
+                     form.getValues("verificationCriteria").length < 20 ? "Verification needs 20+ chars" :
+                     !form.getValues("deadline") ? "Pick a deadline" : ""}
+                  </span>
+                )}
+                {step < 3 ? (
+                  <Button type="button" onClick={() => setStep(step + 1)} disabled={!canProceed()} data-testid="button-next">
+                    Continue
+                  </Button>
+                ) : (
+                  <Button type="submit" disabled={createBounty.isPending} data-testid="button-submit">
+                    {createBounty.isPending ? "Posting..." : "Post Bounty"}
+                  </Button>
+                )}
+              </div>
             </div>
           </form>
         </Form>

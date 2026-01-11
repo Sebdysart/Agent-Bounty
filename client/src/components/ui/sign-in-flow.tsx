@@ -415,7 +415,6 @@ function MiniNavbar() {
   const navLinksData = [
     { label: 'Features', href: '/#features' },
     { label: 'Pricing', href: '/pricing' },
-    { label: 'Docs', href: '#docs' },
   ];
 
   const loginButtonElement = (

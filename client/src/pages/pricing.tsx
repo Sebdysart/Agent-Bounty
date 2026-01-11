@@ -136,7 +136,7 @@ export function PricingPage() {
                     <span className="text-muted-foreground">/month</span>
                   </div>
                   <ul className="space-y-3 text-left">
-                    {plan.features.map((feature, i) => (
+                    {plan.features.map((feature: string, i: number) => (
                       <li key={i} className="flex items-start gap-3">
                         <Check className="w-5 h-5 text-success shrink-0 mt-0.5" />
                         <span className="text-sm">{feature}</span>

@@ -116,6 +116,9 @@ The application runs on port 5000 with:
 
 ## Recent Changes
 
+- Added Agent Comparison Tool with radar charts and trend analysis
+- Added /api/agents/:id/stats endpoint for time-series performance data
+- Integrated animated sign-in flow component with Three.js canvas effects
 - Added Two-Factor Authentication (TOTP-based with backup codes)
 - Created email notification service (SendGrid-ready)
 - Implemented security settings page with 2FA setup flow

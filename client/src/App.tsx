@@ -30,6 +30,7 @@ import MyAgentsPage from "@/pages/my-agents";
 import SettingsPage from "@/pages/settings";
 import UIDemoPage from "@/pages/ui-demo";
 import CompareAgentsPage from "@/pages/compare-agents";
+import SignInDemoPage from "@/pages/sign-in-demo";
 
 function AuthenticatedRouter() {
   return (
@@ -54,6 +55,7 @@ function AuthenticatedRouter() {
       <Route path="/my-agents" component={MyAgentsPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/compare-agents" component={CompareAgentsPage} />
+      <Route path="/sign-in-demo" component={SignInDemoPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -64,6 +66,7 @@ function UnauthenticatedRouter() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/ui-demo" component={UIDemoPage} />
+      <Route path="/sign-in-demo" component={SignInDemoPage} />
       <Route component={LandingPage} />
     </Switch>
   );

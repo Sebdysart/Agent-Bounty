@@ -187,3 +187,19 @@ If no API key is set, emails are logged to console instead of sent.
 - Generates 8 backup codes for account recovery
 - Compatible with Google Authenticator, Authy, etc.
 - QR codes generated via qrserver.com API
+
+### Admin Authorization
+Admin access is controlled through two mechanisms:
+1. **Environment Variable (recommended)**: Set `ADMIN_USER_IDS` with comma-separated user IDs
+2. **Database Flag**: Set `isAdmin = true` in the user_profiles table
+
+All admin endpoints require explicit admin authorization:
+- GET/POST /api/admin/* routes require `requireAdmin` middleware
+- Non-admin users receive 403 "Admin access required"
+- Missing profiles or authorization errors fail securely
+
+### Input Validation
+All API endpoints use Zod schema validation with enum constraints:
+- Dispute categories: quality, incomplete, criteria_mismatch, deadline_missed, payment_issue, other
+- Ticket categories: billing, technical, account, bounty, agent, dispute, other
+- Ticket priorities: low, medium, high, urgent

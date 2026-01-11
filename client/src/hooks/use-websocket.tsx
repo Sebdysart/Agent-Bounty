@@ -55,6 +55,16 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     ws.onopen = () => {
       setIsConnected(true);
+      
+      fetch("/api/auth/user")
+        .then(res => res.ok ? res.json() : null)
+        .then(user => {
+          if (user?.id && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "auth", userId: user.id }));
+          }
+        })
+        .catch(() => {});
+      
       channelRefCounts.current.forEach((handlers, channel) => {
         if (handlers.size > 0) {
           ws.send(JSON.stringify({ type: "subscribe", channel }));

@@ -8,9 +8,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Shield, Lock, Bell, Smartphone, Key, History, 
-  CheckCircle, AlertTriangle, Upload, LogIn, Settings, Eye
+  CheckCircle, AlertTriangle, Upload, LogIn, Settings, Eye, Loader2, Copy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -36,8 +38,19 @@ const eventTypeColors: Record<string, string> = {
   "2fa_disabled": "text-red-500",
 };
 
+interface TwoFactorSetupData {
+  secret: string;
+  backupCodes: string[];
+  qrCodeUrl: string;
+}
+
 export default function SecuritySettingsPage() {
   const { toast } = useToast();
+  const [show2FASetupDialog, setShow2FASetupDialog] = useState(false);
+  const [show2FADisableDialog, setShow2FADisableDialog] = useState(false);
+  const [setupData, setSetupData] = useState<TwoFactorSetupData | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
 
   const { data: settings } = useQuery<SecuritySettingsType>({
     queryKey: ["/api/security/settings"],
@@ -49,13 +62,7 @@ export default function SecuritySettingsPage() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newSettings: Partial<SecuritySettingsType>) => {
-      const res = await fetch("/api/security/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(newSettings),
-      });
-      if (!res.ok) throw new Error("Failed to update");
+      const res = await apiRequest("POST", "/api/security/settings", newSettings);
       return res.json();
     },
     onSuccess: () => {
@@ -64,6 +71,79 @@ export default function SecuritySettingsPage() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update settings", variant: "destructive" });
+    },
+  });
+
+  const setup2FAMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/security/2fa/setup");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to setup 2FA");
+      }
+      return res.json() as Promise<TwoFactorSetupData>;
+    },
+    onSuccess: (data) => {
+      if (data?.secret && data?.qrCodeUrl) {
+        setSetupData(data);
+        setShow2FASetupDialog(true);
+      } else {
+        toast({ title: "Error", description: "Invalid setup data received", variant: "destructive" });
+      }
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to setup 2FA", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const enable2FAMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest("POST", "/api/security/2fa/enable", { token });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to enable 2FA");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/security/settings"] });
+      setShowBackupCodes(true);
+      toast({ title: "2FA Enabled", description: "Two-factor authentication is now active on your account." });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Verification Failed", 
+        description: error instanceof Error ? error.message : "Invalid verification code", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const disable2FAMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest("POST", "/api/security/2fa/disable", { token });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to disable 2FA");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/security/settings"] });
+      setShow2FADisableDialog(false);
+      setVerificationCode("");
+      toast({ title: "2FA Disabled", description: "Two-factor authentication has been removed from your account." });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Verification Failed", 
+        description: error instanceof Error ? error.message : "Invalid verification code", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -84,6 +164,31 @@ export default function SecuritySettingsPage() {
 
   const handleSettingChange = (key: string, value: boolean) => {
     updateSettingsMutation.mutate({ [key]: value });
+  };
+
+  const handle2FAToggle = () => {
+    if (defaultSettings.twoFactorEnabled) {
+      setShow2FADisableDialog(true);
+    } else {
+      setup2FAMutation.mutate();
+    }
+  };
+
+  const handleEnableSubmit = () => {
+    if (verificationCode.length === 6) {
+      enable2FAMutation.mutate(verificationCode);
+    }
+  };
+
+  const handleDisableSubmit = () => {
+    if (verificationCode.length >= 6) {
+      disable2FAMutation.mutate(verificationCode);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied!", description: "Copied to clipboard" });
   };
 
   const formatDate = (date: Date | string | null) => {
@@ -119,49 +224,63 @@ export default function SecuritySettingsPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Enable 2FA</Label>
+                    <div className="flex items-center gap-2">
+                      <Label>Enable 2FA</Label>
+                      {defaultSettings.twoFactorEnabled && (
+                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Active
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       Use an authenticator app for additional security
                     </p>
                   </div>
-                  <Switch 
-                    checked={defaultSettings.twoFactorEnabled ?? false}
-                    onCheckedChange={(v) => handleSettingChange("twoFactorEnabled", v)}
-                    data-testid="switch-2fa"
-                  />
+                  <Button 
+                    variant={defaultSettings.twoFactorEnabled ? "destructive" : "default"}
+                    onClick={handle2FAToggle}
+                    disabled={setup2FAMutation.isPending}
+                    data-testid="button-toggle-2fa"
+                  >
+                    {setup2FAMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {defaultSettings.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
+                  </Button>
                 </div>
                 
-                <Separator />
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Require 2FA for uploads</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Verify identity when uploading new agents
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={defaultSettings.uploadRequires2fa ?? false}
-                    onCheckedChange={(v) => handleSettingChange("uploadRequires2fa", v)}
-                    disabled={!defaultSettings.twoFactorEnabled}
-                    data-testid="switch-2fa-upload"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Require 2FA for publishing</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Verify identity when publishing agents to marketplace
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={defaultSettings.publishRequires2fa ?? false}
-                    onCheckedChange={(v) => handleSettingChange("publishRequires2fa", v)}
-                    disabled={!defaultSettings.twoFactorEnabled}
-                    data-testid="switch-2fa-publish"
-                  />
-                </div>
+                {defaultSettings.twoFactorEnabled && (
+                  <>
+                    <Separator />
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Require 2FA for uploads</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Verify identity when uploading new agents
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={defaultSettings.uploadRequires2fa ?? false}
+                        onCheckedChange={(v) => handleSettingChange("uploadRequires2fa", v)}
+                        data-testid="switch-2fa-upload"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Require 2FA for publishing</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Verify identity when publishing agents to marketplace
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={defaultSettings.publishRequires2fa ?? false}
+                        onCheckedChange={(v) => handleSettingChange("publishRequires2fa", v)}
+                        data-testid="switch-2fa-publish"
+                      />
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -226,86 +345,22 @@ export default function SecuritySettingsPage() {
 
           <div className="space-y-6">
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" />
-                  Security Score
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center">
-                  <div className="relative w-32 h-32">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle
-                        cx="64"
-                        cy="64"
-                        r="56"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="8"
-                        className="text-muted"
-                      />
-                      <circle
-                        cx="64"
-                        cy="64"
-                        r="56"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="8"
-                        strokeDasharray={`${(defaultSettings.twoFactorEnabled ? 70 : 40) * 3.52} 352`}
-                        className="text-primary"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-3xl font-bold">
-                        {defaultSettings.twoFactorEnabled ? 70 : 40}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    {defaultSettings.twoFactorEnabled ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span>Two-factor authentication</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    {defaultSettings.loginNotifications ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    )}
-                    <span>Login notifications</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
                   <History className="w-4 h-4" />
                   Recent Activity
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-64">
-                  {auditLog.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No recent activity
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {auditLog.slice(0, 10).map((log) => {
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3">
+                    {auditLog.length > 0 ? (
+                      auditLog.map((log) => {
                         const Icon = eventTypeIcons[log.eventType] || Settings;
-                        const color = eventTypeColors[log.eventType] || "text-muted-foreground";
-                        
+                        const colorClass = eventTypeColors[log.eventType] || "text-muted-foreground";
                         return (
-                          <div key={log.id} className="flex items-start gap-3">
-                            <div className={`shrink-0 ${color}`}>
+                          <div key={log.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50">
+                            <div className={`mt-0.5 ${colorClass}`}>
                               <Icon className="w-4 h-4" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -315,21 +370,187 @@ export default function SecuritySettingsPage() {
                               <p className="text-xs text-muted-foreground">
                                 {formatDate(log.createdAt)}
                               </p>
+                              {log.ipAddress && (
+                                <p className="text-xs text-muted-foreground">
+                                  IP: {log.ipAddress}
+                                </p>
+                              )}
                             </div>
-                            <Badge variant={log.success ? "secondary" : "destructive"} className="text-xs">
-                              {log.success ? "Success" : "Failed"}
-                            </Badge>
+                            {log.success ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-500" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-red-500" />
+                            )}
                           </div>
                         );
-                      })}
-                    </div>
-                  )}
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No activity recorded yet
+                      </p>
+                    )}
+                  </div>
                 </ScrollArea>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      <Dialog open={show2FASetupDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShow2FASetupDialog(false);
+          setSetupData(null);
+          setVerificationCode("");
+          setShowBackupCodes(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {showBackupCodes ? "Save Your Backup Codes" : "Set Up Two-Factor Authentication"}
+            </DialogTitle>
+            <DialogDescription>
+              {showBackupCodes 
+                ? "Save these backup codes in a secure location. You can use them to access your account if you lose your authenticator."
+                : "Scan this QR code with your authenticator app (like Google Authenticator or Authy), then enter the 6-digit code below."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {showBackupCodes ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 p-4 bg-muted rounded-lg font-mono text-sm">
+                {setupData?.backupCodes.map((code, i) => (
+                  <div key={i} className="text-center py-1">{code}</div>
+                ))}
+              </div>
+              <Button 
+                className="w-full" 
+                onClick={() => {
+                  if (setupData) {
+                    copyToClipboard(setupData.backupCodes.join('\n'));
+                  }
+                }}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Backup Codes
+              </Button>
+              <DialogFooter>
+                <Button onClick={() => {
+                  setShow2FASetupDialog(false);
+                  setSetupData(null);
+                  setVerificationCode("");
+                  setShowBackupCodes(false);
+                }}>
+                  Done
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {setupData && (
+                <>
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="p-4 bg-white rounded-lg">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.qrCodeUrl)}`}
+                        alt="2FA QR Code"
+                        className="w-48 h-48"
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Or enter this code manually:</p>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs bg-muted px-2 py-1 rounded">{setupData.secret}</code>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(setupData.secret)}>
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Enter 6-digit code from your authenticator</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
+                      className="text-center text-2xl tracking-widest font-mono"
+                      data-testid="input-2fa-code"
+                    />
+                  </div>
+                </>
+              )}
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setShow2FASetupDialog(false);
+                  setSetupData(null);
+                  setVerificationCode("");
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleEnableSubmit}
+                  disabled={verificationCode.length !== 6 || enable2FAMutation.isPending}
+                  data-testid="button-verify-2fa"
+                >
+                  {enable2FAMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Verify & Enable
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={show2FADisableDialog} onOpenChange={setShow2FADisableDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              Enter a 6-digit code from your authenticator app or a backup code to disable 2FA.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Verification code</Label>
+              <Input
+                type="text"
+                maxLength={8}
+                placeholder="000000 or backup code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase())}
+                className="text-center text-xl tracking-widest font-mono"
+                data-testid="input-disable-2fa-code"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShow2FADisableDialog(false);
+              setVerificationCode("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDisableSubmit}
+              disabled={verificationCode.length < 6 || disable2FAMutation.isPending}
+              data-testid="button-confirm-disable-2fa"
+            >
+              {disable2FAMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Disable 2FA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

@@ -1514,6 +1514,106 @@ ${agentOutput}`
     }
   });
 
+  app.post("/api/security/2fa/setup", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { twoFactorService } = await import("./twoFactorService");
+      const result = await twoFactorService.setup(userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error setting up 2FA:", error);
+      res.status(500).json({ message: "Failed to setup 2FA" });
+    }
+  });
+
+  app.post("/api/security/2fa/enable", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ message: "Verification token required" });
+      }
+
+      const { twoFactorService } = await import("./twoFactorService");
+      const result = await twoFactorService.enable(userId, token);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      const { emailService } = await import("./emailService");
+      const email = req.user?.claims?.email;
+      if (email) {
+        await emailService.send2FAEnabled(email);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error enabling 2FA:", error);
+      res.status(500).json({ message: "Failed to enable 2FA" });
+    }
+  });
+
+  app.post("/api/security/2fa/disable", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ message: "Verification token required" });
+      }
+
+      const { twoFactorService } = await import("./twoFactorService");
+      const result = await twoFactorService.disable(userId, token);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      res.status(500).json({ message: "Failed to disable 2FA" });
+    }
+  });
+
+  app.post("/api/security/2fa/verify", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ message: "Verification token required" });
+      }
+
+      const { twoFactorService } = await import("./twoFactorService");
+      const result = await twoFactorService.verify(userId, token);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error });
+      }
+      
+      res.json({ success: true, verified: true });
+    } catch (error) {
+      console.error("Error verifying 2FA:", error);
+      res.status(500).json({ message: "Failed to verify 2FA" });
+    }
+  });
+
   app.post("/api/agent-uploads/:id/security-scan", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;

@@ -707,6 +707,9 @@ export class DatabaseStorage implements IStorage {
         target: securitySettings.userId,
         set: {
           twoFactorEnabled: settings.twoFactorEnabled,
+          twoFactorSecret: settings.twoFactorSecret,
+          backupCodes: settings.backupCodes,
+          trustedDevices: settings.trustedDevices,
           loginNotifications: settings.loginNotifications,
           uploadRequires2fa: settings.uploadRequires2fa,
           publishRequires2fa: settings.publishRequires2fa,
@@ -715,6 +718,22 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return upserted;
+  }
+
+  async updateSecuritySettings(userId: string, updates: Partial<SecuritySettings>): Promise<SecuritySettings | undefined> {
+    const [updated] = await db.update(securitySettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(securitySettings.userId, userId))
+      .returning();
+    
+    if (!updated) {
+      const [created] = await db.insert(securitySettings)
+        .values({ userId, ...updates } as InsertSecuritySettings)
+        .returning();
+      return created;
+    }
+    
+    return updated;
   }
 
   async logSecurityEvent(event: InsertSecurityAuditLog): Promise<SecurityAuditLog> {

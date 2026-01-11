@@ -125,6 +125,24 @@ class WebSocketService {
     });
   }
 
+  broadcastActivity(activity: {
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    amount?: number;
+    actorName?: string;
+    metadata?: Record<string, any>;
+  }) {
+    this.broadcastToChannel("activity", {
+      type: "new_activity",
+      activity: {
+        ...activity,
+        createdAt: new Date().toISOString(),
+      },
+    });
+  }
+
   broadcastUserNotification(userId: string, type: string, message: string, data?: any) {
     this.broadcastToUser(userId, {
       type,

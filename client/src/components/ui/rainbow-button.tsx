@@ -17,7 +17,7 @@ export const RainbowButton = forwardRef<HTMLButtonElement, RainbowButtonProps>(
               style={{
                 background: "linear-gradient(90deg, #8b5cf6, #d946ef, #06b6d4, #8b5cf6)",
                 backgroundSize: "200% 200%",
-                animation: "rainbow-border 22s linear infinite",
+                animation: "rainbow-border 5s linear infinite",
               }}
             />
             <div 
@@ -25,7 +25,7 @@ export const RainbowButton = forwardRef<HTMLButtonElement, RainbowButtonProps>(
               style={{
                 background: "linear-gradient(90deg, #8b5cf6, #d946ef, #06b6d4, #8b5cf6)",
                 backgroundSize: "200% 200%",
-                animation: "rainbow-border 22s linear infinite",
+                animation: "rainbow-border 5s linear infinite",
               }}
             />
           </>

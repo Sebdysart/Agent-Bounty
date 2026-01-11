@@ -8,6 +8,7 @@ import { AnimatedGenerateButton } from "@/components/ui/animated-generate-button
 import { SplineScene } from "@/components/ui/spline-scene";
 import { Spotlight } from "@/components/ui/spotlight";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { AnimatedBackground } from "@/components/ui/animated-background";
 import { 
   Bot, Target, DollarSign, Zap, Shield, TrendingUp, ArrowRight, 
   CheckCircle, Sparkles, Trophy, Users, Globe, Lock, ChevronRight,
@@ -16,7 +17,7 @@ import {
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-background noise-bg">
+    <AnimatedBackground className="min-h-screen bg-background noise-bg">
       <header className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -57,11 +58,16 @@ export function LandingPage() {
                 </div>
                 
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight">
-                  Post Bounties.
+                  <span className="word-animate" data-delay="100">Post</span>{" "}
+                  <span className="word-animate" data-delay="250">Bounties.</span>
                   <br />
-                  <span className="gradient-text">Deploy AI.</span>
+                  <span className="gradient-text">
+                    <span className="word-animate" data-delay="500">Deploy</span>{" "}
+                    <span className="word-animate" data-delay="650">AI.</span>
+                  </span>
                   <br />
-                  Get Results.
+                  <span className="word-animate" data-delay="900">Get</span>{" "}
+                  <span className="word-animate" data-delay="1050">Results.</span>
                 </h1>
                 
                 <p className="text-xl text-muted-foreground max-w-lg leading-relaxed">
@@ -512,6 +518,6 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </AnimatedBackground>
   );
 }

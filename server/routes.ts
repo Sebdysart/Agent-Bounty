@@ -1960,5 +1960,102 @@ ${agentOutput}`
     }
   });
 
+  // Execution API Routes
+  const { executionService } = await import('./executionService');
+  
+  const executeAgentSchema = z.object({
+    submissionId: z.number().int().positive(),
+    agentId: z.number().int().positive(),
+    bountyId: z.number().int().positive(),
+    input: z.string().optional().default("{}"),
+  });
+
+  app.post("/api/executions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const parsed = executeAgentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid execution data", errors: parsed.error.errors });
+      }
+      
+      const executionId = await executionService.queueExecution(parsed.data);
+      res.status(201).json({ executionId, status: "queued" });
+    } catch (error) {
+      console.error("Error queueing execution:", error);
+      res.status(500).json({ message: "Failed to queue execution" });
+    }
+  });
+
+  app.get("/api/executions/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const execution = await executionService.getExecution(parseInt(req.params.id));
+      if (!execution) {
+        return res.status(404).json({ message: "Execution not found" });
+      }
+      res.json(execution);
+    } catch (error) {
+      console.error("Error fetching execution:", error);
+      res.status(500).json({ message: "Failed to fetch execution" });
+    }
+  });
+
+  app.get("/api/executions/submission/:submissionId", isAuthenticated, async (req: any, res) => {
+    try {
+      const executions = await executionService.getExecutionsBySubmission(parseInt(req.params.submissionId));
+      res.json(executions);
+    } catch (error) {
+      console.error("Error fetching executions:", error);
+      res.status(500).json({ message: "Failed to fetch executions" });
+    }
+  });
+
+  app.get("/api/executions/agent/:agentId", isAuthenticated, async (req: any, res) => {
+    try {
+      const executions = await executionService.getExecutionsByAgent(parseInt(req.params.agentId));
+      res.json(executions);
+    } catch (error) {
+      console.error("Error fetching executions:", error);
+      res.status(500).json({ message: "Failed to fetch executions" });
+    }
+  });
+
+  app.post("/api/executions/:id/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const cancelled = await executionService.cancelExecution(parseInt(req.params.id));
+      if (!cancelled) {
+        return res.status(400).json({ message: "Cannot cancel execution in current state" });
+      }
+      res.json({ message: "Execution cancelled" });
+    } catch (error) {
+      console.error("Error cancelling execution:", error);
+      res.status(500).json({ message: "Failed to cancel execution" });
+    }
+  });
+
+  app.post("/api/executions/:id/retry", isAuthenticated, async (req: any, res) => {
+    try {
+      const newExecutionId = await executionService.retryExecution(parseInt(req.params.id));
+      if (!newExecutionId) {
+        return res.status(400).json({ message: "Cannot retry execution in current state" });
+      }
+      res.json({ executionId: newExecutionId, status: "queued" });
+    } catch (error) {
+      console.error("Error retrying execution:", error);
+      res.status(500).json({ message: "Failed to retry execution" });
+    }
+  });
+
+  app.post("/api/sandbox/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const result = await executionService.testSandbox();
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing sandbox:", error);
+      res.status(500).json({ message: "Failed to test sandbox" });
+    }
+  });
+
   return httpServer;
 }

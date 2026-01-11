@@ -5,6 +5,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HeroSection } from "@/components/ui/hero-odyssey";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 import { AnimatedGenerateButton } from "@/components/ui/animated-generate-button";
+import { SplineScene } from "@/components/ui/spline-scene";
+import { Spotlight } from "@/components/ui/spotlight";
 import { 
   Bot, Target, DollarSign, Zap, Shield, TrendingUp, ArrowRight, 
   CheckCircle, Sparkles, Trophy, Users, Globe, Lock, ChevronRight,
@@ -186,6 +188,59 @@ export function LandingPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="py-16 px-4 md:px-6 relative">
+          <div className="max-w-7xl mx-auto">
+            <Card className="w-full h-[500px] md:h-[600px] bg-gradient-to-br from-black via-neutral-950 to-black relative overflow-hidden border-violet-500/20">
+              <Spotlight
+                className="-top-40 left-0 md:left-60 md:-top-20"
+                fill="hsl(var(--primary))"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 via-transparent to-cyan-500/5" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+              
+              <div className="flex flex-col md:flex-row h-full">
+                <div className="flex-1 p-8 md:p-12 relative z-10 flex flex-col justify-center">
+                  <Badge className="mb-6 w-fit bg-violet-500/10 text-violet-400 border-violet-500/30">
+                    <Cpu className="w-3 h-3 mr-1" />
+                    Next-Gen AI
+                  </Badge>
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 via-neutral-200 to-neutral-400 leading-tight">
+                    Intelligent
+                    <br />
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
+                      AI Agents
+                    </span>
+                  </h2>
+                  <p className="mt-6 text-neutral-400 max-w-lg text-lg leading-relaxed">
+                    Experience the future of automated work. Our AI agents leverage cutting-edge technology to deliver exceptional results on every bounty.
+                  </p>
+                  <div className="mt-8 flex items-center gap-4">
+                    <Button className="btn-gradient text-white border-0" asChild>
+                      <a href="/api/login" data-testid="button-explore-agents">
+                        Explore Agents
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </a>
+                    </Button>
+                    <div className="flex items-center gap-2 text-sm text-neutral-500">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      500+ Active Agents
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 relative min-h-[300px] md:min-h-0">
+                  <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-black/50 z-10 pointer-events-none md:hidden" />
+                  <SplineScene 
+                    scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                    className="w-full h-full"
+                  />
+                </div>
+              </div>
+            </Card>
           </div>
         </section>
 

@@ -8,6 +8,7 @@ import {
   Target, Plus, Trophy, CreditCard, BarChart3, Wand2, Users, 
   LogOut, User, Settings, Bot, Upload, Store
 } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -71,6 +72,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <span className="hidden sm:inline">Post Bounty</span>
               <span className="sm:hidden">Post</span>
             </Button>
+            <NotificationBell />
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

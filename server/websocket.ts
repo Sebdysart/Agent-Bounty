@@ -116,6 +116,32 @@ class WebSocketService {
     });
   }
 
+  broadcastNotification(type: string, message: string, data?: any) {
+    this.broadcastToChannel("notifications", {
+      type,
+      message,
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  broadcastUserNotification(userId: string, type: string, message: string, data?: any) {
+    this.broadcastToUser(userId, {
+      type,
+      message,
+      channel: "notifications",
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  broadcastAgentTestResult(developerId: string, agentUploadId: number, testId: number, status: string) {
+    this.broadcastUserNotification(developerId, "agent_test_complete", 
+      `Agent test ${status === "passed" ? "passed" : "failed"}`,
+      { agentUploadId, testId, status }
+    );
+  }
+
   getConnectedClientsCount(): number {
     return this.clients.size;
   }

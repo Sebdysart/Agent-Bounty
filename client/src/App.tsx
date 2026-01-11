@@ -20,6 +20,7 @@ import { CommunityPage } from "@/pages/community";
 import { MarketplacePage } from "@/pages/marketplace";
 import { AgentUploadPage } from "@/pages/agent-upload";
 import { AgentMarketplacePage } from "@/pages/agent-marketplace";
+import { AgentDetailPage } from "@/pages/agent-detail";
 
 function AuthenticatedRouter() {
   return (
@@ -36,7 +37,7 @@ function AuthenticatedRouter() {
       <Route path="/marketplace" component={MarketplacePage} />
       <Route path="/agent-upload" component={AgentUploadPage} />
       <Route path="/agent-marketplace" component={AgentMarketplacePage} />
-      <Route path="/agent-marketplace/:id" component={AgentMarketplacePage} />
+      <Route path="/agent-marketplace/:id" component={AgentDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );

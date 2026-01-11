@@ -867,6 +867,10 @@ ${agentOutput}`
         return res.status(400).json({ message: "Agent must pass testing before publishing" });
       }
       const updated = await storage.updateAgentUploadStatus(id, "published");
+      wsService.broadcastUserNotification(userId, "agent_published", 
+        `Your agent "${existing.name}" is now live on the marketplace!`,
+        { agentUploadId: id }
+      );
       res.json(updated);
     } catch (error) {
       console.error("Error publishing agent:", error);
@@ -1067,12 +1071,7 @@ ${agentOutput}`
             await storage.updateAgentUploadStatus(id, "approved");
           }
 
-          wsService.broadcastToUser(existing.developerId, {
-            type: "agent_test_complete",
-            agentUploadId: id,
-            testId: test.id,
-            status: success ? "passed" : "failed",
-          });
+          wsService.broadcastAgentTestResult(existing.developerId, id, test.id, success ? "passed" : "failed");
         } catch (err) {
           console.error("Error completing test:", err);
         }
@@ -1192,6 +1191,14 @@ ${agentOutput}`
       }
       
       const review = await storage.createAgentReview(parsed.data);
+      
+      if (existing.developerId !== userId) {
+        wsService.broadcastUserNotification(existing.developerId, "review_received", 
+          `Your agent "${existing.name}" received a ${req.body.rating}-star review!`,
+          { agentUploadId: id, reviewId: review.id, rating: req.body.rating }
+        );
+      }
+      
       res.status(201).json(review);
     } catch (error) {
       console.error("Error creating review:", error);

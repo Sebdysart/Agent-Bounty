@@ -348,77 +348,124 @@ export function AgentUploadPage() {
       </div>
 
       {uploadType === "no_code" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              AI Agent Generator
-            </CardTitle>
-            <CardDescription>Describe your agent and AI will generate the configuration</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="prompt">Describe your agent</Label>
-              <Textarea
-                id="prompt"
-                placeholder="I want an agent that can scrape websites for competitor pricing data, analyze trends, and generate weekly reports..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-32"
-                data-testid="textarea-agent-prompt"
-              />
-            </div>
-            <AnimatedGenerateButton 
-              onClick={() => generateAgent.mutate(prompt)}
-              generating={generateAgent.isPending}
-              disabled={prompt.length < 10 || generateAgent.isPending}
-              highlightHueDeg={270}
-            >
-              <Wand2 className="w-4 h-4" />
-              Generate Agent
-            </AnimatedGenerateButton>
-
-            {generatedAgent && (
-              <div className="mt-6 p-4 bg-muted rounded-lg space-y-4">
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-medium">Agent Generated Successfully!</span>
+        <div className="relative">
+          <div className="absolute -inset-[1px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 rounded-xl opacity-75 blur-sm animate-pulse" />
+          <div className="absolute -inset-[1px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 rounded-xl opacity-50" />
+          <Card className="relative bg-gradient-to-b from-[#0a0a14] to-[#0f0f1a] border-0 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(139,92,246,0.15),_transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(6,182,212,0.1),_transparent_50%)]" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+            
+            <CardHeader className="relative z-10 pb-2">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-violet-500/30 blur-lg rounded-full" />
+                  <div className="relative p-2 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-lg border border-violet-500/30">
+                    <Sparkles className="w-6 h-6 text-violet-400" />
+                  </div>
                 </div>
-                <div className="grid gap-4">
-                  <div>
-                    <Label>Name</Label>
-                    <Input 
-                      value={formData.name} 
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      data-testid="input-agent-name"
-                    />
-                  </div>
-                  <div>
-                    <Label>Description</Label>
-                    <Textarea 
-                      value={formData.description} 
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      data-testid="textarea-agent-description"
-                    />
-                  </div>
-                  <div>
-                    <Label>Capabilities</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.capabilities.map((cap, i) => (
-                        <Badge key={i} variant="secondary" className="gap-1">
-                          {cap}
-                          <button onClick={() => removeCapability(i)} className="ml-1 hover:text-destructive">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ))}
+                <div>
+                  <CardTitle className="text-xl font-bold bg-gradient-to-r from-violet-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
+                    AI Agent Generator
+                  </CardTitle>
+                  <CardDescription className="text-white/50">
+                    Describe your vision and watch AI craft the perfect agent
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="relative z-10 space-y-6 pt-4">
+              <div className="space-y-3">
+                <Label htmlFor="prompt" className="text-sm font-medium text-white/70 flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-violet-400" />
+                  Describe your agent
+                </Label>
+                <div className="relative">
+                  <div className="absolute -inset-[1px] bg-gradient-to-r from-violet-500/30 via-fuchsia-500/30 to-cyan-500/30 rounded-lg opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                  <Textarea
+                    id="prompt"
+                    placeholder="I want an agent that can scrape websites for competitor pricing data, analyze trends, and generate weekly reports with actionable insights..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    className="relative min-h-[140px] bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-violet-500/50 focus:ring-violet-500/20 resize-none transition-all duration-300"
+                    data-testid="textarea-agent-prompt"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-white/40">
+                  <span>Tip: Be specific about capabilities, data sources, and output formats</span>
+                  <span className={prompt.length < 10 ? "text-white/40" : "text-green-400"}>
+                    {prompt.length}/10 min
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex justify-center pt-2">
+                <AnimatedGenerateButton 
+                  onClick={() => generateAgent.mutate(prompt)}
+                  generating={generateAgent.isPending}
+                  disabled={prompt.length < 10 || generateAgent.isPending}
+                  highlightHueDeg={280}
+                  labelIdle="Generate Agent"
+                  labelActive="Building Agent..."
+                />
+              </div>
+
+              {generatedAgent && (
+                <div className="mt-8 relative">
+                  <div className="absolute -inset-[1px] bg-gradient-to-r from-green-500/30 via-emerald-500/30 to-teal-500/30 rounded-xl" />
+                  <div className="relative p-6 bg-gradient-to-b from-green-500/5 to-emerald-500/5 rounded-xl border border-green-500/20 space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-500/20 rounded-lg">
+                        <CheckCircle2 className="w-5 h-5 text-green-400" />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-green-300">Agent Generated Successfully!</span>
+                        <p className="text-sm text-white/50">Customize the configuration below</p>
+                      </div>
+                    </div>
+                    <div className="grid gap-5">
+                      <div className="space-y-2">
+                        <Label className="text-white/70">Agent Name</Label>
+                        <Input 
+                          value={formData.name} 
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          className="bg-white/5 border-white/10 text-white focus:border-green-500/50"
+                          data-testid="input-agent-name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-white/70">Description</Label>
+                        <Textarea 
+                          value={formData.description} 
+                          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                          className="bg-white/5 border-white/10 text-white focus:border-green-500/50 min-h-[80px]"
+                          data-testid="textarea-agent-description"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-white/70">Capabilities</Label>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {formData.capabilities.map((cap, i) => (
+                            <Badge 
+                              key={i} 
+                              className="bg-violet-500/20 text-violet-300 border border-violet-500/30 gap-1 hover:bg-violet-500/30 transition-colors"
+                            >
+                              {cap}
+                              <button onClick={() => removeCapability(i)} className="ml-1 hover:text-red-400 transition-colors">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {uploadType === "low_code" && (

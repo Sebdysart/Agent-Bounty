@@ -10,8 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Clock, Users, Shield, DollarSign, CheckCircle, AlertCircle, Loader2, XCircle, Timer, Bot, Star, TrendingUp, Calendar, Target } from "lucide-react";
+import { ArrowLeft, Clock, Users, Shield, DollarSign, CheckCircle, AlertCircle, Loader2, XCircle, Timer, Bot, Star, TrendingUp, Calendar, Target, CreditCard, RefreshCw, Wallet } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import type { Bounty, Agent, Submission } from "@shared/schema";
 
@@ -38,12 +39,21 @@ const categoryConfig: Record<string, { label: string; color: string }> = {
   other: { label: "Other", color: "bg-muted text-muted-foreground" },
 };
 
+const paymentStatusConfig = {
+  pending: { label: "Not Funded", color: "bg-warning/10 text-warning", icon: Wallet },
+  funded: { label: "Funded (Escrow)", color: "bg-success/10 text-success", icon: Shield },
+  released: { label: "Payment Released", color: "bg-info/10 text-info", icon: CheckCircle },
+  refunded: { label: "Refunded", color: "bg-muted text-muted-foreground", icon: RefreshCw },
+};
+
 export function BountyDetailPage() {
   const { id } = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
 
   const { data: bounty, isLoading } = useQuery<BountyWithDetails>({
     queryKey: ["/api/bounties", id],
@@ -71,6 +81,66 @@ export function BountyDetailPage() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to submit agent",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const fundBounty = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/bounties/${id}/fund`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to initiate payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const releasePayment = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/bounties/${id}/release-payment`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bounties", id] });
+      toast({
+        title: "Payment Released",
+        description: "The payment has been released to the winning agent.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to release payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const refundPayment = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/bounties/${id}/refund`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bounties", id] });
+      setShowRefundDialog(false);
+      toast({
+        title: "Bounty Cancelled",
+        description: "The payment has been refunded to your account.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to refund payment",
         variant: "destructive",
       });
     },
@@ -115,6 +185,9 @@ export function BountyDetailPage() {
   const StatusIcon = status.icon;
   const deadline = new Date(bounty.deadline);
   const isExpired = deadline < new Date() && bounty.status === "open";
+  const isOwner = user?.id === bounty.posterId;
+  const paymentStatus = paymentStatusConfig[bounty.paymentStatus as keyof typeof paymentStatusConfig] || paymentStatusConfig.pending;
+  const PaymentIcon = paymentStatus.icon;
 
   return (
     <div className="min-h-screen bg-background">
@@ -316,6 +389,75 @@ export function BountyDetailPage() {
               </CardContent>
             </Card>
 
+            {isOwner && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    Payment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge variant="secondary" className={paymentStatus.color}>
+                      <PaymentIcon className="w-3 h-3 mr-1" />
+                      {paymentStatus.label}
+                    </Badge>
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    {bounty.paymentStatus === "pending" && bounty.status !== "cancelled" && (
+                      <Button 
+                        className="w-full" 
+                        onClick={() => fundBounty.mutate()}
+                        disabled={fundBounty.isPending}
+                        data-testid="button-fund-bounty"
+                      >
+                        {fundBounty.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CreditCard className="w-4 h-4 mr-2" />
+                        )}
+                        Fund Bounty
+                      </Button>
+                    )}
+                    {bounty.paymentStatus === "funded" && bounty.status === "completed" && (
+                      <Button 
+                        className="w-full" 
+                        onClick={() => releasePayment.mutate()}
+                        disabled={releasePayment.isPending}
+                        data-testid="button-release-payment"
+                      >
+                        {releasePayment.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Release Payment
+                      </Button>
+                    )}
+                    {bounty.paymentStatus === "funded" && bounty.status !== "completed" && bounty.status !== "cancelled" && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-destructive hover:text-destructive" 
+                        onClick={() => setShowRefundDialog(true)}
+                        data-testid="button-cancel-refund"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Cancel & Refund
+                      </Button>
+                    )}
+                  </div>
+                  {bounty.paymentStatus === "pending" && (
+                    <p className="text-xs text-muted-foreground">
+                      Fund your bounty to attract more agents. Payments are held in escrow until completion.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {bounty.timeline && bounty.timeline.length > 0 && (
               <Card>
                 <CardHeader>
@@ -397,6 +539,37 @@ export function BountyDetailPage() {
               data-testid="button-confirm-submit"
             >
               {submitAgent.isPending ? "Submitting..." : "Submit Agent"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Bounty & Request Refund</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this bounty? The full payment will be refunded to your original payment method. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRefundDialog(false)}>
+              Keep Bounty
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => refundPayment.mutate()}
+              disabled={refundPayment.isPending}
+              data-testid="button-confirm-refund"
+            >
+              {refundPayment.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Cancel & Refund"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

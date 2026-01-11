@@ -1,0 +1,2486 @@
+You are tasked with integrating an existing React component bundle into the codebase.
+
+The codebase should support:
+- React with TypeScript
+- Tailwind CSS (v3 or v4)
+- Modern build tools (Vite/Next.js)
+
+If your project doesn't support these, provide instructions on how to set them up.
+
+IMPORTANT: The App.tsx file is a showcase/example demonstrating the component usage. You should:
+1. Analyze the App component to understand how all the pieces work together
+2. Review the supporting components and utilities 
+3. Integrate the relevant parts into your project structure
+4. Adapt the implementation to match your project's patterns and requirements
+
+## Installation
+
+```bash
+npm install framer-motion lucide-react recharts @radix-ui/react-slot class-variance-authority @radix-ui/react-switch @radix-ui/react-label @radix-ui/react-tooltip cmdk @radix-ui/react-popover clsx tailwind-merge @radix-ui/react-dialog
+```
+
+## Styles
+
+### index.css
+
+```css
+/* This is Tailwind 4 CSS file */
+/* Extending Tailwind configuration */
+/* Use shadcn/ui format to extend the configuration */
+/* Add only the styles that your component needs */
+
+/* Base imports */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Custom dark variant for targeting dark mode elements */
+@custom-variant dark (&:is(.dark *));
+
+/* CSS variables and theme definitions */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Light theme variables */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Dark theme variables */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Tailwind base styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+```
+
+
+## Component Files
+
+### lib/utils.ts
+
+```tsx
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+```
+
+### components/ui/card.tsx
+
+```tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+
+```
+
+### components/ui/badge.tsx
+
+```tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge, badgeVariants }
+
+```
+
+### components/ui/button.tsx
+
+```tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+
+```
+
+### components/ui/switch.tsx
+
+```tsx
+"use client"
+
+import * as React from "react"
+import * as SwitchPrimitive from "@radix-ui/react-switch"
+
+import { cn } from "@/lib/utils"
+
+function Switch({
+  className,
+  ...props
+}: React.ComponentProps<typeof SwitchPrimitive.Root>) {
+  return (
+    <SwitchPrimitive.Root
+      data-slot="switch"
+      className={cn(
+        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    >
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className={cn(
+          "bg-background dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0"
+        )}
+      />
+    </SwitchPrimitive.Root>
+  )
+}
+
+export { Switch }
+
+```
+
+### components/ui/label.tsx
+
+```tsx
+"use client"
+
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+
+import { cn } from "@/lib/utils"
+
+function Label({
+  className,
+  ...props
+}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+  return (
+    <LabelPrimitive.Root
+      data-slot="label"
+      className={cn(
+        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Label }
+
+```
+
+### components/ui/tooltip.tsx
+
+```tsx
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+
+import { cn } from "@/lib/utils"
+
+function TooltipProvider({
+  delayDuration = 0,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return (
+    <TooltipPrimitive.Provider
+      data-slot="tooltip-provider"
+      delayDuration={delayDuration}
+      {...props}
+    />
+  )
+}
+
+function Tooltip({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  return (
+    <TooltipProvider>
+      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+    </TooltipProvider>
+  )
+}
+
+function TooltipTrigger({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+}
+
+function TooltipContent({
+  className,
+  sideOffset = 0,
+  children,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  return (
+    <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Content
+        data-slot="tooltip-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-primary text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <TooltipPrimitive.Arrow className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+      </TooltipPrimitive.Content>
+    </TooltipPrimitive.Portal>
+  )
+}
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+
+```
+
+### components/ui/dialog.tsx
+
+```tsx
+import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { XIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+function Dialog({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+}
+
+function DialogTrigger({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}
+
+function DialogPortal({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
+
+function DialogClose({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}
+
+function DialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  return (
+    <DialogPrimitive.Overlay
+      data-slot="dialog-overlay"
+      className={cn(
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  return (
+    <DialogPortal data-slot="dialog-portal">
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        data-slot="dialog-content"
+        className={cn(
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn("text-lg leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+}
+
+```
+
+### components/ui/command.tsx
+
+```tsx
+"use client"
+
+import * as React from "react"
+import { Command as CommandPrimitive } from "cmdk"
+import { SearchIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+
+function Command({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive>) {
+  return (
+    <CommandPrimitive
+      data-slot="command"
+      className={cn(
+        "bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandDialog({
+  title = "Command Palette",
+  description = "Search for a command to run...",
+  children,
+  ...props
+}: React.ComponentProps<typeof Dialog> & {
+  title?: string
+  description?: string
+}) {
+  return (
+    <Dialog {...props}>
+      <DialogHeader className="sr-only">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <DialogContent className="overflow-hidden p-0">
+        <Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          {children}
+        </Command>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CommandInput({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  return (
+    <div
+      data-slot="command-input-wrapper"
+      className="flex h-9 items-center gap-2 border-b px-3"
+    >
+      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      <CommandPrimitive.Input
+        data-slot="command-input"
+        className={cn(
+          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        {...props}
+      />
+    </div>
+  )
+}
+
+function CommandList({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.List>) {
+  return (
+    <CommandPrimitive.List
+      data-slot="command-list"
+      className={cn(
+        "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandEmpty({
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+  return (
+    <CommandPrimitive.Empty
+      data-slot="command-empty"
+      className="py-6 text-center text-sm"
+      {...props}
+    />
+  )
+}
+
+function CommandGroup({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Group>) {
+  return (
+    <CommandPrimitive.Group
+      data-slot="command-group"
+      className={cn(
+        "text-foreground [&_[cmdk-group-heading]]:text-muted-foreground overflow-hidden p-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Separator>) {
+  return (
+    <CommandPrimitive.Separator
+      data-slot="command-separator"
+      className={cn("bg-border -mx-1 h-px", className)}
+      {...props}
+    />
+  )
+}
+
+function CommandItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Item>) {
+  return (
+    <CommandPrimitive.Item
+      data-slot="command-item"
+      className={cn(
+        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandShortcut({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="command-shortcut"
+      className={cn(
+        "text-muted-foreground ml-auto text-xs tracking-widest",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+}
+
+```
+
+### components/ui/popover.tsx
+
+```tsx
+"use client"
+
+import * as React from "react"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
+
+import { cn } from "@/lib/utils"
+
+function Popover({
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Root>) {
+  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+}
+
+function PopoverTrigger({
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Trigger>) {
+  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
+}
+
+function PopoverContent({
+  className,
+  align = "center",
+  sideOffset = 4,
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  return (
+    <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Content
+        data-slot="popover-content"
+        align={align}
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border p-4 shadow-md outline-hidden",
+          className
+        )}
+        {...props}
+      />
+    </PopoverPrimitive.Portal>
+  )
+}
+
+function PopoverAnchor({
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Anchor>) {
+  return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />
+}
+
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }
+
+```
+
+### components/agent-comparison-tool.tsx
+
+```tsx
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, X, TrendingUp, Award, Clock, DollarSign, Star, Target, Zap, AlertCircle, Loader2 } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// ============================================================================
+// TYPES (Exportable)
+// ============================================================================
+
+export interface Agent {
+  id: string;
+  name: string;
+  handle: string;
+  avatarUrl: string;
+  primaryTag?: string;
+  shortBio?: string;
+}
+
+export interface AgentStats {
+  agentId: string;
+  successRate: number;
+  avgCompletionSeconds: number;
+  earningsUsd: number;
+  reviewScore: number;
+  completionCount: number;
+  capabilities: string[];
+  timeSeries: {
+    dates: string[];
+    successRate: number[];
+    avgCompletionSeconds: number[];
+    earningsUsd: number[];
+    reviewScore: number[];
+    completionCount: number[];
+  };
+  headToHead?: {
+    comparedAgainstAgentId: string;
+    sameBountiesCount: number;
+    wins: number;
+    losses: number;
+    ties: number;
+    winRule: string;
+    ruleVersion: string;
+    computedAt: string;
+  };
+}
+
+export interface MetricDefinition {
+  name: string;
+  formula: string;
+  unit: string;
+  scaleMin: number;
+  scaleMax: number;
+  clampBehavior: string;
+  winCondition?: string;
+}
+
+export interface MetricBaseline {
+  version: string;
+  updatedAt: string;
+  bands: {
+    successRate: { p0: number; p50: number; p100: number };
+    avgCompletionSeconds: { p0: number; p50: number; p100: number };
+    earningsUsd: { p0: number; p50: number; p100: number };
+    reviewScore: { p0: number; p50: number; p100: number };
+    completionCount: { p0: number; p50: number; p100: number };
+    speedScore: { p0: number; p50: number; p100: number };
+    consistencyScore: { p0: number; p50: number; p100: number };
+  };
+}
+
+export interface DataAdapter {
+  getAgents: () => Promise<Agent[]>;
+  getStats: (agentId: string, range: '7d' | '30d' | '90d', options?: { etag?: string }) => Promise<{ data: AgentStats; etag: string; status: 200 | 304 }>;
+  getBaselines?: (range: '7d' | '30d' | '90d') => Promise<MetricBaseline>;
+  getDefinitions?: () => Promise<Record<string, MetricDefinition>>;
+}
+
+export interface AgentComparisonToolProps {
+  dataAdapter: DataAdapter;
+  initialAgentIds?: string[];
+  maxAgents?: number;
+  defaultRange?: '7d' | '30d' | '90d';
+  isDemo?: boolean;
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const CACHE_TTL_MS = 60000;
+const HEAD_TO_HEAD_MIN_BOUNTIES = 10;
+
+const DEFAULT_METRIC_DEFINITIONS: Record<string, MetricDefinition> = {
+  successRate: {
+    name: 'Success Rate',
+    formula: 'completed_successfully / total_attempts',
+    unit: 'percentage (0-100%)',
+    scaleMin: 0,
+    scaleMax: 1,
+    clampBehavior: 'Hard clamp [0, 1]',
+    winCondition: 'Higher is better'
+  },
+  avgCompletionSeconds: {
+    name: 'Avg Completion Time',
+    formula: 'median(completion_times_seconds)',
+    unit: 'seconds',
+    scaleMin: 0,
+    scaleMax: Infinity,
+    clampBehavior: 'No upper clamp',
+    winCondition: 'Lower is better (faster)'
+  },
+  earningsUsd: {
+    name: 'Earnings (Gross)',
+    formula: 'sum(bounty_payouts_usd)',
+    unit: 'USD',
+    scaleMin: 0,
+    scaleMax: Infinity,
+    clampBehavior: 'No upper clamp',
+    winCondition: 'Higher is better'
+  },
+  reviewScore: {
+    name: 'Review Score (Weighted)',
+    formula: 'weighted_avg(ratings) where count >= 5',
+    unit: 'stars (0-5)',
+    scaleMin: 0,
+    scaleMax: 5,
+    clampBehavior: 'Hard clamp [0, 5], requires minimum 5 reviews',
+    winCondition: 'Higher is better'
+  },
+  completionCount: {
+    name: 'Completion Count',
+    formula: 'count(completed_bounties)',
+    unit: 'count',
+    scaleMin: 0,
+    scaleMax: Infinity,
+    clampBehavior: 'No upper clamp',
+    winCondition: 'Higher is better (volume)'
+  },
+  speedScore: {
+    name: 'Speed Score',
+    formula: '100 × (1000s - time) / (1000s - 100s), clamped [0, 100]',
+    unit: 'score (0-100)',
+    scaleMin: 0,
+    scaleMax: 100,
+    clampBehavior: 'Hard clamp [0, 100]. Reference: 100s = max score, 1000s = min score',
+    winCondition: 'Higher is better (derived from completion time)'
+  },
+  consistencyScore: {
+    name: 'Consistency Score',
+    formula: '100 - (100 × coefficient_of_variation), clamped [0, 100]',
+    unit: 'score (0-100)',
+    scaleMin: 0,
+    scaleMax: 100,
+    clampBehavior: 'Hard clamp [0, 100]. Lower CV = higher consistency',
+    winCondition: 'Higher is better (less variance)'
+  }
+};
+
+const DEFAULT_BASELINE: MetricBaseline = {
+  version: 'v0.0.0-demo',
+  updatedAt: new Date().toISOString(),
+  bands: {
+    successRate: { p0: 0.5, p50: 0.75, p100: 0.95 },
+    avgCompletionSeconds: { p0: 1000, p50: 400, p100: 100 },
+    earningsUsd: { p0: 10000, p50: 75000, p100: 200000 },
+    reviewScore: { p0: 2.5, p50: 4.0, p100: 5.0 },
+    completionCount: { p0: 50, p50: 200, p100: 500 },
+    speedScore: { p0: 0, p50: 50, p100: 100 },
+    consistencyScore: { p0: 0, p50: 70, p100: 100 }
+  }
+};
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+const formatTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins > 60) {
+    const hours = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+    return `${hours}h ${remainingMins}m`;
+  }
+  return `${mins}m ${secs}s`;
+};
+
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
+};
+
+const calculateSpeedScore = (seconds: number): number => {
+  const maxSeconds = 1000;
+  const minSeconds = 100;
+  const normalized = Math.max(0, Math.min(1, (maxSeconds - seconds) / (maxSeconds - minSeconds)));
+  return Math.round(normalized * 100);
+};
+
+const calculateConsistencyScore = (timeSeries: number[]): number => {
+  if (timeSeries.length === 0) return 0;
+  const mean = timeSeries.reduce((a, b) => a + b, 0) / timeSeries.length;
+  const variance = timeSeries.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / timeSeries.length;
+  const stdDev = Math.sqrt(variance);
+  const cv = mean !== 0 ? stdDev / mean : 0;
+  return Math.max(0, Math.min(100, Math.round(100 - cv * 100)));
+};
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+const MetricInfoDrawer: React.FC<{
+  metricKey: string | null;
+  definitions: Record<string, MetricDefinition>;
+  onClose: () => void;
+}> = ({ metricKey, definitions, onClose }) => {
+  if (!metricKey) return null;
+  
+  const def = definitions[metricKey];
+  if (!def) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-background border border-border rounded-lg p-6 max-w-md w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">{def.name}</h3>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="font-medium text-muted-foreground">Formula:</span>
+              <code className="block mt-1 p-2 bg-muted rounded text-xs">{def.formula}</code>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Unit:</span>
+              <span className="ml-2">{def.unit}</span>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Scale:</span>
+              <span className="ml-2">[{def.scaleMin}, {def.scaleMax === Infinity ? '∞' : def.scaleMax}]</span>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Clamp Behavior:</span>
+              <p className="mt-1 text-xs text-muted-foreground">{def.clampBehavior}</p>
+            </div>
+            {def.winCondition && (
+              <div>
+                <span className="font-medium text-muted-foreground">Win Condition:</span>
+                <span className="ml-2">{def.winCondition}</span>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+const StatCard: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  isBest?: boolean;
+  isTied?: boolean;
+  color: string;
+  metricKey?: string;
+  onInfoClick?: (key: string) => void;
+}> = ({ icon, label, value, isBest, isTied, color, metricKey, onInfoClick }) => {
+  return (
+    <div className="relative p-4 rounded-lg bg-background/40 backdrop-blur-sm border border-border/50 hover:border-border transition-all">
+      {isBest && (
+        <Badge className="absolute -top-2 -right-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-0">
+          <Award className="w-3 h-3 mr-1" />
+          {isTied ? 'Tied Best' : 'Best'}
+        </Badge>
+      )}
+      <div className={`flex items-center gap-2 mb-2 ${color}`}>
+        {icon}
+        <span className="text-xs text-muted-foreground">{label}</span>
+        {metricKey && onInfoClick && (
+          <button
+            onClick={() => onInfoClick(metricKey)}
+            className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={`Learn more about ${label}`}
+          >
+            <AlertCircle className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+      <div className="text-2xl font-bold tracking-tight">{value}</div>
+    </div>
+  );
+};
+
+const AgentSelector: React.FC<{
+  agents: Agent[];
+  selectedAgents: Agent[];
+  onSelect: (agent: Agent) => void;
+  onRemove: (agentId: string) => void;
+  maxAgents: number;
+  isLoading?: boolean;
+}> = ({ agents, selectedAgents, onSelect, onRemove, maxAgents, isLoading }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const availableAgents = agents.filter(
+    agent => !selectedAgents.find(s => s.id === agent.id)
+  );
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {selectedAgents.map(agent => (
+        <motion.div
+          key={agent.id}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border border-violet-500/30"
+        >
+          <img src={agent.avatarUrl} alt={agent.name} className="w-6 h-6 rounded-full" />
+          <span className="text-sm font-medium">{agent.name}</span>
+          <button
+            onClick={() => onRemove(agent.id)}
+            className="ml-1 hover:text-destructive transition-colors"
+            aria-label={`Remove ${agent.name}`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </motion.div>
+      ))}
+      
+      {selectedAgents.length < maxAgents && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="border-dashed border-2 hover:border-violet-500/50 hover:bg-violet-500/5"
+              disabled={isLoading}
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Add Agent
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search agents..." value={search} onValueChange={setSearch} />
+              <CommandList>
+                <CommandEmpty>No agents found.</CommandEmpty>
+                <CommandGroup>
+                  {availableAgents.map(agent => (
+                    <CommandItem
+                      key={agent.id}
+                      onSelect={() => {
+                        onSelect(agent);
+                        setOpen(false);
+                        setSearch('');
+                      }}
+                      className="flex items-center gap-3 p-3"
+                    >
+                      <img src={agent.avatarUrl} alt={agent.name} className="w-8 h-8 rounded-full" />
+                      <div className="flex-1">
+                        <div className="font-medium">{agent.name}</div>
+                        <div className="text-xs text-muted-foreground">{agent.handle}</div>
+                      </div>
+                      {agent.primaryTag && (
+                        <Badge variant="secondary" className="text-xs">{agent.primaryTag}</Badge>
+                      )}
+                    </CommandItem>
+                  ))}\n                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export const AgentComparisonTool: React.FC<AgentComparisonToolProps> = ({
+  dataAdapter,
+  initialAgentIds = [],
+  maxAgents = 3,
+  defaultRange = '30d',
+  isDemo = false
+}) => {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgents, setSelectedAgents] = useState<Agent[]>([]);
+  const [range, setRange] = useState<'7d' | '30d' | '90d'>(defaultRange);
+  const [performanceOverlay, setPerformanceOverlay] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingAgents, setLoadingAgents] = useState(true);
+  const [statsCache, setStatsCache] = useState<Map<string, { data: AgentStats; timestamp: number; etag: string }>>(new Map());
+  const [primaryMetric, setPrimaryMetric] = useState<'successRate' | 'avgCompletionSeconds' | 'earningsUsd' | 'reviewScore' | 'completionCount'>('successRate');
+  const [normalizationMode, setNormalizationMode] = useState<'global' | 'local'>('global');
+  const [showMetricInfo, setShowMetricInfo] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<MetricBaseline>(DEFAULT_BASELINE);
+  const [metricDefinitions, setMetricDefinitions] = useState<Record<string, MetricDefinition>>(DEFAULT_METRIC_DEFINITIONS);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Load agents on mount
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        setLoadingAgents(true);
+        const fetchedAgents = await dataAdapter.getAgents();
+        setAgents(fetchedAgents);
+        
+        if (initialAgentIds.length > 0) {
+          const selected = fetchedAgents.filter(a => initialAgentIds.includes(a.id)).slice(0, maxAgents);
+          setSelectedAgents(selected);
+        }
+      } catch (err) {
+        setError('Failed to load agents');
+        console.error(err);
+      } finally {
+        setLoadingAgents(false);
+      }
+    };
+
+    loadAgents();
+  }, []);
+
+  // Load baseline and definitions
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        if (dataAdapter.getBaselines) {
+          const fetchedBaseline = await dataAdapter.getBaselines(range);
+          setBaseline(fetchedBaseline);
+        }
+        
+        if (dataAdapter.getDefinitions) {
+          const fetchedDefinitions = await dataAdapter.getDefinitions();
+          setMetricDefinitions(fetchedDefinitions);
+        }
+      } catch (err) {
+        console.error('Failed to load metadata:', err);
+      }
+    };
+
+    loadMetadata();
+  }, [range]);
+
+  // Fetch stats with conditional requests
+  useEffect(() => {
+    if (selectedAgents.length === 0) return;
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    const fetchStats = async (signal: AbortSignal) => {
+      const now = Date.now();
+      const newCache = new Map(statsCache);
+      let needsRefresh = false;
+      
+      for (const agent of selectedAgents) {
+        if (signal.aborted) return;
+        
+        const cacheKey = `${agent.id}-${range}`;
+        const cached = newCache.get(cacheKey);
+        
+        const isStale = !cached || (now - cached.timestamp) > CACHE_TTL_MS;
+        
+        if (isStale) {
+          needsRefresh = true;
+          if (!cached) {
+            setLoading(true);
+          }
+          
+          try {
+            const result = await dataAdapter.getStats(agent.id, range, { etag: cached?.etag });
+            
+            if (signal.aborted) return;
+            
+            if (result.status === 304 && cached) {
+              // Reuse cached data, update timestamp
+              newCache.set(cacheKey, { ...cached, timestamp: now });
+            } else if (result.status === 200) {
+              newCache.set(cacheKey, {
+                data: result.data,
+                timestamp: now,
+                etag: result.etag
+              });
+            }
+          } catch (err) {
+            console.error(`Failed to fetch stats for ${agent.id}:`, err);
+          }
+        }
+      }
+      
+      if (needsRefresh && !signal.aborted) {
+        setStatsCache(newCache);
+        setLoading(false);
+      }
+    };
+
+    fetchStats(abortControllerRef.current.signal);
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && abortControllerRef.current) {
+        fetchStats(abortControllerRef.current.signal);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [selectedAgents, range]);
+
+  const handleSelectAgent = (agent: Agent) => {
+    if (selectedAgents.length < maxAgents) {
+      setSelectedAgents([...selectedAgents, agent]);
+    }
+  };
+
+  const handleRemoveAgent = (agentId: string) => {
+    setSelectedAgents(selectedAgents.filter(a => a.id !== agentId));
+  };
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing || selectedAgents.length === 0) return;
+    
+    setIsRefreshing(true);
+    setStatsCache(new Map());
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
+    const now = Date.now();
+    const newCache = new Map<string, { data: AgentStats; timestamp: number; etag: string }>();
+    
+    for (const agent of selectedAgents) {
+      try {
+        const result = await dataAdapter.getStats(agent.id, range);
+        newCache.set(`${agent.id}-${range}`, {
+          data: result.data,
+          timestamp: now,
+          etag: result.etag
+        });
+      } catch (err) {
+        console.error(`Failed to refresh ${agent.id}:`, err);
+      }
+    }
+    
+    setStatsCache(newCache);
+    setIsRefreshing(false);
+  };
+
+  const agentColors = ['#8b5cf6', '#ec4899', '#06b6d4'];
+
+  const currentStats = useMemo(() => {
+    return selectedAgents.map(agent => {
+      const cacheKey = `${agent.id}-${range}`;
+      const entry = statsCache.get(cacheKey);
+      return entry?.data;
+    }).filter(Boolean) as AgentStats[];
+  }, [selectedAgents, range, statsCache]);
+
+  const normalizeToGlobal = (value: number, key: keyof typeof baseline.bands): number => {
+    const bands = baseline.bands[key];
+    const { p0, p100 } = bands;
+    const normalized = ((value - p0) / (p100 - p0)) * 100;
+    return Math.min(100, Math.max(0, normalized));
+  };
+
+  const normalizeToLocal = (value: number, values: number[]): number => {
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    if (max === min) return 50;
+    return ((value - min) / (max - min)) * 100;
+  };
+
+  const radarData = useMemo(() => {
+    if (currentStats.length === 0) return [];
+
+    const metrics = ['Success Rate', 'Speed', 'Earnings', 'Reviews', 'Completions', 'Consistency'];
+    
+    return metrics.map(metric => {
+      const dataPoint: any = { metric };
+      
+      currentStats.forEach((stats, idx) => {
+        const agent = selectedAgents[idx];
+        let value = 0;
+
+        switch (metric) {
+          case 'Success Rate':
+            if (normalizationMode === 'global') {
+              value = normalizeToGlobal(stats.successRate, 'successRate');
+            } else {
+              value = normalizeToLocal(stats.successRate, currentStats.map(s => s.successRate));
+            }
+            break;
+          case 'Speed':
+            const speedScore = calculateSpeedScore(stats.avgCompletionSeconds);
+            if (normalizationMode === 'global') {
+              value = normalizeToGlobal(speedScore, 'speedScore');
+            } else {
+              value = normalizeToLocal(speedScore, currentStats.map(s => calculateSpeedScore(s.avgCompletionSeconds)));
+            }
+            break;
+          case 'Earnings':
+            if (normalizationMode === 'global') {
+              value = normalizeToGlobal(stats.earningsUsd, 'earningsUsd');
+            } else {
+              value = normalizeToLocal(stats.earningsUsd, currentStats.map(s => s.earningsUsd));
+            }
+            break;
+          case 'Reviews':
+            if (normalizationMode === 'global') {
+              value = normalizeToGlobal(stats.reviewScore, 'reviewScore');
+            } else {
+              value = normalizeToLocal(stats.reviewScore, currentStats.map(s => s.reviewScore));
+            }
+            break;
+          case 'Completions':
+            if (normalizationMode === 'global') {
+              value = normalizeToGlobal(stats.completionCount, 'completionCount');
+            } else {
+              value = normalizeToLocal(stats.completionCount, currentStats.map(s => s.completionCount));
+            }
+            break;
+          case 'Consistency':
+            const consistencyScore = calculateConsistencyScore(stats.timeSeries.successRate);
+            if (normalizationMode === 'global') {
+              value = normalizeToGlobal(consistencyScore, 'consistencyScore');
+            } else {
+              value = normalizeToLocal(consistencyScore, currentStats.map(s => calculateConsistencyScore(s.timeSeries.successRate)));
+            }
+            break;
+        }
+
+        dataPoint[agent.name] = Math.min(100, Math.max(0, value));
+      });
+
+      return dataPoint;
+    });
+  }, [currentStats, selectedAgents, normalizationMode, baseline]);
+
+  const trendData = useMemo(() => {
+    if (currentStats.length === 0) return [];
+
+    const dates = currentStats[0].timeSeries.dates;
+    
+    return dates.map((date, idx) => {
+      const dataPoint: any = { date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+      
+      currentStats.forEach((stats, agentIdx) => {
+        const agent = selectedAgents[agentIdx];
+        let value = 0;
+
+        switch (primaryMetric) {
+          case 'successRate':
+            value = stats.timeSeries.successRate[idx] * 100;
+            break;
+          case 'avgCompletionSeconds':
+            value = stats.timeSeries.avgCompletionSeconds[idx];
+            break;
+          case 'earningsUsd':
+            value = stats.timeSeries.earningsUsd[idx];
+            break;
+          case 'reviewScore':
+            value = stats.timeSeries.reviewScore[idx];
+            break;
+          case 'completionCount':
+            value = stats.timeSeries.completionCount[idx];
+            break;
+        }
+
+        dataPoint[agent.name] = value;
+      });
+
+      return dataPoint;
+    });
+  }, [currentStats, selectedAgents, primaryMetric]);
+
+  const getBestPerformers = (metric: keyof AgentStats): { bestIds: string[]; isTied: boolean } => {
+    if (currentStats.length === 0) return { bestIds: [], isTied: false };
+
+    const values = currentStats.map((stats, idx) => {
+      let value = 0;
+      
+      switch (metric) {
+        case 'successRate':
+          value = stats.successRate;
+          break;
+        case 'avgCompletionSeconds':
+          value = -stats.avgCompletionSeconds; // Lower is better
+          break;
+        case 'earningsUsd':
+          value = stats.earningsUsd;
+          break;
+        case 'reviewScore':
+          value = stats.reviewScore;
+          break;
+        case 'completionCount':
+          value = stats.completionCount;
+          break;
+      }
+
+      return { value, id: selectedAgents[idx].id };
+    });
+
+    const maxValue = Math.max(...values.map(v => v.value));
+    const bestIds = values.filter(v => v.value === maxValue).map(v => v.id);
+    
+    return { bestIds, isTied: bestIds.length > 1 };
+  };
+
+  const allCapabilities = useMemo(() => {
+    const capSet = new Set<string>();
+    currentStats.forEach(stats => {
+      stats.capabilities.forEach(cap => capSet.add(cap));
+    });
+    return Array.from(capSet);
+  }, [currentStats]);
+
+  const distinctiveCapabilities = useMemo(() => {
+    const distinctive: { [agentId: string]: string[] } = {};
+    
+    currentStats.forEach((stats, idx) => {
+      const agent = selectedAgents[idx];
+      const unique = stats.capabilities.filter(cap => {
+        const count = currentStats.filter(s => s.capabilities.includes(cap)).length;
+        return count === 1;
+      });
+      if (unique.length > 0) {
+        distinctive[agent.id] = unique;
+      }
+    });
+
+    return distinctive;
+  }, [currentStats, selectedAgents]);
+
+  if (loadingAgents) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-violet-950/20 p-6 flex items-center justify-center">
+        <Card className="p-12 bg-background/40 backdrop-blur-sm border-border/50">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+            <p className="text-muted-foreground">Loading agents...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-violet-950/20 p-6 flex items-center justify-center">
+        <Card className="p-12 bg-background/40 backdrop-blur-sm border-border/50">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <AlertCircle className="w-8 h-8 text-destructive" />
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (selectedAgents.length < 2) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-violet-950/20 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+              Agent Comparison
+            </h1>
+            <p className="text-muted-foreground">Compare up to {maxAgents} agents side-by-side</p>
+          </div>
+
+          <Card className="p-8 bg-background/40 backdrop-blur-sm border-border/50">
+            <AgentSelector
+              agents={agents}
+              selectedAgents={selectedAgents}
+              onSelect={handleSelectAgent}
+              onRemove={handleRemoveAgent}
+              maxAgents={maxAgents}
+            />
+
+            <div className="mt-12 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-violet-500/10 mb-4">
+                <Target className="w-8 h-8 text-violet-400" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Select at least 2 agents to compare</h3>
+              <p className="text-muted-foreground">
+                Choose agents from the selector above to see detailed performance metrics and comparisons
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-violet-950/20 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+                Agent Comparison
+              </h1>
+              <p className="text-muted-foreground">
+                Enterprise-grade performance analytics • {normalizationMode === 'global' ? 'Global scale' : 'Local scale'}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="performance-overlay"
+                  checked={performanceOverlay}
+                  onCheckedChange={setPerformanceOverlay}
+                />
+                <Label htmlFor="performance-overlay" className="text-sm">Performance Overlay</Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label htmlFor="normalization-mode" className="text-sm">Normalization:</Label>
+                <select
+                  id="normalization-mode"
+                  value={normalizationMode}
+                  onChange={(e) => setNormalizationMode(e.target.value as 'global' | 'local')}
+                  className="px-3 py-1 rounded-lg bg-background border border-border text-sm"
+                  aria-label="Select normalization mode"
+                >
+                  <option value="global">Global (Absolute)</option>
+                  <option value="local">Local (Within Selection)</option>
+                </select>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManualRefresh}
+                disabled={isRefreshing || selectedAgents.length === 0}
+                className="gap-2"
+              >
+                <Loader2 className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+
+              <div className="flex gap-1 p-1 rounded-lg bg-background/60 border border-border/50">
+                {(['7d', '30d', '90d'] as const).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      range === r
+                        ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    aria-label={`Select ${r} time range`}
+                  >
+                    {r.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Card className="p-6 mb-6 bg-background/40 backdrop-blur-sm border-border/50 relative">
+            <div className="absolute -top-3 right-4 flex gap-2">
+              {isDemo && (
+                <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/50">
+                  DEMO MODE
+                </Badge>
+              )}
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="outline" className="text-xs cursor-help">
+                    Baseline {baseline.version}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Global baseline version</p>
+                  <p className="text-xs text-muted-foreground">Updated: {new Date(baseline.updatedAt).toLocaleString()}</p>
+                  {baseline.version.includes('demo') && (
+                    <p className="text-xs text-yellow-600 mt-1">⚠ DEMO: Using mock baselines</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <AgentSelector
+              agents={agents}
+              selectedAgents={selectedAgents}
+              onSelect={handleSelectAgent}
+              onRemove={handleRemoveAgent}
+              maxAgents={maxAgents}
+              isLoading={loading}
+            />
+          </Card>
+          <MetricInfoDrawer metricKey={showMetricInfo} definitions={metricDefinitions} onClose={() => setShowMetricInfo(null)} />
+
+          {loading && currentStats.length === 0 ? (
+            <Card className="p-12 bg-background/40 backdrop-blur-sm border-border/50">
+              <div className="flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+                <p className="text-muted-foreground">Loading agent statistics...</p>
+              </div>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <Card className="p-6 bg-background/40 backdrop-blur-sm border-border/50">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-violet-400" />
+                      Performance Radar
+                    </h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {normalizationMode === 'global' ? 'Global Scale' : 'Local Scale'}
+                    </Badge>
+                  </div>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="hsl(var(--border))" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      {selectedAgents.map((agent, idx) => (
+                        <Radar
+                          key={agent.id}
+                          name={agent.name}
+                          dataKey={agent.name}
+                          stroke={agentColors[idx]}
+                          fill={agentColors[idx]}
+                          fillOpacity={0.2}
+                          strokeWidth={2}
+                        />
+                      ))}
+                      <Legend />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--background))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </Card>
+
+                <Card className="p-6 bg-background/40 backdrop-blur-sm border-border/50">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-fuchsia-400" />
+                    Capability Matrix
+                  </h3>
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                    {allCapabilities.map(capability => (
+                      <div key={capability} className="flex items-center gap-3">
+                        <span className="text-sm font-medium min-w-[140px] sticky left-0 bg-background/80 backdrop-blur-sm">
+                          {capability}
+                        </span>
+                        <div className="flex gap-2 flex-wrap">
+                          {selectedAgents.map((agent, idx) => {
+                            const stats = currentStats[idx];
+                            const hasCapability = stats?.capabilities.includes(capability);
+                            return (
+                              <Badge
+                                key={agent.id}
+                                variant={hasCapability ? 'default' : 'outline'}
+                                className={hasCapability ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 border-0' : 'opacity-40'}
+                              >
+                                {agent.name}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {Object.keys(distinctiveCapabilities).length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-border/50">
+                      <h4 className="text-sm font-semibold mb-3 text-muted-foreground">Distinctive Capabilities</h4>
+                      <div className="space-y-2">
+                        {Object.entries(distinctiveCapabilities).map(([agentId, caps]) => {
+                          const agent = selectedAgents.find(a => a.id === agentId);
+                          if (!agent) return null;
+                          return (
+                            <div key={agentId} className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{agent.name}:</span>
+                              <div className="flex gap-1 flex-wrap">
+                                {caps.map(cap => (
+                                  <Badge key={cap} variant="secondary" className="text-xs">
+                                    {cap}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              <AnimatePresence>
+                {performanceOverlay && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="p-6 mb-6 bg-background/40 backdrop-blur-sm border-border/50">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="w-5 h-5 text-cyan-400" />
+                          Trend Analysis
+                        </h3>
+                        <select
+                          value={primaryMetric}
+                          onChange={(e) => setPrimaryMetric(e.target.value as any)}
+                          className="px-3 py-2 rounded-lg bg-background border border-border text-sm"
+                          aria-label="Select metric for trend analysis"
+                        >
+                          <option value="successRate">Success Rate</option>
+                          <option value="avgCompletionSeconds">Completion Time</option>
+                          <option value="earningsUsd">Earnings</option>
+                          <option value="reviewScore">Review Score</option>
+                          <option value="completionCount">Completion Count</option>
+                        </select>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={trendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                          <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                          {selectedAgents.map((agent, idx) => (
+                            <Line
+                              key={agent.id}
+                              type="monotone"
+                              dataKey={agent.name}
+                              stroke={agentColors[idx]}
+                              strokeWidth={2}
+                              dot={{ fill: agentColors[idx], r: 4 }}
+                            />
+                          ))}
+                          <RechartsTooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--background))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Legend />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <AnimatePresence>
+                  {selectedAgents.map((agent, idx) => {
+                    const stats = currentStats[idx];
+                    if (!stats) return null;
+
+                    const speedScore = calculateSpeedScore(stats.avgCompletionSeconds);
+                    const consistencyScore = calculateConsistencyScore(stats.timeSeries.successRate);
+
+                    const successRateBest = getBestPerformers('successRate');
+                    const completionTimeBest = getBestPerformers('avgCompletionSeconds');
+                    const earningsBest = getBestPerformers('earningsUsd');
+                    const reviewBest = getBestPerformers('reviewScore');
+                    const completionsBest = getBestPerformers('completionCount');
+
+                    return (
+                      <motion.div
+                        key={agent.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3, delay: idx * 0.1 }}
+                      >
+                        <Card className="p-6 bg-background/40 backdrop-blur-sm border-border/50 hover:border-violet-500/50 transition-all">
+                          <div className="flex items-center gap-3 mb-6">
+                            <img src={agent.avatarUrl} alt={agent.name} className="w-12 h-12 rounded-full ring-2 ring-violet-500/30" />
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">{agent.name}</h3>
+                              <p className="text-sm text-muted-foreground">{agent.handle}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <StatCard
+                              icon={<Target className="w-4 h-4" />}
+                              label="Success Rate"
+                              value={`${(stats.successRate * 100).toFixed(1)}%`}
+                              isBest={successRateBest.bestIds.includes(agent.id)}
+                              isTied={successRateBest.isTied}
+                              color="text-violet-400"
+                              metricKey="successRate"
+                              onInfoClick={setShowMetricInfo}
+                            />
+                            <StatCard
+                              icon={<Clock className="w-4 h-4" />}
+                              label="Avg Completion"
+                              value={formatTime(stats.avgCompletionSeconds)}
+                              isBest={completionTimeBest.bestIds.includes(agent.id)}
+                              isTied={completionTimeBest.isTied}
+                              color="text-cyan-400"
+                              metricKey="avgCompletionSeconds"
+                              onInfoClick={setShowMetricInfo}
+                            />
+                            <StatCard
+                              icon={<DollarSign className="w-4 h-4" />}
+                              label="Earnings"
+                              value={formatCurrency(stats.earningsUsd)}
+                              isBest={earningsBest.bestIds.includes(agent.id)}
+                              isTied={earningsBest.isTied}
+                              color="text-fuchsia-400"
+                              metricKey="earningsUsd"
+                              onInfoClick={setShowMetricInfo}
+                            />
+                            <StatCard
+                              icon={<Star className="w-4 h-4" />}
+                              label="Review Score"
+                              value={`${stats.reviewScore.toFixed(1)} / 5.0`}
+                              isBest={reviewBest.bestIds.includes(agent.id)}
+                              isTied={reviewBest.isTied}
+                              color="text-yellow-400"
+                              metricKey="reviewScore"
+                              onInfoClick={setShowMetricInfo}
+                            />
+                            <StatCard
+                              icon={<Zap className="w-4 h-4" />}
+                              label="Completions"
+                              value={stats.completionCount}
+                              isBest={completionsBest.bestIds.includes(agent.id)}
+                              isTied={completionsBest.isTied}
+                              color="text-green-400"
+                              metricKey="completionCount"
+                              onInfoClick={setShowMetricInfo}
+                            />
+                            <StatCard
+                              icon={<TrendingUp className="w-4 h-4" />}
+                              label="Consistency"
+                              value={`${consistencyScore}/100`}
+                              color="text-orange-400"
+                              metricKey="consistencyScore"
+                              onInfoClick={setShowMetricInfo}
+                            />
+                          </div>
+
+                          {stats.headToHead && stats.headToHead.sameBountiesCount >= HEAD_TO_HEAD_MIN_BOUNTIES ? (
+                            <div className="mt-6 pt-6 border-t border-border/50">
+                              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                <Award className="w-4 h-4 text-violet-400" />
+                                Head-to-Head
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertCircle className="w-3 h-3 text-muted-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="text-xs max-w-xs space-y-1">
+                                      <p><strong>Rule:</strong> {stats.headToHead.winRule}</p>
+                                      <p><strong>Version:</strong> {stats.headToHead.ruleVersion}</p>
+                                      <p><strong>Computed:</strong> {new Date(stats.headToHead.computedAt).toLocaleString()}</p>
+                                      <p className="text-muted-foreground">Minimum {HEAD_TO_HEAD_MIN_BOUNTIES} shared bounties required.</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </h4>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Same Bounties</span>
+                                  <span className="font-medium">{stats.headToHead.sameBountiesCount}</span>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                  <div className="flex-1 h-2 rounded-full bg-background overflow-hidden">
+                                    <div
+                                      className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                                      style={{
+                                        width: `${(stats.headToHead.wins / (stats.headToHead.wins + stats.headToHead.losses + stats.headToHead.ties)) * 100}%`
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-xs font-medium">
+                                    {((stats.headToHead.wins / (stats.headToHead.wins + stats.headToHead.losses + stats.headToHead.ties)) * 100).toFixed(0)}%
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>W: {stats.headToHead.wins}</span>
+                                  <span>L: {stats.headToHead.losses}</span>
+                                  <span>T: {stats.headToHead.ties}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : stats.headToHead && stats.headToHead.sameBountiesCount < HEAD_TO_HEAD_MIN_BOUNTIES ? (
+                            <div className="mt-6 pt-6 border-t border-border/50">
+                              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2 text-muted-foreground">
+                                <Award className="w-4 h-4" />
+                                Head-to-Head
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                Insufficient data: Only {stats.headToHead.sameBountiesCount} shared bounties
+                                (minimum {HEAD_TO_HEAD_MIN_BOUNTIES} required)
+                              </p>
+                            </div>
+                          ) : null}
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+};
+
+export default AgentComparisonTool;
+
+```
+
+### lib/demo-data-adapter.ts
+
+```tsx
+import type { Agent, AgentStats, DataAdapter, MetricBaseline, MetricDefinition } from '@/components/agent-comparison-tool';
+
+// ============================================================================
+// MOCK DATA GENERATION
+// ============================================================================
+
+const MOCK_AGENTS: Agent[] = [
+  {
+    id: 'agent-1',
+    name: 'Quantum Solver',
+    handle: '@quantum_solver',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=quantum',
+    primaryTag: 'AI Research',
+    shortBio: 'Specialized in complex problem solving'
+  },
+  {
+    id: 'agent-2',
+    name: 'Data Nexus',
+    handle: '@data_nexus',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=data',
+    primaryTag: 'Data Analysis',
+    shortBio: 'Expert in data processing and insights'
+  },
+  {
+    id: 'agent-3',
+    name: 'Code Phantom',
+    handle: '@code_phantom',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=code',
+    primaryTag: 'Development',
+    shortBio: 'Full-stack development specialist'
+  },
+  {
+    id: 'agent-4',
+    name: 'Vision AI',
+    handle: '@vision_ai',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=vision',
+    primaryTag: 'Computer Vision',
+    shortBio: 'Image and video analysis expert'
+  },
+  {
+    id: 'agent-5',
+    name: 'Neural Net',
+    handle: '@neural_net',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=neural',
+    primaryTag: 'Deep Learning',
+    shortBio: 'Neural network architecture specialist'
+  }
+];
+
+const generateMockStats = (agentId: string, range: string): AgentStats => {
+  const seed = agentId.charCodeAt(agentId.length - 1);
+  const multiplier = range === '7d' ? 1 : range === '30d' ? 1.2 : 1.5;
+  
+  const dates = Array.from({ length: 10 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (9 - i));
+    return date.toISOString().split('T')[0];
+  });
+
+  return {
+    agentId,
+    successRate: 0.75 + (seed % 20) / 100,
+    avgCompletionSeconds: 300 + (seed % 500) * multiplier,
+    earningsUsd: 50000 + (seed % 100000) * multiplier,
+    reviewScore: 3.5 + (seed % 15) / 10,
+    completionCount: Math.floor(100 + (seed % 200) * multiplier),
+    capabilities: [
+      'Machine Learning',
+      'Data Processing',
+      'API Integration',
+      seed % 2 === 0 ? 'Computer Vision' : 'NLP',
+      seed % 3 === 0 ? 'Real-time Processing' : 'Batch Processing',
+      seed % 5 === 0 ? 'Cloud Architecture' : 'Edge Computing'
+    ].slice(0, 4 + (seed % 3)),
+    timeSeries: {
+      dates,
+      successRate: dates.map((_, i) => 0.7 + Math.random() * 0.25),
+      avgCompletionSeconds: dates.map((_, i) => 250 + Math.random() * 400),
+      earningsUsd: dates.map((_, i) => 40000 + Math.random() * 80000),
+      reviewScore: dates.map((_, i) => 3.5 + Math.random() * 1.5),
+      completionCount: dates.map((_, i) => Math.floor(80 + Math.random() * 150))
+    },
+    headToHead: seed % 2 === 0 ? {
+      comparedAgainstAgentId: 'other',
+      sameBountiesCount: 15 + (seed % 20),
+      wins: 8 + (seed % 10),
+      losses: 5 + (seed % 8),
+      ties: 2 + (seed % 3),
+      winRule: 'Higher success rate on same bounty. Equal success = tie.',
+      ruleVersion: 'v1.0.0',
+      computedAt: new Date().toISOString()
+    } : undefined
+  };
+};
+
+const MOCK_BASELINE: MetricBaseline = {
+  version: 'v0.0.0-demo',
+  updatedAt: new Date().toISOString(),
+  bands: {
+    successRate: { p0: 0.5, p50: 0.75, p100: 0.95 },
+    avgCompletionSeconds: { p0: 1000, p50: 400, p100: 100 },
+    earningsUsd: { p0: 10000, p50: 75000, p100: 200000 },
+    reviewScore: { p0: 2.5, p50: 4.0, p100: 5.0 },
+    completionCount: { p0: 50, p50: 200, p100: 500 },
+    speedScore: { p0: 0, p50: 50, p100: 100 },
+    consistencyScore: { p0: 0, p50: 70, p100: 100 }
+  }
+};
+
+const MOCK_DEFINITIONS: Record<string, MetricDefinition> = {
+  successRate: {
+    name: 'Success Rate',
+    formula: 'completed_successfully / total_attempts',
+    unit: 'percentage (0-100%)',
+    scaleMin: 0,
+    scaleMax: 1,
+    clampBehavior: 'Hard clamp [0, 1]',
+    winCondition: 'Higher is better'
+  },
+  avgCompletionSeconds: {
+    name: 'Avg Completion Time',
+    formula: 'median(completion_times_seconds)',
+    unit: 'seconds',
+    scaleMin: 0,
+    scaleMax: Infinity,
+    clampBehavior: 'No upper clamp',
+    winCondition: 'Lower is better (faster)'
+  },
+  earningsUsd: {
+    name: 'Earnings (Gross)',
+    formula: 'sum(bounty_payouts_usd)',
+    unit: 'USD',
+    scaleMin: 0,
+    scaleMax: Infinity,
+    clampBehavior: 'No upper clamp',
+    winCondition: 'Higher is better'
+  },
+  reviewScore: {
+    name: 'Review Score (Weighted)',
+    formula: 'weighted_avg(ratings) where count >= 5',
+    unit: 'stars (0-5)',
+    scaleMin: 0,
+    scaleMax: 5,
+    clampBehavior: 'Hard clamp [0, 5], requires minimum 5 reviews',
+    winCondition: 'Higher is better'
+  },
+  completionCount: {
+    name: 'Completion Count',
+    formula: 'count(completed_bounties)',
+    unit: 'count',
+    scaleMin: 0,
+    scaleMax: Infinity,
+    clampBehavior: 'No upper clamp',
+    winCondition: 'Higher is better (volume)'
+  },
+  speedScore: {
+    name: 'Speed Score',
+    formula: '100 × (1000s - time) / (1000s - 100s), clamped [0, 100]',
+    unit: 'score (0-100)',
+    scaleMin: 0,
+    scaleMax: 100,
+    clampBehavior: 'Hard clamp [0, 100]. Reference: 100s = max score, 1000s = min score',
+    winCondition: 'Higher is better (derived from completion time)'
+  },
+  consistencyScore: {
+    name: 'Consistency Score',
+    formula: '100 - (100 × coefficient_of_variation), clamped [0, 100]',
+    unit: 'score (0-100)',
+    scaleMin: 0,
+    scaleMax: 100,
+    clampBehavior: 'Hard clamp [0, 100]. Lower CV = higher consistency',
+    winCondition: 'Higher is better (less variance)'
+  }
+};
+
+// ============================================================================
+// DEMO DATA ADAPTER (For Generator/Sandbox Use Only)
+// ============================================================================
+
+export const createDemoDataAdapter = (): DataAdapter => {
+  return {
+    getAgents: async () => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return MOCK_AGENTS;
+    },
+
+    getStats: async (agentId, range, options) => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const stats = generateMockStats(agentId, range);
+      const etag = `W/"${agentId}-${range}-${Date.now()}"`;
+      
+      // Simulate 304 if ETag matches (10% chance in demo)
+      if (options?.etag && Math.random() < 0.1) {
+        return { data: stats, etag: options.etag, status: 304 };
+      }
+      
+      return { data: stats, etag, status: 200 };
+    },
+
+    getBaselines: async (range) => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return MOCK_BASELINE;
+    },
+
+    getDefinitions: async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return MOCK_DEFINITIONS;
+    }
+  };
+};
+
+// ============================================================================
+// PRODUCTION DATA ADAPTER TEMPLATE
+// ============================================================================
+
+/**
+ * Example production adapter:
+ * 
+ * export const createProductionDataAdapter = (baseUrl: string, apiKey: string): DataAdapter => {
+ *   return {
+ *     getAgents: async () => {
+ *       const response = await fetch(`${baseUrl}/api/agents`, {
+ *         headers: { 'Authorization': `Bearer ${apiKey}` }
+ *       });
+ *       return response.json();
+ *     },
+ * 
+ *     getStats: async (agentId, range, options) => {
+ *       const headers: HeadersInit = { 'Authorization': `Bearer ${apiKey}` };
+ *       if (options?.etag) {
+ *         headers['If-None-Match'] = options.etag;
+ *       }
+ * 
+ *       const response = await fetch(`${baseUrl}/api/agents/${agentId}/stats?range=${range}`, { headers });
+ *       
+ *       if (response.status === 304) {
+ *         return { data: {} as AgentStats, etag: options!.etag!, status: 304 };
+ *       }
+ * 
+ *       const data = await response.json();
+ *       const etag = response.headers.get('ETag') || '';
+ *       return { data, etag, status: 200 };
+ *     },
+ * 
+ *     getBaselines: async (range) => {
+ *       const response = await fetch(`${baseUrl}/api/metrics/baselines?range=${range}`, {
+ *         headers: { 'Authorization': `Bearer ${apiKey}` }
+ *       });
+ *       return response.json();
+ *     },
+ * 
+ *     getDefinitions: async () => {
+ *       const response = await fetch(`${baseUrl}/api/metrics/definitions`, {
+ *         headers: { 'Authorization': `Bearer ${apiKey}` }
+ *       });
+ *       return response.json();
+ *     }
+ *   };
+ * };
+ */
+
+```
+
+### App.tsx
+
+```tsx
+import AgentComparisonTool from '@/components/agent-comparison-tool';
+import { createDemoDataAdapter } from '@/lib/demo-data-adapter';
+
+export default function App() {
+  const demoAdapter = createDemoDataAdapter();
+
+  return (
+    <AgentComparisonTool
+      dataAdapter={demoAdapter}
+      initialAgentIds={['agent-1', 'agent-2']}
+      maxAgents={3}
+      defaultRange="30d"
+      isDemo={true}
+    />
+  );
+}
+
+```
+
+
+## Tailwind Configuration
+
+Add the following global styles:
+
+```css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+```
+
+Custom colors detected: muted-foreground, gradient-to-r, gradient-to-br, clip-text, card-foreground, primary-foreground, secondary-foreground, accent-foreground, popover-foreground, offset-background
+Make sure these are defined in your Tailwind configuration.
+
+
+## Integration Instructions
+
+1. Review the App.tsx component to understand the complete implementation
+2. Identify which components and utilities you need for your use case
+3. Analyze the Tailwind v4 styles in index.css - integrate custom styles that differ from integrating Codebase
+4. Install the required NPM dependencies listed above
+5. Integrate the components into your project, adapting them to fit your architecture
+
+Focus on:
+- Understanding projects structure, adding above components into it
+- Understanding the component composition
+- Identifying reusable utilities and helpers
+- Adapting the styling to match your design system

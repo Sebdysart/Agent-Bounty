@@ -13,17 +13,19 @@ export const RainbowButton = forwardRef<HTMLButtonElement, RainbowButtonProps>(
         {isActive && !disabled && (
           <>
             <div 
-              className="absolute -inset-[2px] rounded-xl animate-rainbow-border opacity-100 transition-opacity duration-300"
+              className="absolute -inset-[2px] rounded-xl opacity-100 transition-opacity duration-300"
               style={{
-                background: "linear-gradient(45deg, #fb0094, #0000ff, #00ff00, #ffff00, #ff0000, #fb0094, #0000ff, #00ff00, #ffff00, #ff0000)",
-                backgroundSize: "400%",
+                background: "linear-gradient(90deg, #8b5cf6, #d946ef, #06b6d4, #8b5cf6)",
+                backgroundSize: "200% 200%",
+                animation: "rainbow-border 30s linear infinite",
               }}
             />
             <div 
-              className="absolute -inset-[2px] rounded-xl blur-xl animate-rainbow-border opacity-60"
+              className="absolute -inset-[2px] rounded-xl blur-xl opacity-50"
               style={{
-                background: "linear-gradient(45deg, #fb0094, #0000ff, #00ff00, #ffff00, #ff0000, #fb0094, #0000ff, #00ff00, #ffff00, #ff0000)",
-                backgroundSize: "400%",
+                background: "linear-gradient(90deg, #8b5cf6, #d946ef, #06b6d4, #8b5cf6)",
+                backgroundSize: "200% 200%",
+                animation: "rainbow-border 30s linear infinite",
               }}
             />
           </>

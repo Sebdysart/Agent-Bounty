@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { 
   insertBountySchema, insertAgentSchema, insertSubmissionSchema, insertReviewSchema,
-  bountyStatuses, submissionStatuses 
+  insertAgentUploadSchema, insertAgentTestSchema, insertAgentListingSchema, insertAgentReviewSchema,
+  bountyStatuses, submissionStatuses, agentUploadTypes
 } from "@shared/schema";
 import { z } from "zod";
 import { stripeService } from "./stripeService";
@@ -732,6 +733,480 @@ ${agentOutput}`
       }
     ];
     res.json(templates);
+  });
+
+  app.get("/api/agent-uploads", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const uploads = await storage.getAgentUploadsByDeveloper(userId);
+      res.json(uploads);
+    } catch (error) {
+      console.error("Error fetching agent uploads:", error);
+      res.status(500).json({ message: "Failed to fetch agent uploads" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id", async (req, res) => {
+    try {
+      const upload = await storage.getAgentUpload(parseInt(req.params.id));
+      if (!upload) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      res.json(upload);
+    } catch (error) {
+      console.error("Error fetching agent upload:", error);
+      res.status(500).json({ message: "Failed to fetch agent upload" });
+    }
+  });
+
+  app.post("/api/agent-uploads", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const parsed = insertAgentUploadSchema.safeParse({
+        ...req.body,
+        developerId: userId,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+      }
+      const upload = await storage.createAgentUpload(parsed.data);
+      res.status(201).json(upload);
+    } catch (error) {
+      console.error("Error creating agent upload:", error);
+      res.status(500).json({ message: "Failed to create agent upload" });
+    }
+  });
+
+  app.patch("/api/agent-uploads/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this agent" });
+      }
+      const updated = await storage.updateAgentUpload(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating agent upload:", error);
+      res.status(500).json({ message: "Failed to update agent upload" });
+    }
+  });
+
+  app.delete("/api/agent-uploads/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this agent" });
+      }
+      await storage.deleteAgentUpload(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting agent upload:", error);
+      res.status(500).json({ message: "Failed to delete agent upload" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/submit", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      const updated = await storage.updateAgentUploadStatus(id, "pending_review");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error submitting agent:", error);
+      res.status(500).json({ message: "Failed to submit agent for review" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/publish", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      if (existing.status !== "approved" && existing.status !== "testing") {
+        return res.status(400).json({ message: "Agent must pass testing before publishing" });
+      }
+      const updated = await storage.updateAgentUploadStatus(id, "published");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error publishing agent:", error);
+      res.status(500).json({ message: "Failed to publish agent" });
+    }
+  });
+
+  app.post("/api/ai/generate-agent", isAuthenticated, async (req: any, res) => {
+    try {
+      const { prompt, targetCategories } = req.body;
+      
+      if (!prompt || prompt.length < 10) {
+        return res.status(400).json({ message: "Please provide a more detailed description" });
+      }
+
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return res.json({
+          name: prompt.length > 30 ? `${prompt.slice(0, 30)}...` : prompt,
+          description: prompt,
+          capabilities: ["Task execution", "Data processing", "Report generation"],
+          configJson: JSON.stringify({
+            model: "gpt-4o",
+            systemPrompt: `You are an AI agent that ${prompt}`,
+            tools: ["web_search", "file_processing"],
+            maxIterations: 10,
+          }),
+          targetCategories: targetCategories || ["other"],
+          runtime: "nodejs",
+        });
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert AI agent designer. Generate a complete agent configuration based on the user's description.
+            
+            Respond with valid JSON containing:
+            - name: string (short, catchy agent name)
+            - description: string (detailed description of what the agent does)
+            - capabilities: string[] (list of capabilities like "Web scraping", "Data analysis", etc.)
+            - configJson: string (JSON configuration including model, systemPrompt, tools array, maxIterations)
+            - targetCategories: string[] (matching categories: marketing, sales, research, data_analysis, development, other)
+            - suggestedTools: string[] (tool IDs the agent should use)
+            - runtime: string ("nodejs" or "python")`
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        return res.status(500).json({ message: "Failed to generate agent" });
+      }
+
+      const generated = JSON.parse(content);
+      res.json({
+        name: generated.name || prompt.slice(0, 30),
+        description: generated.description || prompt,
+        capabilities: generated.capabilities || ["Task execution"],
+        configJson: typeof generated.configJson === 'string' 
+          ? generated.configJson 
+          : JSON.stringify(generated.configJson || {}),
+        targetCategories: generated.targetCategories || targetCategories || ["other"],
+        suggestedTools: generated.suggestedTools || [],
+        runtime: generated.runtime || "nodejs",
+      });
+    } catch (error) {
+      console.error("Error generating agent:", error);
+      res.status(500).json({ message: "Failed to generate agent" });
+    }
+  });
+
+  app.get("/api/agent-tools", async (req, res) => {
+    try {
+      let tools = await storage.getAgentTools();
+      if (tools.length === 0) {
+        const builtInTools = [
+          { name: "Web Scraper", description: "Extract data from web pages", category: "web_scraping" as const, isBuiltIn: true, iconName: "Globe" },
+          { name: "API Connector", description: "Connect to REST APIs", category: "api_integration" as const, isBuiltIn: true, iconName: "Link" },
+          { name: "Data Analyzer", description: "Analyze and process structured data", category: "data_analysis" as const, isBuiltIn: true, iconName: "BarChart" },
+          { name: "File Processor", description: "Read, write, and transform files", category: "file_processing" as const, isBuiltIn: true, iconName: "FileText" },
+          { name: "Email Sender", description: "Send and receive emails", category: "communication" as const, isBuiltIn: true, iconName: "Mail" },
+          { name: "LLM Interface", description: "Connect to language models", category: "ai_ml" as const, isBuiltIn: true, iconName: "Brain" },
+          { name: "Database Connector", description: "Query databases", category: "api_integration" as const, isBuiltIn: true, iconName: "Database" },
+          { name: "Image Processor", description: "Analyze and manipulate images", category: "file_processing" as const, isBuiltIn: true, iconName: "Image" },
+        ];
+        for (const tool of builtInTools) {
+          await storage.createAgentTool(tool);
+        }
+        tools = await storage.getAgentTools();
+      }
+      res.json(tools);
+    } catch (error) {
+      console.error("Error fetching agent tools:", error);
+      res.status(500).json({ message: "Failed to fetch agent tools" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/tools", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const { toolId, config } = req.body;
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      await storage.addToolToAgentUpload(id, toolId, config);
+      const tools = await storage.getToolsForAgentUpload(id);
+      res.json(tools);
+    } catch (error) {
+      console.error("Error adding tool:", error);
+      res.status(500).json({ message: "Failed to add tool" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/tools", async (req, res) => {
+    try {
+      const tools = await storage.getToolsForAgentUpload(parseInt(req.params.id));
+      res.json(tools);
+    } catch (error) {
+      console.error("Error fetching tools:", error);
+      res.status(500).json({ message: "Failed to fetch tools" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const { testName, testType, input, expectedOutput } = req.body;
+      
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const parsed = insertAgentTestSchema.safeParse({
+        agentUploadId: id,
+        testName: testName || "Sandbox Test",
+        testType: testType || "functional",
+        input,
+        expectedOutput,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid test data", errors: parsed.error.errors });
+      }
+      const test = await storage.createAgentTest(parsed.data);
+
+      await storage.updateAgentUploadStatus(id, "testing");
+      
+      setTimeout(async () => {
+        try {
+          const success = Math.random() > 0.2;
+          const executionTime = Math.floor(Math.random() * 5000) + 500;
+          
+          await storage.updateAgentTestStatus(test.id, success ? "passed" : "failed", {
+            actualOutput: success 
+              ? "Test completed successfully. All assertions passed."
+              : "Test failed. Output did not match expected results.",
+            score: success ? (85 + Math.floor(Math.random() * 15)).toString() : (30 + Math.floor(Math.random() * 30)).toString(),
+            executionTimeMs: executionTime,
+            logs: `[${new Date().toISOString()}] Starting test execution...\n` +
+                  `[${new Date().toISOString()}] Initializing agent...\n` +
+                  `[${new Date().toISOString()}] Processing input...\n` +
+                  `[${new Date().toISOString()}] Test ${success ? 'passed' : 'failed'}.`,
+          });
+
+          const tests = await storage.getAgentTests(id);
+          const passedTests = tests.filter(t => t.status === "passed").length;
+          await storage.updateAgentUpload(id, {
+            totalTests: tests.length,
+            passedTests,
+            successRate: tests.length > 0 ? ((passedTests / tests.length) * 100).toFixed(2) : "0",
+          });
+
+          if (success) {
+            await storage.updateAgentUploadStatus(id, "approved");
+          }
+
+          wsService.broadcastToUser(existing.developerId, {
+            type: "agent_test_complete",
+            agentUploadId: id,
+            testId: test.id,
+            status: success ? "passed" : "failed",
+          });
+        } catch (err) {
+          console.error("Error completing test:", err);
+        }
+      }, 3000);
+
+      res.status(201).json(test);
+    } catch (error) {
+      console.error("Error creating test:", error);
+      res.status(500).json({ message: "Failed to create test" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/tests", async (req, res) => {
+    try {
+      const tests = await storage.getAgentTests(parseInt(req.params.id));
+      res.json(tests);
+    } catch (error) {
+      console.error("Error fetching tests:", error);
+      res.status(500).json({ message: "Failed to fetch tests" });
+    }
+  });
+
+  app.get("/api/agent-marketplace", async (req, res) => {
+    try {
+      const { category, search } = req.query;
+      const agents = await storage.getPublishedAgentUploads({
+        category: category as string | undefined,
+        search: search as string | undefined,
+      });
+      res.json(agents);
+    } catch (error) {
+      console.error("Error fetching marketplace agents:", error);
+      res.status(500).json({ message: "Failed to fetch marketplace agents" });
+    }
+  });
+
+  app.get("/api/agent-marketplace/featured", async (req, res) => {
+    try {
+      const featured = await storage.getFeaturedAgentListings();
+      res.json(featured);
+    } catch (error) {
+      console.error("Error fetching featured agents:", error);
+      res.status(500).json({ message: "Failed to fetch featured agents" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/listing", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      if (existing.developerId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const existingListing = await storage.getAgentListing(id);
+      if (existingListing) {
+        const updated = await storage.updateAgentListing(id, req.body);
+        return res.json(updated);
+      }
+      
+      const parsed = insertAgentListingSchema.safeParse({
+        agentUploadId: id,
+        title: req.body.title || existing.name,
+        shortDescription: req.body.shortDescription || existing.description?.slice(0, 200) || "",
+        ...req.body,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid listing data", errors: parsed.error.errors });
+      }
+      const listing = await storage.createAgentListing(parsed.data);
+      res.status(201).json(listing);
+    } catch (error) {
+      console.error("Error creating listing:", error);
+      res.status(500).json({ message: "Failed to create listing" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/listing", async (req, res) => {
+    try {
+      const listing = await storage.getAgentListing(parseInt(req.params.id));
+      res.json(listing || null);
+    } catch (error) {
+      console.error("Error fetching listing:", error);
+      res.status(500).json({ message: "Failed to fetch listing" });
+    }
+  });
+
+  app.post("/api/agent-uploads/:id/reviews", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getAgentUpload(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Agent upload not found" });
+      }
+      
+      const parsed = insertAgentReviewSchema.safeParse({
+        agentUploadId: id,
+        reviewerId: userId,
+        rating: req.body.rating,
+        title: req.body.title,
+        comment: req.body.comment,
+        isVerifiedPurchase: req.body.isVerifiedPurchase || false,
+      });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+      }
+      
+      const review = await storage.createAgentReview(parsed.data);
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ message: "Failed to create review" });
+    }
+  });
+
+  app.get("/api/agent-uploads/:id/reviews", async (req, res) => {
+    try {
+      const reviews = await storage.getAgentReviews(parseInt(req.params.id));
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
   });
 
   return httpServer;

@@ -15,6 +15,11 @@ export const subscriptionTiers = ["free", "pro", "enterprise"] as const;
 export const paymentStatuses = ["pending", "funded", "released", "refunded"] as const;
 export const orchestrationModes = ["single", "parallel", "sequential", "competitive"] as const;
 
+export const agentUploadTypes = ["no_code", "low_code", "full_code"] as const;
+export const agentUploadStatuses = ["draft", "testing", "pending_review", "approved", "rejected", "published"] as const;
+export const agentTestStatuses = ["pending", "running", "passed", "failed"] as const;
+export const agentToolCategories = ["web_scraping", "data_analysis", "api_integration", "file_processing", "communication", "ai_ml", "other"] as const;
+
 export const bounties = pgTable("bounties", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -99,6 +104,118 @@ export const bountyTimeline = pgTable("bounty_timeline", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const agentUploads = pgTable("agent_uploads", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  uploadType: text("upload_type").notNull().$type<typeof agentUploadTypes[number]>(),
+  status: text("status").notNull().$type<typeof agentUploadStatuses[number]>().default("draft"),
+  developerId: varchar("developer_id").notNull(),
+  prompt: text("prompt"),
+  configJson: text("config_json"),
+  manifestJson: text("manifest_json"),
+  repoUrl: text("repo_url"),
+  entryPoint: text("entry_point"),
+  runtime: text("runtime").default("nodejs"),
+  capabilities: text("capabilities").array().default([]),
+  targetCategories: text("target_categories").array().default([]),
+  avatarUrl: text("avatar_url"),
+  avatarColor: text("avatar_color").default("#3B82F6"),
+  version: text("version").default("1.0.0"),
+  isPublic: boolean("is_public").default(false),
+  price: decimal("price", { precision: 12, scale: 2 }).default("0"),
+  successRate: decimal("success_rate", { precision: 5, scale: 2 }).default("0"),
+  totalTests: integer("total_tests").default(0),
+  passedTests: integer("passed_tests").default(0),
+  totalBountiesCompleted: integer("total_bounties_completed").default(0),
+  avgResponseTime: decimal("avg_response_time", { precision: 10, scale: 2 }).default("0"),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
+  reviewCount: integer("review_count").default(0),
+  downloadCount: integer("download_count").default(0),
+  linkedAgentId: integer("linked_agent_id").references(() => agents.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  publishedAt: timestamp("published_at"),
+});
+
+export const agentVersions = pgTable("agent_versions", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  version: text("version").notNull(),
+  changelog: text("changelog"),
+  configJson: text("config_json"),
+  manifestJson: text("manifest_json"),
+  isActive: boolean("is_active").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentTools = pgTable("agent_tools", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull().$type<typeof agentToolCategories[number]>(),
+  configSchema: text("config_schema"),
+  isBuiltIn: boolean("is_built_in").default(false),
+  iconName: text("icon_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentUploadTools = pgTable("agent_upload_tools", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  toolId: integer("tool_id").notNull().references(() => agentTools.id, { onDelete: "cascade" }),
+  config: text("config"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentTests = pgTable("agent_tests", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  testName: text("test_name").notNull(),
+  testType: text("test_type").notNull(),
+  status: text("status").notNull().$type<typeof agentTestStatuses[number]>().default("pending"),
+  input: text("input"),
+  expectedOutput: text("expected_output"),
+  actualOutput: text("actual_output"),
+  score: decimal("score", { precision: 5, scale: 2 }),
+  executionTimeMs: integer("execution_time_ms"),
+  errorMessage: text("error_message"),
+  logs: text("logs"),
+  metadata: text("metadata"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const agentListings = pgTable("agent_listings", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  shortDescription: text("short_description").notNull(),
+  longDescription: text("long_description"),
+  tags: text("tags").array().default([]),
+  screenshots: text("screenshots").array().default([]),
+  demoUrl: text("demo_url"),
+  documentationUrl: text("documentation_url"),
+  isFeatured: boolean("is_featured").default(false),
+  featuredOrder: integer("featured_order"),
+  verificationBadges: text("verification_badges").array().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const agentReviews = pgTable("agent_reviews", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  reviewerId: varchar("reviewer_id").notNull(),
+  rating: integer("rating").notNull(),
+  title: text("title"),
+  comment: text("comment"),
+  isVerifiedPurchase: boolean("is_verified_purchase").default(false),
+  helpfulCount: integer("helpful_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const bountiesRelations = relations(bounties, ({ one, many }) => ({
   poster: one(userProfiles, { fields: [bounties.posterId], references: [userProfiles.id] }),
   winner: one(agents, { fields: [bounties.winnerId], references: [agents.id] }),
@@ -123,6 +240,41 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
 
 export const bountyTimelineRelations = relations(bountyTimeline, ({ one }) => ({
   bounty: one(bounties, { fields: [bountyTimeline.bountyId], references: [bounties.id] }),
+}));
+
+export const agentUploadsRelations = relations(agentUploads, ({ one, many }) => ({
+  developer: one(userProfiles, { fields: [agentUploads.developerId], references: [userProfiles.id] }),
+  linkedAgent: one(agents, { fields: [agentUploads.linkedAgentId], references: [agents.id] }),
+  versions: many(agentVersions),
+  tools: many(agentUploadTools),
+  tests: many(agentTests),
+  listing: one(agentListings),
+  reviews: many(agentReviews),
+}));
+
+export const agentVersionsRelations = relations(agentVersions, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentVersions.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const agentToolsRelations = relations(agentTools, ({ many }) => ({
+  agentUploadTools: many(agentUploadTools),
+}));
+
+export const agentUploadToolsRelations = relations(agentUploadTools, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentUploadTools.agentUploadId], references: [agentUploads.id] }),
+  tool: one(agentTools, { fields: [agentUploadTools.toolId], references: [agentTools.id] }),
+}));
+
+export const agentTestsRelations = relations(agentTests, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentTests.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const agentListingsRelations = relations(agentListings, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentListings.agentUploadId], references: [agentUploads.id] }),
+}));
+
+export const agentReviewsRelations = relations(agentReviews, ({ one }) => ({
+  agentUpload: one(agentUploads, { fields: [agentReviews.agentUploadId], references: [agentUploads.id] }),
 }));
 
 export const insertBountySchema = createInsertSchema(bounties, {
@@ -171,6 +323,61 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
   totalEarned: true,
 });
 
+export const insertAgentUploadSchema = createInsertSchema(agentUploads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  publishedAt: true,
+  status: true,
+  successRate: true,
+  totalTests: true,
+  passedTests: true,
+  totalBountiesCompleted: true,
+  avgResponseTime: true,
+  rating: true,
+  reviewCount: true,
+  downloadCount: true,
+  linkedAgentId: true,
+});
+
+export const insertAgentVersionSchema = createInsertSchema(agentVersions).omit({
+  id: true,
+  createdAt: true,
+  isActive: true,
+});
+
+export const insertAgentToolSchema = createInsertSchema(agentTools).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAgentTestSchema = createInsertSchema(agentTests).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+  actualOutput: true,
+  score: true,
+  executionTimeMs: true,
+  errorMessage: true,
+  logs: true,
+  startedAt: true,
+  completedAt: true,
+});
+
+export const insertAgentListingSchema = createInsertSchema(agentListings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  isFeatured: true,
+  featuredOrder: true,
+});
+
+export const insertAgentReviewSchema = createInsertSchema(agentReviews).omit({
+  id: true,
+  createdAt: true,
+  helpfulCount: true,
+});
+
 export type Bounty = typeof bounties.$inferSelect;
 export type InsertBounty = z.infer<typeof insertBountySchema>;
 export type Agent = typeof agents.$inferSelect;
@@ -182,3 +389,16 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type BountyTimeline = typeof bountyTimeline.$inferSelect;
+
+export type AgentUpload = typeof agentUploads.$inferSelect;
+export type InsertAgentUpload = z.infer<typeof insertAgentUploadSchema>;
+export type AgentVersion = typeof agentVersions.$inferSelect;
+export type InsertAgentVersion = z.infer<typeof insertAgentVersionSchema>;
+export type AgentTool = typeof agentTools.$inferSelect;
+export type InsertAgentTool = z.infer<typeof insertAgentToolSchema>;
+export type AgentTest = typeof agentTests.$inferSelect;
+export type InsertAgentTest = z.infer<typeof insertAgentTestSchema>;
+export type AgentListing = typeof agentListings.$inferSelect;
+export type InsertAgentListing = z.infer<typeof insertAgentListingSchema>;
+export type AgentReview = typeof agentReviews.$inferSelect;
+export type InsertAgentReview = z.infer<typeof insertAgentReviewSchema>;

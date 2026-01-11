@@ -1,15 +1,21 @@
 import { 
   bounties, agents, submissions, reviews, userProfiles, bountyTimeline,
+  agentUploads, agentVersions, agentTools, agentUploadTools, agentTests, agentListings, agentReviews,
   type Bounty, type InsertBounty, type Agent, type InsertAgent,
   type Submission, type InsertSubmission, type Review, type InsertReview,
   type UserProfile, type InsertUserProfile, type BountyTimeline,
-  bountyStatuses, submissionStatuses
+  type AgentUpload, type InsertAgentUpload, type AgentVersion, type InsertAgentVersion,
+  type AgentTool, type InsertAgentTool, type AgentTest, type InsertAgentTest,
+  type AgentListing, type InsertAgentListing, type AgentReview, type InsertAgentReview,
+  bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
 
 type BountyStatus = typeof bountyStatuses[number];
 type SubmissionStatus = typeof submissionStatuses[number];
+type AgentUploadStatus = typeof agentUploadStatuses[number];
+type AgentTestStatus = typeof agentTestStatuses[number];
 
 export interface IStorage {
   getBounty(id: number): Promise<Bounty | undefined>;
@@ -39,6 +45,31 @@ export interface IStorage {
   addTimelineEvent(bountyId: number, status: string, description: string): Promise<BountyTimeline>;
 
   getStats(): Promise<{ totalBounties: number; totalAgents: number; totalPaidOut: number; activeBounties: number }>;
+
+  getAgentUpload(id: number): Promise<AgentUpload | undefined>;
+  getAgentUploadsByDeveloper(developerId: string): Promise<AgentUpload[]>;
+  getPublishedAgentUploads(filters?: { category?: string; search?: string }): Promise<AgentUpload[]>;
+  createAgentUpload(upload: InsertAgentUpload): Promise<AgentUpload>;
+  updateAgentUpload(id: number, data: Partial<AgentUpload>): Promise<AgentUpload | undefined>;
+  updateAgentUploadStatus(id: number, status: AgentUploadStatus): Promise<AgentUpload | undefined>;
+  deleteAgentUpload(id: number): Promise<boolean>;
+
+  getAgentTools(): Promise<AgentTool[]>;
+  createAgentTool(tool: InsertAgentTool): Promise<AgentTool>;
+  addToolToAgentUpload(agentUploadId: number, toolId: number, config?: string): Promise<void>;
+  getToolsForAgentUpload(agentUploadId: number): Promise<AgentTool[]>;
+
+  createAgentTest(test: InsertAgentTest): Promise<AgentTest>;
+  getAgentTests(agentUploadId: number): Promise<AgentTest[]>;
+  updateAgentTestStatus(id: number, status: AgentTestStatus, result?: Partial<AgentTest>): Promise<AgentTest | undefined>;
+
+  createAgentListing(listing: InsertAgentListing): Promise<AgentListing>;
+  getAgentListing(agentUploadId: number): Promise<AgentListing | undefined>;
+  updateAgentListing(agentUploadId: number, data: Partial<AgentListing>): Promise<AgentListing | undefined>;
+  getFeaturedAgentListings(): Promise<(AgentListing & { agentUpload: AgentUpload })[]>;
+
+  createAgentReview(review: InsertAgentReview): Promise<AgentReview>;
+  getAgentReviews(agentUploadId: number): Promise<AgentReview[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -387,6 +418,132 @@ export class DatabaseStorage implements IStorage {
         activeAgents: formatValue(activeAgents[0]?.count),
       }
     };
+  }
+
+  async getAgentUpload(id: number): Promise<AgentUpload | undefined> {
+    const [upload] = await db.select().from(agentUploads).where(eq(agentUploads.id, id));
+    return upload;
+  }
+
+  async getAgentUploadsByDeveloper(developerId: string): Promise<AgentUpload[]> {
+    return db.select().from(agentUploads).where(eq(agentUploads.developerId, developerId)).orderBy(desc(agentUploads.createdAt));
+  }
+
+  async getPublishedAgentUploads(filters?: { category?: string; search?: string }): Promise<AgentUpload[]> {
+    let query = db.select().from(agentUploads).where(eq(agentUploads.status, "published"));
+    return query.orderBy(desc(agentUploads.downloadCount), desc(agentUploads.rating));
+  }
+
+  async createAgentUpload(upload: InsertAgentUpload): Promise<AgentUpload> {
+    const [created] = await db.insert(agentUploads).values(upload).returning();
+    return created;
+  }
+
+  async updateAgentUpload(id: number, data: Partial<AgentUpload>): Promise<AgentUpload | undefined> {
+    const [updated] = await db.update(agentUploads).set({ ...data, updatedAt: new Date() }).where(eq(agentUploads.id, id)).returning();
+    return updated;
+  }
+
+  async updateAgentUploadStatus(id: number, status: AgentUploadStatus): Promise<AgentUpload | undefined> {
+    const updateData: Partial<AgentUpload> = { status, updatedAt: new Date() };
+    if (status === "published") {
+      updateData.publishedAt = new Date();
+    }
+    const [updated] = await db.update(agentUploads).set(updateData).where(eq(agentUploads.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAgentUpload(id: number): Promise<boolean> {
+    const result = await db.delete(agentUploads).where(eq(agentUploads.id, id));
+    return true;
+  }
+
+  async getAgentTools(): Promise<AgentTool[]> {
+    return db.select().from(agentTools).orderBy(agentTools.category, agentTools.name);
+  }
+
+  async createAgentTool(tool: InsertAgentTool): Promise<AgentTool> {
+    const [created] = await db.insert(agentTools).values(tool).returning();
+    return created;
+  }
+
+  async addToolToAgentUpload(agentUploadId: number, toolId: number, config?: string): Promise<void> {
+    await db.insert(agentUploadTools).values({ agentUploadId, toolId, config });
+  }
+
+  async getToolsForAgentUpload(agentUploadId: number): Promise<AgentTool[]> {
+    const result = await db
+      .select({ tool: agentTools })
+      .from(agentUploadTools)
+      .innerJoin(agentTools, eq(agentUploadTools.toolId, agentTools.id))
+      .where(eq(agentUploadTools.agentUploadId, agentUploadId));
+    return result.map(r => r.tool);
+  }
+
+  async createAgentTest(test: InsertAgentTest): Promise<AgentTest> {
+    const [created] = await db.insert(agentTests).values(test).returning();
+    return created;
+  }
+
+  async getAgentTests(agentUploadId: number): Promise<AgentTest[]> {
+    return db.select().from(agentTests).where(eq(agentTests.agentUploadId, agentUploadId)).orderBy(desc(agentTests.createdAt));
+  }
+
+  async updateAgentTestStatus(id: number, status: AgentTestStatus, result?: Partial<AgentTest>): Promise<AgentTest | undefined> {
+    const updateData: Partial<AgentTest> = { status, ...result };
+    if (status === "running") {
+      updateData.startedAt = new Date();
+    } else if (status === "passed" || status === "failed") {
+      updateData.completedAt = new Date();
+    }
+    const [updated] = await db.update(agentTests).set(updateData).where(eq(agentTests.id, id)).returning();
+    return updated;
+  }
+
+  async createAgentListing(listing: InsertAgentListing): Promise<AgentListing> {
+    const [created] = await db.insert(agentListings).values(listing).returning();
+    return created;
+  }
+
+  async getAgentListing(agentUploadId: number): Promise<AgentListing | undefined> {
+    const [listing] = await db.select().from(agentListings).where(eq(agentListings.agentUploadId, agentUploadId));
+    return listing;
+  }
+
+  async updateAgentListing(agentUploadId: number, data: Partial<AgentListing>): Promise<AgentListing | undefined> {
+    const [updated] = await db.update(agentListings).set({ ...data, updatedAt: new Date() }).where(eq(agentListings.agentUploadId, agentUploadId)).returning();
+    return updated;
+  }
+
+  async getFeaturedAgentListings(): Promise<(AgentListing & { agentUpload: AgentUpload })[]> {
+    const result = await db
+      .select({ listing: agentListings, agentUpload: agentUploads })
+      .from(agentListings)
+      .innerJoin(agentUploads, eq(agentListings.agentUploadId, agentUploads.id))
+      .where(eq(agentListings.isFeatured, true))
+      .orderBy(agentListings.featuredOrder);
+    return result.map(r => ({ ...r.listing, agentUpload: r.agentUpload }));
+  }
+
+  async createAgentReview(review: InsertAgentReview): Promise<AgentReview> {
+    const [created] = await db.insert(agentReviews).values(review).returning();
+    await this.updateAgentUploadRating(review.agentUploadId);
+    return created;
+  }
+
+  async getAgentReviews(agentUploadId: number): Promise<AgentReview[]> {
+    return db.select().from(agentReviews).where(eq(agentReviews.agentUploadId, agentUploadId)).orderBy(desc(agentReviews.createdAt));
+  }
+
+  private async updateAgentUploadRating(agentUploadId: number): Promise<void> {
+    const reviews = await this.getAgentReviews(agentUploadId);
+    if (reviews.length === 0) return;
+    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+    await db.update(agentUploads).set({ 
+      rating: avgRating.toFixed(2), 
+      reviewCount: reviews.length,
+      updatedAt: new Date() 
+    }).where(eq(agentUploads.id, agentUploadId));
   }
 }
 

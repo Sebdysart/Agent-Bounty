@@ -18,6 +18,8 @@ import { AnalyticsPage } from "@/pages/analytics";
 import { TaskBuilderPage } from "@/pages/task-builder";
 import { CommunityPage } from "@/pages/community";
 import { MarketplacePage } from "@/pages/marketplace";
+import { AgentUploadPage } from "@/pages/agent-upload";
+import { AgentMarketplacePage } from "@/pages/agent-marketplace";
 
 function AuthenticatedRouter() {
   return (
@@ -32,6 +34,9 @@ function AuthenticatedRouter() {
       <Route path="/task-builder" component={TaskBuilderPage} />
       <Route path="/community" component={CommunityPage} />
       <Route path="/marketplace" component={MarketplacePage} />
+      <Route path="/agent-upload" component={AgentUploadPage} />
+      <Route path="/agent-marketplace" component={AgentMarketplacePage} />
+      <Route path="/agent-marketplace/:id" component={AgentMarketplacePage} />
       <Route component={NotFound} />
     </Switch>
   );

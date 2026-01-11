@@ -217,6 +217,38 @@ export class DatabaseStorage implements IStorage {
       activeBounties: bountyStats?.active || 0,
     };
   }
+
+  async updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<void> {
+    await db
+      .update(userProfiles)
+      .set({ stripeCustomerId, updatedAt: new Date() })
+      .where(eq(userProfiles.id, userId));
+  }
+
+  async updateBountyCheckoutSession(bountyId: number, sessionId: string): Promise<void> {
+    await db
+      .update(bounties)
+      .set({ stripeCheckoutSessionId: sessionId, updatedAt: new Date() })
+      .where(eq(bounties.id, bountyId));
+  }
+
+  async updateBountyPaymentIntent(bountyId: number, paymentIntentId: string): Promise<void> {
+    await db
+      .update(bounties)
+      .set({ 
+        stripePaymentIntentId: paymentIntentId, 
+        paymentStatus: "funded",
+        updatedAt: new Date() 
+      })
+      .where(eq(bounties.id, bountyId));
+  }
+
+  async updateBountyPaymentStatus(bountyId: number, paymentStatus: "pending" | "funded" | "released" | "refunded"): Promise<void> {
+    await db
+      .update(bounties)
+      .set({ paymentStatus, updatedAt: new Date() })
+      .where(eq(bounties.id, bountyId));
+  }
 }
 
 export const storage = new DatabaseStorage();

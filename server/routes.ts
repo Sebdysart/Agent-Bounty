@@ -7,6 +7,8 @@ import {
   bountyStatuses, submissionStatuses 
 } from "@shared/schema";
 import { z } from "zod";
+import { stripeService } from "./stripeService";
+import { getStripePublishableKey } from "./stripeClient";
 
 const updateBountyStatusSchema = z.object({
   status: z.enum(bountyStatuses),
@@ -299,6 +301,146 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error creating review:", error);
       res.status(500).json({ message: "Failed to create review" });
+    }
+  });
+
+  app.get("/api/stripe/publishable-key", async (req, res) => {
+    try {
+      const publishableKey = await getStripePublishableKey();
+      res.json({ publishableKey });
+    } catch (error) {
+      console.error("Error getting Stripe key:", error);
+      res.status(500).json({ message: "Failed to get Stripe key" });
+    }
+  });
+
+  app.post("/api/bounties/:id/fund", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const bounty = await storage.getBounty(bountyId);
+      
+      if (!bounty) {
+        return res.status(404).json({ message: "Bounty not found" });
+      }
+
+      if (bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Only the bounty poster can fund this bounty" });
+      }
+
+      if (bounty.paymentStatus === "funded") {
+        return res.status(400).json({ message: "Bounty is already funded" });
+      }
+
+      let profile = await storage.getUserProfile(userId);
+      let customerId = profile?.stripeCustomerId;
+
+      if (!customerId) {
+        const user = req.user?.claims;
+        const customer = await stripeService.createCustomer(
+          user?.email || `user-${userId}@bountyai.com`,
+          userId,
+          user?.name
+        );
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customer.id);
+      }
+
+      const baseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+      const session = await stripeService.createCheckoutSession(
+        customerId,
+        bountyId,
+        bounty.title,
+        parseFloat(bounty.reward),
+        `${baseUrl}/bounties/${bountyId}?funded=true`,
+        `${baseUrl}/bounties/${bountyId}?cancelled=true`
+      );
+
+      await storage.updateBountyCheckoutSession(bountyId, session.id);
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: "Failed to create payment session" });
+    }
+  });
+
+  app.post("/api/bounties/:id/release-payment", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const bounty = await storage.getBounty(bountyId);
+      
+      if (!bounty) {
+        return res.status(404).json({ message: "Bounty not found" });
+      }
+
+      if (bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Only the bounty poster can release payment" });
+      }
+
+      if (bounty.paymentStatus !== "funded") {
+        return res.status(400).json({ message: "Bounty is not funded" });
+      }
+
+      if (!bounty.stripePaymentIntentId) {
+        return res.status(400).json({ message: "No payment intent found" });
+      }
+
+      await stripeService.capturePayment(bounty.stripePaymentIntentId);
+      await storage.updateBountyPaymentStatus(bountyId, "released");
+      await storage.addTimelineEvent(bountyId, "payment_released", "Payment released to winning agent");
+
+      res.json({ success: true, message: "Payment released successfully" });
+    } catch (error) {
+      console.error("Error releasing payment:", error);
+      res.status(500).json({ message: "Failed to release payment" });
+    }
+  });
+
+  app.post("/api/bounties/:id/refund", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const bounty = await storage.getBounty(bountyId);
+      
+      if (!bounty) {
+        return res.status(404).json({ message: "Bounty not found" });
+      }
+
+      if (bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Only the bounty poster can request a refund" });
+      }
+
+      if (bounty.paymentStatus !== "funded") {
+        return res.status(400).json({ message: "Bounty is not funded or already released" });
+      }
+
+      if (!bounty.stripePaymentIntentId) {
+        return res.status(400).json({ message: "No payment intent found" });
+      }
+
+      await stripeService.refundPayment(bounty.stripePaymentIntentId);
+      await storage.updateBountyPaymentStatus(bountyId, "refunded");
+      await storage.updateBountyStatus(bountyId, "cancelled");
+      await storage.addTimelineEvent(bountyId, "refunded", "Bounty cancelled and payment refunded");
+
+      res.json({ success: true, message: "Payment refunded successfully" });
+    } catch (error) {
+      console.error("Error refunding payment:", error);
+      res.status(500).json({ message: "Failed to refund payment" });
     }
   });
 

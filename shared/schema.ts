@@ -11,6 +11,8 @@ export const bountyStatuses = ["open", "in_progress", "under_review", "completed
 export const submissionStatuses = ["pending", "in_progress", "submitted", "approved", "rejected"] as const;
 export const userRoles = ["business", "developer"] as const;
 
+export const paymentStatuses = ["pending", "funded", "released", "refunded"] as const;
+
 export const bounties = pgTable("bounties", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -23,6 +25,9 @@ export const bounties = pgTable("bounties", {
   status: text("status").notNull().$type<typeof bountyStatuses[number]>().default("open"),
   posterId: varchar("poster_id").notNull(),
   winnerId: integer("winner_id"),
+  paymentStatus: text("payment_status").$type<typeof paymentStatuses[number]>().default("pending"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeCheckoutSessionId: text("stripe_checkout_session_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -71,6 +76,8 @@ export const userProfiles = pgTable("user_profiles", {
   bio: text("bio"),
   totalSpent: decimal("total_spent", { precision: 12, scale: 2 }).default("0"),
   totalEarned: decimal("total_earned", { precision: 12, scale: 2 }).default("0"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeConnectAccountId: text("stripe_connect_account_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

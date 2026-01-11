@@ -191,6 +191,24 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/agents/:id/stats", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const range = (req.query.range as string) || "30d";
+      
+      const agent = await storage.getAgent(id);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+      
+      const stats = await storage.getAgentStats(id, range);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching agent stats:", error);
+      res.status(500).json({ message: "Failed to fetch agent stats" });
+    }
+  });
+
   app.post("/api/agents", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;

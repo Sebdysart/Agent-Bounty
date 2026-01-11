@@ -18,7 +18,7 @@ import {
   bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, gte } from "drizzle-orm";
 
 type BountyStatus = typeof bountyStatuses[number];
 type SubmissionStatus = typeof submissionStatuses[number];
@@ -37,6 +37,22 @@ export interface IStorage {
   getTopAgents(limit?: number): Promise<Agent[]>;
   createAgent(agent: InsertAgent): Promise<Agent>;
   updateAgentStats(id: number, stats: Partial<Agent>): Promise<Agent | undefined>;
+  getAgentStats(agentId: number, range: string): Promise<{
+    agentId: number;
+    successRate: number;
+    avgCompletionSeconds: number;
+    earningsUsd: number;
+    reviewScore: number;
+    completionCount: number;
+    timeSeries: {
+      dates: string[];
+      successRate: number[];
+      avgCompletionSeconds: number[];
+      earningsUsd: number[];
+      reviewScore: number[];
+      completionCount: number[];
+    };
+  }>;
 
   getSubmission(id: number): Promise<Submission | undefined>;
   getSubmissionsByBounty(bountyId: number): Promise<(Submission & { agent: Agent })[]>;
@@ -162,6 +178,147 @@ export class DatabaseStorage implements IStorage {
       .where(eq(agents.id, id))
       .returning();
     return updated;
+  }
+
+  async getAgentStats(agentId: number, range: string): Promise<{
+    agentId: number;
+    successRate: number;
+    avgCompletionSeconds: number;
+    earningsUsd: number;
+    reviewScore: number;
+    completionCount: number;
+    timeSeries: {
+      dates: string[];
+      successRate: number[];
+      avgCompletionSeconds: number[];
+      earningsUsd: number[];
+      reviewScore: number[];
+      completionCount: number[];
+    };
+  }> {
+    const agent = await this.getAgent(agentId);
+    const days = range === "7d" ? 7 : range === "90d" ? 90 : 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const agentSubmissions = await db
+      .select({
+        submission: submissions,
+        bounty: bounties,
+      })
+      .from(submissions)
+      .leftJoin(bounties, eq(submissions.bountyId, bounties.id))
+      .where(
+        and(
+          eq(submissions.agentId, agentId),
+          gte(submissions.createdAt, startDate)
+        )
+      )
+      .orderBy(submissions.createdAt);
+
+    const agentReviews = await db
+      .select()
+      .from(reviews)
+      .innerJoin(submissions, eq(reviews.submissionId, submissions.id))
+      .where(
+        and(
+          eq(submissions.agentId, agentId),
+          gte(reviews.createdAt, startDate)
+        )
+      );
+
+    const totalSubmissions = agentSubmissions.length;
+    const completedSubmissions = agentSubmissions.filter(
+      (s) => s.submission.status === "approved"
+    ).length;
+    const successRate = totalSubmissions > 0 ? completedSubmissions / totalSubmissions : 0;
+
+    const avgCompletionSeconds = totalSubmissions > 0
+      ? agentSubmissions.reduce((sum, s) => {
+          const created = new Date(s.submission.createdAt).getTime();
+          const updated = new Date(s.submission.updatedAt).getTime();
+          return sum + (updated - created) / 1000;
+        }, 0) / totalSubmissions
+      : 300;
+
+    const earningsUsd = agentSubmissions
+      .filter((s) => s.submission.status === "approved" && s.bounty)
+      .reduce((sum, s) => sum + parseFloat(s.bounty?.reward || "0"), 0);
+
+    const avgReviewScore = agentReviews.length > 0
+      ? agentReviews.reduce((sum, r) => sum + r.reviews.rating, 0) / agentReviews.length
+      : parseFloat(agent?.avgRating || "0");
+
+    const dates: string[] = [];
+    const successRates: number[] = [];
+    const avgCompletionTimes: number[] = [];
+    const earnings: number[] = [];
+    const reviewScores: number[] = [];
+    const completionCounts: number[] = [];
+
+    for (let i = 0; i < Math.min(days, 10); i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - (Math.min(days, 10) - 1 - i));
+      dates.push(date.toISOString().split("T")[0]);
+
+      const dayStart = new Date(date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const daySubmissions = agentSubmissions.filter((s) => {
+        const created = new Date(s.submission.createdAt);
+        return created >= dayStart && created <= dayEnd;
+      });
+
+      const dayCompleted = daySubmissions.filter(
+        (s) => s.submission.status === "approved"
+      ).length;
+      successRates.push(daySubmissions.length > 0 ? dayCompleted / daySubmissions.length : successRate);
+
+      const dayAvgTime = daySubmissions.length > 0
+        ? daySubmissions.reduce((sum, s) => {
+            const created = new Date(s.submission.createdAt).getTime();
+            const updated = new Date(s.submission.updatedAt).getTime();
+            return sum + (updated - created) / 1000;
+          }, 0) / daySubmissions.length
+        : avgCompletionSeconds;
+      avgCompletionTimes.push(dayAvgTime);
+
+      const dayEarnings = daySubmissions
+        .filter((s) => s.submission.status === "approved" && s.bounty)
+        .reduce((sum, s) => sum + parseFloat(s.bounty?.reward || "0"), 0);
+      earnings.push(dayEarnings);
+
+      const dayReviews = agentReviews.filter((r) => {
+        const created = new Date(r.reviews.createdAt);
+        return created >= dayStart && created <= dayEnd;
+      });
+      reviewScores.push(
+        dayReviews.length > 0
+          ? dayReviews.reduce((sum, r) => sum + r.reviews.rating, 0) / dayReviews.length
+          : avgReviewScore
+      );
+
+      completionCounts.push(dayCompleted);
+    }
+
+    return {
+      agentId,
+      successRate,
+      avgCompletionSeconds,
+      earningsUsd,
+      reviewScore: avgReviewScore,
+      completionCount: completedSubmissions,
+      timeSeries: {
+        dates,
+        successRate: successRates,
+        avgCompletionSeconds: avgCompletionTimes,
+        earningsUsd: earnings,
+        reviewScore: reviewScores,
+        completionCount: completionCounts,
+      },
+    };
   }
 
   async getSubmission(id: number): Promise<Submission | undefined> {

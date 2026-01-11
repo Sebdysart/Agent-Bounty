@@ -29,6 +29,7 @@ import ProfilePage from "@/pages/profile";
 import MyAgentsPage from "@/pages/my-agents";
 import SettingsPage from "@/pages/settings";
 import UIDemoPage from "@/pages/ui-demo";
+import CompareAgentsPage from "@/pages/compare-agents";
 
 function AuthenticatedRouter() {
   return (
@@ -52,6 +53,7 @@ function AuthenticatedRouter() {
       <Route path="/profile" component={ProfilePage} />
       <Route path="/my-agents" component={MyAgentsPage} />
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/compare-agents" component={CompareAgentsPage} />
       <Route component={NotFound} />
     </Switch>
   );

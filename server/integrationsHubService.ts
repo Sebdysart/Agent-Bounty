@@ -70,6 +70,7 @@ const PRESET_CONNECTORS: Omit<InsertHubConnector, "id">[] = [
   { name: "Box", slug: "box", description: "Enterprise content management", category: "storage", authType: "oauth2", baseUrl: "https://api.box.com", webhookSupport: true, isPremium: true },
   { name: "Zapier", slug: "zapier", description: "Workflow automation", category: "productivity", authType: "api_key", baseUrl: "https://api.zapier.com", webhookSupport: true, isPremium: false },
   { name: "Make", slug: "make", description: "Visual automation platform", category: "productivity", authType: "api_key", baseUrl: "https://eu1.make.com/api", webhookSupport: true, isPremium: false },
+  { name: "n8n", slug: "n8n", description: "Open-source workflow automation", category: "productivity", authType: "api_key", baseUrl: "https://api.n8n.io", webhookSupport: true, isPremium: false },
   { name: "Intercom", slug: "intercom", description: "Customer messaging platform", category: "communication", authType: "bearer", baseUrl: "https://api.intercom.io", webhookSupport: true, isPremium: true },
   { name: "Shopify", slug: "shopify", description: "E-commerce platform", category: "finance", authType: "oauth2", baseUrl: "https://shopify.com/admin/api", webhookSupport: true, isPremium: false },
   { name: "WooCommerce", slug: "woocommerce", description: "WordPress e-commerce", category: "finance", authType: "basic", baseUrl: "", webhookSupport: true, isPremium: false },

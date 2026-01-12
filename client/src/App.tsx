@@ -38,6 +38,11 @@ import SupportPage from "@/pages/support";
 import DisputesPage from "@/pages/disputes";
 import AdminDashboardPage from "@/pages/admin";
 import ExecutionMonitor from "@/pages/execution-monitor";
+import PrivacyCenterPage from "@/pages/privacy-center";
+import ReferralDashboardPage from "@/pages/referral-dashboard";
+import AIEthicsPage from "@/pages/ai-ethics";
+import LlmConfigPage from "@/pages/llm-config";
+import BlockchainVerificationPage from "@/pages/blockchain-verification";
 
 function AuthenticatedRouter() {
   return (
@@ -71,6 +76,11 @@ function AuthenticatedRouter() {
       <Route path="/admin" component={AdminDashboardPage} />
       <Route path="/execution-monitor" component={ExecutionMonitor} />
       <Route path="/execution-monitor/:agentId" component={ExecutionMonitor} />
+      <Route path="/privacy-center" component={PrivacyCenterPage} />
+      <Route path="/referrals" component={ReferralDashboardPage} />
+      <Route path="/ai-ethics" component={AIEthicsPage} />
+      <Route path="/llm-config" component={LlmConfigPage} />
+      <Route path="/blockchain" component={BlockchainVerificationPage} />
       <Route component={NotFound} />
     </Switch>
   );

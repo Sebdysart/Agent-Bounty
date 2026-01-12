@@ -873,7 +873,7 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
-  async forkAgent(fork: InsertAgentFork, newAgentData: InsertAgentUpload): Promise<AgentUpload> {
+  async forkAgent(fork: Omit<InsertAgentFork, 'forkedAgentId'>, newAgentData: InsertAgentUpload): Promise<AgentUpload> {
     const [forkedAgent] = await db.insert(agentUploads).values(newAgentData).returning();
     await db.insert(agentForks).values({
       ...fork,

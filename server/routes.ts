@@ -13,6 +13,15 @@ import { z } from "zod";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import OpenAI from "openai";
+import { jwtService } from "./jwtService";
+import { gdprService } from "./gdprService";
+import { ethicsAuditorService } from "./ethicsAuditorService";
+import { referralService } from "./referralService";
+import { matchingService } from "./matchingService";
+import { multiLlmService } from "./multiLlmService";
+import { blockchainService } from "./blockchainService";
+import { validateJWT, requireJWT, requireAdmin, hybridAuth } from "./authMiddleware";
+import { cacheService } from "./cacheService";
 
 function getOpenAIClient() {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -33,12 +42,60 @@ const updateSubmissionStatusSchema = z.object({
   progress: z.number().min(0).max(100).optional(),
 });
 
+async function seedDefaultPermissions() {
+  const { db } = await import('./db');
+  const { rolePermissions } = await import('@shared/schema');
+  const { eq, and } = await import('drizzle-orm');
+
+  const defaultPermissions = [
+    { role: 'admin', resource: 'admin', action: 'manage' },
+    { role: 'admin', resource: 'bounty', action: 'manage' },
+    { role: 'admin', resource: 'agent', action: 'manage' },
+    { role: 'admin', resource: 'user', action: 'manage' },
+    { role: 'admin', resource: 'dispute', action: 'manage' },
+    { role: 'admin', resource: 'ticket', action: 'manage' },
+    { role: 'moderator', resource: 'bounty', action: 'moderate' },
+    { role: 'moderator', resource: 'agent', action: 'moderate' },
+    { role: 'moderator', resource: 'dispute', action: 'read' },
+    { role: 'developer', resource: 'agent', action: 'create' },
+    { role: 'developer', resource: 'agent', action: 'update' },
+    { role: 'developer', resource: 'submission', action: 'create' },
+    { role: 'developer', resource: 'execution', action: 'execute' },
+    { role: 'business', resource: 'bounty', action: 'create' },
+    { role: 'business', resource: 'bounty', action: 'update' },
+    { role: 'business', resource: 'submission', action: 'verify' },
+    { role: 'viewer', resource: 'bounty', action: 'read' },
+    { role: 'viewer', resource: 'agent', action: 'read' },
+  ];
+
+  for (const perm of defaultPermissions) {
+    const existing = await db.select().from(rolePermissions)
+      .where(and(
+        eq(rolePermissions.role, perm.role as any),
+        eq(rolePermissions.resource, perm.resource as any),
+        eq(rolePermissions.action, perm.action as any)
+      ));
+    
+    if (existing.length === 0) {
+      await db.insert(rolePermissions).values({
+        role: perm.role as any,
+        resource: perm.resource as any,
+        action: perm.action as any,
+      });
+    }
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  app.use(validateJWT);
+
+  await seedDefaultPermissions();
 
   app.get("/api/stats", async (req, res) => {
     try {
@@ -1853,7 +1910,7 @@ ${agentOutput}`
       const message = await storage.createDisputeMessage({
         disputeId: parseInt(req.params.id),
         senderId: userId,
-        senderType: "user",
+        senderRole: "user",
         content: parsed.data.content,
       });
       res.status(201).json(message);
@@ -2062,6 +2119,462 @@ ${agentOutput}`
     } catch (error) {
       console.error("Error testing sandbox:", error);
       res.status(500).json({ message: "Failed to test sandbox" });
+    }
+  });
+
+  // ============================================
+  // ENTERPRISE FEATURES API ROUTES
+  // ============================================
+
+  // JWT/Zero-Trust Authentication
+  app.post("/api/auth/token", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      
+      const deviceInfo = req.headers['user-agent'];
+      const ipAddress = req.ip;
+      
+      const tokens = await jwtService.generateTokenPair(userId, deviceInfo, ipAddress);
+      res.json(tokens);
+    } catch (error) {
+      console.error("Error generating tokens:", error);
+      res.status(500).json({ message: "Failed to generate tokens" });
+    }
+  });
+
+  app.post("/api/auth/refresh", async (req, res) => {
+    try {
+      const { refreshToken } = req.body;
+      if (!refreshToken) {
+        return res.status(400).json({ message: "Refresh token required" });
+      }
+      
+      const tokens = await jwtService.refreshAccessToken(refreshToken, req.ip);
+      if (!tokens) {
+        return res.status(401).json({ message: "Invalid or expired refresh token" });
+      }
+      
+      res.json(tokens);
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      res.status(500).json({ message: "Failed to refresh token" });
+    }
+  });
+
+  app.post("/api/auth/revoke", hybridAuth, async (req: any, res) => {
+    try {
+      const { refreshToken } = req.body;
+      if (refreshToken) {
+        await jwtService.revokeRefreshToken(refreshToken);
+      } else {
+        const userId = req.authUserId;
+        if (userId) {
+          await jwtService.revokeAllUserTokens(userId);
+        }
+      }
+      res.json({ message: "Token(s) revoked" });
+    } catch (error) {
+      console.error("Error revoking token:", error);
+      res.status(500).json({ message: "Failed to revoke token" });
+    }
+  });
+
+  app.get("/api/auth/roles", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const roles = await jwtService.getUserRoles(userId);
+      const permissions = await jwtService.getRolePermissions(roles);
+      res.json({ roles, permissions });
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  // GDPR/CCPA Compliance
+  app.get("/api/privacy/consents", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const consents = await gdprService.getConsents(userId);
+      res.json(consents);
+    } catch (error) {
+      console.error("Error fetching consents:", error);
+      res.status(500).json({ message: "Failed to fetch consents" });
+    }
+  });
+
+  app.post("/api/privacy/consents", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const { category, granted, version } = req.body;
+      await gdprService.updateConsent(userId, { category, granted, version }, req.ip, req.headers['user-agent']);
+      res.json({ message: "Consent updated" });
+    } catch (error) {
+      console.error("Error updating consent:", error);
+      res.status(500).json({ message: "Failed to update consent" });
+    }
+  });
+
+  app.post("/api/privacy/export", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const format = req.body.format || 'json';
+      const requestId = await gdprService.requestDataExport(userId, format);
+      res.json({ requestId, message: "Data export requested" });
+    } catch (error) {
+      console.error("Error requesting data export:", error);
+      res.status(500).json({ message: "Failed to request data export" });
+    }
+  });
+
+  app.get("/api/privacy/export/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const request = await gdprService.getDataExportStatus(parseInt(req.params.id));
+      if (!request) {
+        return res.status(404).json({ message: "Export request not found" });
+      }
+      res.json(request);
+    } catch (error) {
+      console.error("Error fetching export status:", error);
+      res.status(500).json({ message: "Failed to fetch export status" });
+    }
+  });
+
+  app.get("/api/privacy/exports", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const requests = await gdprService.getDataExportRequests(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching exports:", error);
+      res.status(500).json({ message: "Failed to fetch exports" });
+    }
+  });
+
+  app.post("/api/privacy/delete", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const { reason } = req.body;
+      const result = await gdprService.requestDataDeletion(userId, reason);
+      res.json(result);
+    } catch (error) {
+      console.error("Error requesting data deletion:", error);
+      res.status(500).json({ message: "Failed to request data deletion" });
+    }
+  });
+
+  app.post("/api/privacy/delete/confirm", hybridAuth, async (req: any, res) => {
+    try {
+      const { requestId, confirmationCode } = req.body;
+      const confirmed = await gdprService.confirmDataDeletion(requestId, confirmationCode);
+      if (!confirmed) {
+        return res.status(400).json({ message: "Invalid confirmation code or request" });
+      }
+      res.json({ message: "Data deletion confirmed and processing" });
+    } catch (error) {
+      console.error("Error confirming deletion:", error);
+      res.status(500).json({ message: "Failed to confirm deletion" });
+    }
+  });
+
+  // AI Ethics Auditor
+  app.post("/api/ethics/audit/:agentUploadId", hybridAuth, async (req: any, res) => {
+    try {
+      const agentUploadId = parseInt(req.params.agentUploadId);
+      const auditId = await ethicsAuditorService.runComprehensiveAudit(agentUploadId);
+      res.json({ auditId, status: "processing" });
+    } catch (error) {
+      console.error("Error starting ethics audit:", error);
+      res.status(500).json({ message: "Failed to start ethics audit" });
+    }
+  });
+
+  app.post("/api/ethics/audit/:agentUploadId/:type", hybridAuth, async (req: any, res) => {
+    try {
+      const agentUploadId = parseInt(req.params.agentUploadId);
+      const auditType = req.params.type as 'bias_detection' | 'harmful_content' | 'prompt_injection' | 'privacy_leak';
+      const auditId = await ethicsAuditorService.runSpecificAudit(agentUploadId, auditType);
+      res.json({ auditId, status: "processing" });
+    } catch (error) {
+      console.error("Error starting specific audit:", error);
+      res.status(500).json({ message: "Failed to start audit" });
+    }
+  });
+
+  app.get("/api/ethics/audit/:auditId/status", hybridAuth, async (req: any, res) => {
+    try {
+      const audit = await ethicsAuditorService.getAuditStatus(parseInt(req.params.auditId));
+      if (!audit) {
+        return res.status(404).json({ message: "Audit not found" });
+      }
+      res.json(audit);
+    } catch (error) {
+      console.error("Error fetching audit status:", error);
+      res.status(500).json({ message: "Failed to fetch audit status" });
+    }
+  });
+
+  app.get("/api/ethics/agent/:agentUploadId", hybridAuth, async (req: any, res) => {
+    try {
+      const audits = await ethicsAuditorService.getAgentAudits(parseInt(req.params.agentUploadId));
+      res.json(audits);
+    } catch (error) {
+      console.error("Error fetching agent audits:", error);
+      res.status(500).json({ message: "Failed to fetch agent audits" });
+    }
+  });
+
+  // Referral Program
+  app.post("/api/referrals/generate", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const code = await referralService.generateReferralCode(userId);
+      res.json({ code });
+    } catch (error) {
+      console.error("Error generating referral code:", error);
+      res.status(500).json({ message: "Failed to generate referral code" });
+    }
+  });
+
+  app.get("/api/referrals/code", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const code = await referralService.getReferralCode(userId);
+      res.json({ code });
+    } catch (error) {
+      console.error("Error fetching referral code:", error);
+      res.status(500).json({ message: "Failed to fetch referral code" });
+    }
+  });
+
+  app.get("/api/referrals/validate/:code", async (req, res) => {
+    try {
+      const result = await referralService.validateReferralCode(req.params.code);
+      res.json(result);
+    } catch (error) {
+      console.error("Error validating referral code:", error);
+      res.status(500).json({ message: "Failed to validate referral code" });
+    }
+  });
+
+  app.post("/api/referrals/apply", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const { code } = req.body;
+      const applied = await referralService.applyReferral(code, userId);
+      if (!applied) {
+        return res.status(400).json({ message: "Invalid or expired referral code" });
+      }
+      res.json({ message: "Referral applied successfully" });
+    } catch (error) {
+      console.error("Error applying referral:", error);
+      res.status(500).json({ message: "Failed to apply referral" });
+    }
+  });
+
+  app.get("/api/referrals/stats", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const stats = await referralService.getReferralStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching referral stats:", error);
+      res.status(500).json({ message: "Failed to fetch referral stats" });
+    }
+  });
+
+  app.get("/api/referrals/payouts", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const payouts = await referralService.getPayoutHistory(userId);
+      res.json(payouts);
+    } catch (error) {
+      console.error("Error fetching payouts:", error);
+      res.status(500).json({ message: "Failed to fetch payouts" });
+    }
+  });
+
+  // Agent Matching
+  app.get("/api/matching/bounty/:bountyId", hybridAuth, async (req: any, res) => {
+    try {
+      const bountyId = parseInt(req.params.bountyId);
+      const limit = parseInt(req.query.limit as string) || 5;
+      const useAI = req.query.ai === 'true';
+      
+      const recommendations = useAI 
+        ? await matchingService.getAIEnhancedRecommendations(bountyId, limit)
+        : await matchingService.getRecommendationsForBounty(bountyId, limit);
+      
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  app.post("/api/matching/select", hybridAuth, async (req: any, res) => {
+    try {
+      const { bountyId, agentId } = req.body;
+      await matchingService.markAsSelected(bountyId, agentId);
+      res.json({ message: "Selection recorded" });
+    } catch (error) {
+      console.error("Error recording selection:", error);
+      res.status(500).json({ message: "Failed to record selection" });
+    }
+  });
+
+  // Multi-LLM Configuration
+  app.get("/api/llm/providers", hybridAuth, async (req: any, res) => {
+    try {
+      const providers = multiLlmService.getAvailableProviders();
+      const modelsMap: Record<string, string[]> = {};
+      for (const provider of providers) {
+        modelsMap[provider] = multiLlmService.getAvailableModels(provider);
+      }
+      res.json({ providers, models: modelsMap });
+    } catch (error) {
+      console.error("Error fetching providers:", error);
+      res.status(500).json({ message: "Failed to fetch providers" });
+    }
+  });
+
+  app.get("/api/llm/config/:agentUploadId", hybridAuth, async (req: any, res) => {
+    try {
+      const config = await multiLlmService.getAgentConfig(parseInt(req.params.agentUploadId));
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching LLM config:", error);
+      res.status(500).json({ message: "Failed to fetch LLM config" });
+    }
+  });
+
+  app.post("/api/llm/config/:agentUploadId", hybridAuth, async (req: any, res) => {
+    try {
+      await multiLlmService.setAgentConfig(parseInt(req.params.agentUploadId), req.body);
+      res.json({ message: "LLM config updated" });
+    } catch (error) {
+      console.error("Error updating LLM config:", error);
+      res.status(500).json({ message: "Failed to update LLM config" });
+    }
+  });
+
+  app.post("/api/llm/chat", hybridAuth, async (req: any, res) => {
+    try {
+      const { agentUploadId, messages, overrideConfig } = req.body;
+      const response = await multiLlmService.chat(agentUploadId, messages, overrideConfig);
+      res.json(response);
+    } catch (error) {
+      console.error("Error in LLM chat:", error);
+      res.status(500).json({ message: "Failed to process chat" });
+    }
+  });
+
+  // Blockchain Verification
+  app.post("/api/blockchain/proof", hybridAuth, async (req: any, res) => {
+    try {
+      const { bountyId, submissionId, network } = req.body;
+      const proofId = await blockchainService.createVerificationProof(bountyId, submissionId, network || 'polygon');
+      res.json({ proofId, status: "pending" });
+    } catch (error) {
+      console.error("Error creating verification proof:", error);
+      res.status(500).json({ message: "Failed to create verification proof" });
+    }
+  });
+
+  app.get("/api/blockchain/proof/:proofId", async (req, res) => {
+    try {
+      const proof = await blockchainService.getProof(parseInt(req.params.proofId));
+      if (!proof) {
+        return res.status(404).json({ message: "Proof not found" });
+      }
+      res.json(proof);
+    } catch (error) {
+      console.error("Error fetching proof:", error);
+      res.status(500).json({ message: "Failed to fetch proof" });
+    }
+  });
+
+  app.get("/api/blockchain/bounty/:bountyId", async (req, res) => {
+    try {
+      const proofs = await blockchainService.getProofsByBounty(parseInt(req.params.bountyId));
+      res.json(proofs);
+    } catch (error) {
+      console.error("Error fetching proofs:", error);
+      res.status(500).json({ message: "Failed to fetch proofs" });
+    }
+  });
+
+  app.get("/api/blockchain/verify/:proofId", async (req, res) => {
+    try {
+      const result = await blockchainService.verifyProof(parseInt(req.params.proofId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error verifying proof:", error);
+      res.status(500).json({ message: "Failed to verify proof" });
+    }
+  });
+
+  app.get("/api/blockchain/networks", async (req, res) => {
+    try {
+      const networks = blockchainService.getSupportedNetworks();
+      res.json(networks);
+    } catch (error) {
+      console.error("Error fetching networks:", error);
+      res.status(500).json({ message: "Failed to fetch networks" });
+    }
+  });
+
+  // Cache API Routes
+  app.get("/api/cache/stats", hybridAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const stats = cacheService.getStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching cache stats:", error);
+      res.status(500).json({ message: "Failed to fetch cache stats" });
+    }
+  });
+
+  app.get("/api/cache/leaderboard", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const leaderboard = await cacheService.getLeaderboard(limit);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching cached leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get("/api/cache/platform-stats", async (req, res) => {
+    try {
+      const stats = await cacheService.getPlatformStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching cached platform stats:", error);
+      res.status(500).json({ message: "Failed to fetch platform stats" });
+    }
+  });
+
+  app.post("/api/cache/invalidate", hybridAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { type, id } = req.body;
+      if (type === 'leaderboard') {
+        await cacheService.invalidateLeaderboard();
+      } else if (type === 'stats') {
+        await cacheService.invalidateStats();
+      } else if (type === 'agent' && id) {
+        await cacheService.invalidateAgent(parseInt(id));
+      } else if (type === 'bounty' && id) {
+        await cacheService.invalidateBounty(parseInt(id));
+      } else if (type === 'all') {
+        await cacheService.clear();
+      }
+      res.json({ message: "Cache invalidated" });
+    } catch (error) {
+      console.error("Error invalidating cache:", error);
+      res.status(500).json({ message: "Failed to invalidate cache" });
     }
   });
 

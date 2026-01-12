@@ -9,7 +9,7 @@ export * from "./models/chat";
 export const bountyCategories = ["marketing", "sales", "research", "data_analysis", "development", "other"] as const;
 export const bountyStatuses = ["open", "in_progress", "under_review", "completed", "failed", "cancelled"] as const;
 export const submissionStatuses = ["pending", "in_progress", "submitted", "approved", "rejected"] as const;
-export const userRoles = ["business", "developer"] as const;
+export const userRoles = ["business", "developer", "admin", "moderator", "viewer"] as const;
 export const subscriptionTiers = ["free", "pro", "enterprise"] as const;
 
 export const paymentStatuses = ["pending", "funded", "released", "refunded"] as const;
@@ -537,6 +537,203 @@ export const qualityMetrics = pgTable("quality_metrics", {
   details: text("details"),
   period: text("period"),
   calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// ENTERPRISE FEATURES - Zero Trust & GDPR
+// ============================================
+
+export const userRoleTypes = ["admin", "moderator", "developer", "business", "viewer"] as const;
+export const permissionActions = ["create", "read", "update", "delete", "manage", "execute", "verify", "moderate"] as const;
+export const resourceTypes = ["bounty", "agent", "submission", "user", "dispute", "ticket", "execution", "analytics", "admin"] as const;
+
+// Refresh Tokens for JWT rotation
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  deviceInfo: text("device_info"),
+  ipAddress: text("ip_address"),
+  expiresAt: timestamp("expires_at").notNull(),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Role-Based Access Control
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  role: text("role").notNull().$type<typeof userRoleTypes[number]>(),
+  resource: text("resource").notNull().$type<typeof resourceTypes[number]>(),
+  action: text("action").notNull().$type<typeof permissionActions[number]>(),
+  conditions: text("conditions"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// User role assignments
+export const userRoleAssignments = pgTable("user_role_assignments", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  role: text("role").notNull().$type<typeof userRoleTypes[number]>(),
+  grantedBy: varchar("granted_by"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// GDPR/CCPA Consent Management
+export const consentCategories = ["analytics", "marketing", "ai_training", "third_party", "essential"] as const;
+export const userConsents = pgTable("user_consents", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  category: text("category").notNull().$type<typeof consentCategories[number]>(),
+  granted: boolean("granted").notNull().default(false),
+  version: text("version").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  grantedAt: timestamp("granted_at"),
+  revokedAt: timestamp("revoked_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Data Export Requests
+export const dataExportStatuses = ["pending", "processing", "completed", "expired", "failed"] as const;
+export const dataExportRequests = pgTable("data_export_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  status: text("status").notNull().$type<typeof dataExportStatuses[number]>().default("pending"),
+  format: text("format").notNull().default("json"),
+  downloadUrl: text("download_url"),
+  expiresAt: timestamp("expires_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Data Deletion Requests
+export const dataDeletionStatuses = ["pending", "processing", "completed", "cancelled"] as const;
+export const dataDeletionRequests = pgTable("data_deletion_requests", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  status: text("status").notNull().$type<typeof dataDeletionStatuses[number]>().default("pending"),
+  reason: text("reason"),
+  confirmationCode: text("confirmation_code"),
+  confirmedAt: timestamp("confirmed_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// AI Ethics Audits
+export const ethicsAuditStatuses = ["pending", "passed", "failed", "review_required"] as const;
+export const ethicsAuditTypes = ["bias_detection", "harmful_content", "prompt_injection", "privacy_leak", "comprehensive"] as const;
+export const agentEthicsAudits = pgTable("agent_ethics_audits", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  auditType: text("audit_type").notNull().$type<typeof ethicsAuditTypes[number]>(),
+  status: text("status").notNull().$type<typeof ethicsAuditStatuses[number]>().default("pending"),
+  score: decimal("score", { precision: 5, scale: 2 }),
+  findings: text("findings"),
+  recommendations: text("recommendations"),
+  flaggedContent: text("flagged_content"),
+  reviewerId: varchar("reviewer_id"),
+  reviewNotes: text("review_notes"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// AFFILIATE & REFERRAL PROGRAM
+// ============================================
+
+export const referralStatuses = ["pending", "active", "converted", "expired"] as const;
+export const referrals = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  referrerId: varchar("referrer_id").notNull(),
+  referralCode: text("referral_code").notNull().unique(),
+  referredUserId: varchar("referred_user_id"),
+  status: text("status").notNull().$type<typeof referralStatuses[number]>().default("pending"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10"),
+  totalEarnings: decimal("total_earnings", { precision: 12, scale: 2 }).default("0"),
+  lifetimeReferrals: integer("lifetime_referrals").default(0),
+  conversionDate: timestamp("conversion_date"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const referralPayouts = pgTable("referral_payouts", {
+  id: serial("id").primaryKey(),
+  referralId: integer("referral_id").notNull().references(() => referrals.id),
+  referrerId: varchar("referrer_id").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceId: integer("source_id"),
+  stripeTransferId: text("stripe_transfer_id"),
+  status: text("status").default("pending"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// PREMIUM ADD-ONS & FEATURES
+// ============================================
+
+export const premiumFeatureTypes = ["priority_execution", "white_label", "dedicated_support", "custom_integration", "advanced_analytics", "unlimited_agents"] as const;
+export const premiumFeatures = pgTable("premium_features", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  featureType: text("feature_type").notNull().$type<typeof premiumFeatureTypes[number]>(),
+  isActive: boolean("is_active").default(true),
+  config: text("config"),
+  expiresAt: timestamp("expires_at"),
+  stripeSubscriptionItemId: text("stripe_subscription_item_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Agent Matching Recommendations
+export const agentRecommendations = pgTable("agent_recommendations", {
+  id: serial("id").primaryKey(),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  agentId: integer("agent_id").notNull().references(() => agents.id),
+  score: decimal("score", { precision: 5, scale: 2 }).notNull(),
+  reasoning: text("reasoning"),
+  factors: text("factors"),
+  wasSelected: boolean("was_selected").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// MULTI-LLM SUPPORT
+// ============================================
+
+export const llmProviders = ["openai", "anthropic", "groq", "custom"] as const;
+export const agentLlmConfigs = pgTable("agent_llm_configs", {
+  id: serial("id").primaryKey(),
+  agentUploadId: integer("agent_upload_id").notNull().references(() => agentUploads.id, { onDelete: "cascade" }),
+  primaryProvider: text("primary_provider").notNull().$type<typeof llmProviders[number]>().default("openai"),
+  fallbackProvider: text("fallback_provider").$type<typeof llmProviders[number]>(),
+  primaryModel: text("primary_model").default("gpt-4o"),
+  fallbackModel: text("fallback_model"),
+  maxTokens: integer("max_tokens").default(4096),
+  temperature: decimal("temperature", { precision: 3, scale: 2 }).default("0.7"),
+  customEndpoint: text("custom_endpoint"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// BLOCKCHAIN VERIFICATION PROOFS
+// ============================================
+
+export const blockchainNetworks = ["ethereum", "polygon", "arbitrum"] as const;
+export const verificationProofs = pgTable("verification_proofs", {
+  id: serial("id").primaryKey(),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  submissionId: integer("submission_id").references(() => submissions.id),
+  network: text("network").notNull().$type<typeof blockchainNetworks[number]>().default("polygon"),
+  transactionHash: text("transaction_hash").unique(),
+  blockNumber: integer("block_number"),
+  contentHash: text("content_hash").notNull(),
+  proofData: text("proof_data"),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const bountiesRelations = relations(bounties, ({ one, many }) => ({

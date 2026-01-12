@@ -1964,9 +1964,9 @@ ${agentOutput}`
   const { executionService } = await import('./executionService');
   
   const executeAgentSchema = z.object({
-    submissionId: z.number().int().positive(),
+    submissionId: z.number().int().nonnegative().optional().default(0),
     agentId: z.number().int().positive(),
-    bountyId: z.number().int().positive(),
+    bountyId: z.number().int().nonnegative().optional().default(0),
     input: z.string().optional().default("{}"),
   });
 
@@ -1978,6 +1978,14 @@ ${agentOutput}`
       const parsed = executeAgentSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid execution data", errors: parsed.error.errors });
+      }
+      
+      const agent = await storage.getAgent(parsed.data.agentId);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+      if (agent.developerId !== userId) {
+        return res.status(403).json({ message: "You can only execute your own agents" });
       }
       
       const executionId = await executionService.queueExecution(parsed.data);

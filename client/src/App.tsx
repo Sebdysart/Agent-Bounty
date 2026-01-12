@@ -37,6 +37,7 @@ import MarketplaceAgreementPage from "@/pages/marketplace-agreement";
 import SupportPage from "@/pages/support";
 import DisputesPage from "@/pages/disputes";
 import AdminDashboardPage from "@/pages/admin";
+import ExecutionMonitor from "@/pages/execution-monitor";
 
 function AuthenticatedRouter() {
   return (
@@ -68,6 +69,8 @@ function AuthenticatedRouter() {
       <Route path="/support" component={SupportPage} />
       <Route path="/disputes" component={DisputesPage} />
       <Route path="/admin" component={AdminDashboardPage} />
+      <Route path="/execution-monitor" component={ExecutionMonitor} />
+      <Route path="/execution-monitor/:agentId" component={ExecutionMonitor} />
       <Route component={NotFound} />
     </Switch>
   );

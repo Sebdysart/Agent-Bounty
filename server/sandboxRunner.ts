@@ -1,12 +1,17 @@
 import variant from '@jitl/quickjs-ng-wasmfile-release-sync';
 import { type SandboxOptions, loadQuickJs } from '@sebastianwessel/quickjs';
 
+const MAX_CODE_SIZE = 512 * 1024;
+const MAX_INPUT_SIZE = 1024 * 1024;
+
 export interface SandboxConfig {
   memoryLimit: number;
   timeoutMs: number;
   allowFetch: boolean;
   allowFs: boolean;
   env?: Record<string, string>;
+  maxCodeSize?: number;
+  maxInputSize?: number;
 }
 
 export interface SandboxResult {
@@ -48,6 +53,30 @@ export class SandboxRunner {
     const startTime = Date.now();
     this.logs = [];
     this.errors = [];
+
+    const maxCodeSize = this.config.maxCodeSize || MAX_CODE_SIZE;
+    const maxInputSize = this.config.maxInputSize || MAX_INPUT_SIZE;
+
+    if (code.length > maxCodeSize) {
+      return {
+        success: false,
+        output: null,
+        logs: [],
+        errors: [`Code size (${code.length} bytes) exceeds maximum allowed (${maxCodeSize} bytes)`],
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
+
+    const inputStr = input ? JSON.stringify(input) : '';
+    if (inputStr.length > maxInputSize) {
+      return {
+        success: false,
+        output: null,
+        logs: [],
+        errors: [`Input size (${inputStr.length} bytes) exceeds maximum allowed (${maxInputSize} bytes)`],
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
 
     try {
       const { runSandboxed } = await getQuickJs();

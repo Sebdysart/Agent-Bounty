@@ -736,6 +736,374 @@ export const verificationProofs = pgTable("verification_proofs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ============================================
+// AGENT SWARM FORMATION (Enterprise Feature 1)
+// ============================================
+
+export const swarmStatuses = ["forming", "active", "executing", "completed", "disbanded", "failed"] as const;
+export const swarmRoles = ["leader", "worker", "specialist", "validator"] as const;
+
+export const agentSwarms = pgTable("agent_swarms", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  leaderId: integer("leader_id").references(() => agents.id),
+  status: text("status").notNull().$type<typeof swarmStatuses[number]>().default("forming"),
+  maxMembers: integer("max_members").default(10),
+  taskDistribution: text("task_distribution"), // JSON: task allocation strategy
+  communicationProtocol: text("communication_protocol").default("broadcast"), // broadcast, hierarchical, mesh
+  consensusThreshold: decimal("consensus_threshold", { precision: 3, scale: 2 }).default("0.66"),
+  totalExecutions: integer("total_executions").default(0),
+  successRate: decimal("success_rate", { precision: 5, scale: 2 }).default("0"),
+  createdById: varchar("created_by_id").notNull(),
+  formedAt: timestamp("formed_at"),
+  disbandedAt: timestamp("disbanded_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const swarmMembers = pgTable("swarm_members", {
+  id: serial("id").primaryKey(),
+  swarmId: integer("swarm_id").notNull().references(() => agentSwarms.id, { onDelete: "cascade" }),
+  agentId: integer("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  role: text("role").notNull().$type<typeof swarmRoles[number]>().default("worker"),
+  capabilities: text("capabilities").array().default([]),
+  taskAssignment: text("task_assignment"), // JSON: assigned subtasks
+  contributionScore: decimal("contribution_score", { precision: 5, scale: 2 }).default("0"),
+  messagesProcessed: integer("messages_processed").default(0),
+  tasksCompleted: integer("tasks_completed").default(0),
+  isActive: boolean("is_active").default(true),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  leftAt: timestamp("left_at"),
+});
+
+export const swarmExecutions = pgTable("swarm_executions", {
+  id: serial("id").primaryKey(),
+  swarmId: integer("swarm_id").notNull().references(() => agentSwarms.id, { onDelete: "cascade" }),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  status: text("status").notNull().$type<typeof executionStatuses[number]>().default("queued"),
+  taskBreakdown: text("task_breakdown"), // JSON: how task was divided
+  memberOutputs: text("member_outputs"), // JSON: outputs from each member
+  aggregatedOutput: text("aggregated_output"),
+  consensusReached: boolean("consensus_reached").default(false),
+  executionTimeMs: integer("execution_time_ms"),
+  totalCost: decimal("total_cost", { precision: 12, scale: 4 }),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// EXPANDED INTEGRATIONS HUB (Enterprise Feature 2)
+// ============================================
+
+export const integrationHubCategories = ["crm", "marketing", "data", "devops", "ai_ml", "finance", "communication", "productivity", "analytics", "storage"] as const;
+export const integrationAuthTypes = ["oauth2", "api_key", "basic", "bearer", "custom", "none"] as const;
+
+export const hubConnectors = pgTable("hub_connectors", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description").notNull(),
+  category: text("category").notNull().$type<typeof integrationHubCategories[number]>(),
+  iconUrl: text("icon_url"),
+  authType: text("auth_type").notNull().$type<typeof integrationAuthTypes[number]>().default("api_key"),
+  authConfig: text("auth_config"), // JSON: OAuth endpoints, scopes, etc.
+  baseUrl: text("base_url"),
+  apiVersion: text("api_version"),
+  endpoints: text("endpoints"), // JSON: available API endpoints
+  rateLimit: integer("rate_limit"), // requests per minute
+  webhookSupport: boolean("webhook_support").default(false),
+  webhookEvents: text("webhook_events").array().default([]),
+  documentation: text("documentation"),
+  isPremium: boolean("is_premium").default(false),
+  isVerified: boolean("is_verified").default(false),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const userIntegrations = pgTable("user_integrations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  connectorId: integer("connector_id").notNull().references(() => hubConnectors.id, { onDelete: "cascade" }),
+  credentials: text("credentials"), // Encrypted credentials
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  webhookUrl: text("webhook_url"),
+  webhookSecret: text("webhook_secret"),
+  config: text("config"), // JSON: user-specific config
+  isActive: boolean("is_active").default(true),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// AI FINOPS MONITORING (Enterprise Feature 3)
+// ============================================
+
+export const finopsMetrics = pgTable("finops_metrics", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  agentId: integer("agent_id").references(() => agents.id),
+  executionId: integer("execution_id").references(() => agentExecutions.id),
+  provider: text("provider").notNull().$type<typeof llmProviders[number]>(),
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").default(0),
+  outputTokens: integer("output_tokens").default(0),
+  totalTokens: integer("total_tokens").default(0),
+  cost: decimal("cost", { precision: 12, scale: 6 }).notNull(),
+  computeTimeMs: integer("compute_time_ms").default(0),
+  memoryUsageMb: integer("memory_usage_mb"),
+  apiCalls: integer("api_calls").default(1),
+  cacheHits: integer("cache_hits").default(0),
+  errorCount: integer("error_count").default(0),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+});
+
+export const costBudgets = pgTable("cost_budgets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  budgetType: text("budget_type").notNull().default("monthly"), // daily, weekly, monthly, per_agent
+  agentId: integer("agent_id").references(() => agents.id),
+  budgetAmount: decimal("budget_amount", { precision: 12, scale: 2 }).notNull(),
+  currentSpend: decimal("current_spend", { precision: 12, scale: 2 }).default("0"),
+  alertThreshold: decimal("alert_threshold", { precision: 5, scale: 2 }).default("0.80"), // 80%
+  alertSent: boolean("alert_sent").default(false),
+  autoStop: boolean("auto_stop").default(false), // Stop executions when budget exceeded
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const finopsOptimizations = pgTable("finops_optimizations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  agentId: integer("agent_id").references(() => agents.id),
+  optimizationType: text("optimization_type").notNull(), // model_switch, caching, batch_processing, prompt_optimization
+  currentCost: decimal("current_cost", { precision: 12, scale: 4 }),
+  projectedSavings: decimal("projected_savings", { precision: 12, scale: 4 }),
+  recommendation: text("recommendation").notNull(),
+  details: text("details"), // JSON: detailed analysis
+  isApplied: boolean("is_applied").default(false),
+  appliedAt: timestamp("applied_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// PREDICTIVE ANALYTICS (Enterprise Feature 4)
+// ============================================
+
+export const forecastTypes = ["bounty_success", "revenue", "agent_performance", "market_trend", "risk"] as const;
+
+export const analyticsForecasts = pgTable("analytics_forecasts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"),
+  forecastType: text("forecast_type").notNull().$type<typeof forecastTypes[number]>(),
+  entityType: text("entity_type"), // bounty, agent, user, platform
+  entityId: integer("entity_id"),
+  prediction: decimal("prediction", { precision: 12, scale: 4 }),
+  confidence: decimal("confidence", { precision: 5, scale: 4 }),
+  factors: text("factors"), // JSON: contributing factors
+  modelVersion: text("model_version"),
+  horizon: text("horizon").notNull(), // 7d, 30d, 90d
+  historicalData: text("historical_data"), // JSON: data used for prediction
+  actualOutcome: decimal("actual_outcome", { precision: 12, scale: 4 }),
+  accuracy: decimal("accuracy", { precision: 5, scale: 4 }),
+  forecastedAt: timestamp("forecasted_at").defaultNow().notNull(),
+  validUntil: timestamp("valid_until").notNull(),
+});
+
+export const riskScores = pgTable("risk_scores", {
+  id: serial("id").primaryKey(),
+  entityType: text("entity_type").notNull(), // bounty, agent, user
+  entityId: integer("entity_id").notNull(),
+  overallScore: decimal("overall_score", { precision: 5, scale: 2 }).notNull(), // 0-100
+  fraudRisk: decimal("fraud_risk", { precision: 5, scale: 2 }),
+  deliveryRisk: decimal("delivery_risk", { precision: 5, scale: 2 }),
+  paymentRisk: decimal("payment_risk", { precision: 5, scale: 2 }),
+  reputationRisk: decimal("reputation_risk", { precision: 5, scale: 2 }),
+  riskFactors: text("risk_factors"), // JSON: detailed breakdown
+  mitigationSuggestions: text("mitigation_suggestions"), // JSON
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const trendAnalytics = pgTable("trend_analytics", {
+  id: serial("id").primaryKey(),
+  metricName: text("metric_name").notNull(),
+  metricValue: decimal("metric_value", { precision: 15, scale: 4 }).notNull(),
+  previousValue: decimal("previous_value", { precision: 15, scale: 4 }),
+  changePercent: decimal("change_percent", { precision: 8, scale: 4 }),
+  trend: text("trend").notNull(), // up, down, stable
+  period: text("period").notNull(), // hourly, daily, weekly, monthly
+  breakdown: text("breakdown"), // JSON: detailed breakdown by category
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+});
+
+// ============================================
+// AGENT INSURANCE & TOKENIZATION (Enterprise Feature 5)
+// ============================================
+
+export const insuranceTiers = ["basic", "standard", "premium", "enterprise"] as const;
+export const claimStatuses = ["submitted", "under_review", "approved", "rejected", "paid"] as const;
+
+export const agentInsurance = pgTable("agent_insurance", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  ownerId: varchar("owner_id").notNull(),
+  tier: text("tier").notNull().$type<typeof insuranceTiers[number]>().default("basic"),
+  coverageAmount: decimal("coverage_amount", { precision: 12, scale: 2 }).notNull(),
+  deductible: decimal("deductible", { precision: 12, scale: 2 }).default("0"),
+  monthlyPremium: decimal("monthly_premium", { precision: 10, scale: 2 }).notNull(),
+  coveredEvents: text("covered_events").array().default([]), // execution_failure, data_loss, timeout, etc.
+  exclusions: text("exclusions").array().default([]),
+  claimsCount: integer("claims_count").default(0),
+  totalClaimsPaid: decimal("total_claims_paid", { precision: 12, scale: 2 }).default("0"),
+  isActive: boolean("is_active").default(true),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  renewalDate: timestamp("renewal_date"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insuranceClaims = pgTable("insurance_claims", {
+  id: serial("id").primaryKey(),
+  insuranceId: integer("insurance_id").notNull().references(() => agentInsurance.id, { onDelete: "cascade" }),
+  claimantId: varchar("claimant_id").notNull(),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  executionId: integer("execution_id").references(() => agentExecutions.id),
+  status: text("status").notNull().$type<typeof claimStatuses[number]>().default("submitted"),
+  claimType: text("claim_type").notNull(), // execution_failure, timeout, data_loss, quality_issue
+  description: text("description").notNull(),
+  evidence: text("evidence"), // JSON: logs, screenshots, etc.
+  requestedAmount: decimal("requested_amount", { precision: 12, scale: 2 }).notNull(),
+  approvedAmount: decimal("approved_amount", { precision: 12, scale: 2 }),
+  reviewerNotes: text("reviewer_notes"),
+  reviewedById: varchar("reviewed_by_id"),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  paidAt: timestamp("paid_at"),
+});
+
+export const agentTokens = pgTable("agent_tokens", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  tokenSymbol: text("token_symbol").notNull().unique(),
+  tokenName: text("token_name").notNull(),
+  totalSupply: decimal("total_supply", { precision: 18, scale: 0 }).notNull(),
+  circulatingSupply: decimal("circulating_supply", { precision: 18, scale: 0 }).default("0"),
+  pricePerToken: decimal("price_per_token", { precision: 12, scale: 6 }).default("0.01"),
+  marketCap: decimal("market_cap", { precision: 15, scale: 2 }).default("0"),
+  royaltyPercent: decimal("royalty_percent", { precision: 5, scale: 2 }).default("5.00"), // Creator royalty
+  isListed: boolean("is_listed").default(false),
+  contractAddress: text("contract_address"),
+  network: text("network").$type<typeof blockchainNetworks[number]>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tokenHoldings = pgTable("token_holdings", {
+  id: serial("id").primaryKey(),
+  tokenId: integer("token_id").notNull().references(() => agentTokens.id, { onDelete: "cascade" }),
+  holderId: varchar("holder_id").notNull(),
+  balance: decimal("balance", { precision: 18, scale: 8 }).notNull(),
+  averageBuyPrice: decimal("average_buy_price", { precision: 12, scale: 6 }),
+  totalInvested: decimal("total_invested", { precision: 12, scale: 2 }).default("0"),
+  royaltiesEarned: decimal("royalties_earned", { precision: 12, scale: 2 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// LOCALIZATION & MULTI-LANGUAGE (Enterprise Feature 6)
+// ============================================
+
+export const supportedLanguages = ["en", "es", "fr", "de", "it", "pt", "zh", "ja", "ko", "ar", "hi", "ru", "nl", "sv", "pl", "tr", "vi", "th", "id", "ms"] as const;
+
+export const translations = pgTable("translations", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull(),
+  language: text("language").notNull().$type<typeof supportedLanguages[number]>(),
+  value: text("value").notNull(),
+  context: text("context"), // Where this translation is used
+  namespace: text("namespace").default("common"), // common, dashboard, bounty, agent, etc.
+  isVerified: boolean("is_verified").default(false),
+  verifiedById: varchar("verified_by_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const userLanguagePrefs = pgTable("user_language_prefs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().unique(),
+  preferredLanguage: text("preferred_language").notNull().$type<typeof supportedLanguages[number]>().default("en"),
+  fallbackLanguage: text("fallback_language").$type<typeof supportedLanguages[number]>().default("en"),
+  autoDetect: boolean("auto_detect").default(true),
+  dateFormat: text("date_format").default("MM/DD/YYYY"),
+  numberFormat: text("number_format").default("en-US"),
+  timezone: text("timezone").default("UTC"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// QUANTUM-SAFE ENCRYPTION (Enterprise Feature 7)
+// ============================================
+
+export const quantumAlgorithms = ["kyber512", "kyber768", "kyber1024", "dilithium2", "dilithium3", "dilithium5"] as const;
+export const keyStatuses = ["active", "rotating", "deprecated", "revoked"] as const;
+
+export const quantumKeys = pgTable("quantum_keys", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"),
+  keyType: text("key_type").notNull(), // encryption, signing, hybrid
+  algorithm: text("algorithm").notNull().$type<typeof quantumAlgorithms[number]>().default("kyber768"),
+  publicKey: text("public_key").notNull(),
+  encryptedPrivateKey: text("encrypted_private_key").notNull(), // Encrypted with user's master key
+  keyFingerprint: text("key_fingerprint").notNull().unique(),
+  status: text("status").notNull().$type<typeof keyStatuses[number]>().default("active"),
+  purpose: text("purpose"), // data_encryption, signature, key_exchange
+  expiresAt: timestamp("expires_at"),
+  lastUsedAt: timestamp("last_used_at"),
+  rotatedFromId: integer("rotated_from_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const encryptedData = pgTable("encrypted_data", {
+  id: serial("id").primaryKey(),
+  ownerId: varchar("owner_id").notNull(),
+  keyId: integer("key_id").notNull().references(() => quantumKeys.id),
+  dataType: text("data_type").notNull(), // api_key, credential, sensitive_config
+  encryptedPayload: text("encrypted_payload").notNull(),
+  nonce: text("nonce").notNull(),
+  authTag: text("auth_tag"),
+  algorithm: text("algorithm").notNull().$type<typeof quantumAlgorithms[number]>(),
+  isHybrid: boolean("is_hybrid").default(true), // Uses both classical + quantum
+  classicalAlgorithm: text("classical_algorithm").default("AES-256-GCM"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const keyRotationHistory = pgTable("key_rotation_history", {
+  id: serial("id").primaryKey(),
+  oldKeyId: integer("old_key_id").notNull().references(() => quantumKeys.id),
+  newKeyId: integer("new_key_id").notNull().references(() => quantumKeys.id),
+  rotationReason: text("rotation_reason"), // scheduled, compromised, upgrade
+  dataReEncrypted: integer("data_re_encrypted").default(0),
+  initiatedById: varchar("initiated_by_id"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const bountiesRelations = relations(bounties, ({ one, many }) => ({
   poster: one(userProfiles, { fields: [bounties.posterId], references: [userProfiles.id] }),
   winner: one(agents, { fields: [bounties.winnerId], references: [agents.id] }),
@@ -1177,3 +1545,216 @@ export type InsertModerationLog = z.infer<typeof insertModerationLogSchema>;
 export type ContentFlag = typeof contentFlags.$inferSelect;
 export type InsertContentFlag = z.infer<typeof insertContentFlagSchema>;
 export type QualityMetric = typeof qualityMetrics.$inferSelect;
+
+// ============================================
+// ENTERPRISE FEATURES - Insert Schemas & Types
+// ============================================
+
+// Agent Swarm Formation
+export const insertAgentSwarmSchema = createInsertSchema(agentSwarms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  totalExecutions: true,
+  successRate: true,
+  formedAt: true,
+  disbandedAt: true,
+});
+
+export const insertSwarmMemberSchema = createInsertSchema(swarmMembers).omit({
+  id: true,
+  joinedAt: true,
+  leftAt: true,
+  contributionScore: true,
+  messagesProcessed: true,
+  tasksCompleted: true,
+});
+
+export const insertSwarmExecutionSchema = createInsertSchema(swarmExecutions).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+  memberOutputs: true,
+  aggregatedOutput: true,
+  consensusReached: true,
+  executionTimeMs: true,
+  totalCost: true,
+  startedAt: true,
+  completedAt: true,
+});
+
+// Integrations Hub
+export const insertHubConnectorSchema = createInsertSchema(hubConnectors).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  usageCount: true,
+  isVerified: true,
+});
+
+export const insertUserIntegrationSchema = createInsertSchema(userIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastUsedAt: true,
+});
+
+// FinOps Monitoring
+export const insertFinopsMetricSchema = createInsertSchema(finopsMetrics).omit({
+  id: true,
+  recordedAt: true,
+});
+
+export const insertCostBudgetSchema = createInsertSchema(costBudgets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  currentSpend: true,
+  alertSent: true,
+});
+
+export const insertFinopsOptimizationSchema = createInsertSchema(finopsOptimizations).omit({
+  id: true,
+  createdAt: true,
+  isApplied: true,
+  appliedAt: true,
+});
+
+// Predictive Analytics
+export const insertAnalyticsForecastSchema = createInsertSchema(analyticsForecasts).omit({
+  id: true,
+  forecastedAt: true,
+  actualOutcome: true,
+  accuracy: true,
+});
+
+export const insertRiskScoreSchema = createInsertSchema(riskScores).omit({
+  id: true,
+  createdAt: true,
+  lastUpdated: true,
+});
+
+export const insertTrendAnalyticSchema = createInsertSchema(trendAnalytics).omit({
+  id: true,
+  recordedAt: true,
+});
+
+// Agent Insurance & Tokenization
+export const insertAgentInsuranceSchema = createInsertSchema(agentInsurance).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  claimsCount: true,
+  totalClaimsPaid: true,
+});
+
+export const insertInsuranceClaimSchema = createInsertSchema(insuranceClaims).omit({
+  id: true,
+  submittedAt: true,
+  reviewedAt: true,
+  paidAt: true,
+  status: true,
+  approvedAmount: true,
+  reviewerNotes: true,
+  reviewedById: true,
+});
+
+export const insertAgentTokenSchema = createInsertSchema(agentTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  circulatingSupply: true,
+  marketCap: true,
+  isListed: true,
+});
+
+export const insertTokenHoldingSchema = createInsertSchema(tokenHoldings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  royaltiesEarned: true,
+});
+
+// Localization
+export const insertTranslationSchema = createInsertSchema(translations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  isVerified: true,
+  verifiedById: true,
+});
+
+export const insertUserLanguagePrefSchema = createInsertSchema(userLanguagePrefs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Quantum-safe Encryption
+export const insertQuantumKeySchema = createInsertSchema(quantumKeys).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+  lastUsedAt: true,
+});
+
+export const insertEncryptedDataSchema = createInsertSchema(encryptedData).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertKeyRotationHistorySchema = createInsertSchema(keyRotationHistory).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+// Enterprise Types
+export type AgentSwarm = typeof agentSwarms.$inferSelect;
+export type InsertAgentSwarm = z.infer<typeof insertAgentSwarmSchema>;
+export type SwarmMember = typeof swarmMembers.$inferSelect;
+export type InsertSwarmMember = z.infer<typeof insertSwarmMemberSchema>;
+export type SwarmExecution = typeof swarmExecutions.$inferSelect;
+export type InsertSwarmExecution = z.infer<typeof insertSwarmExecutionSchema>;
+
+export type HubConnector = typeof hubConnectors.$inferSelect;
+export type InsertHubConnector = z.infer<typeof insertHubConnectorSchema>;
+export type UserIntegration = typeof userIntegrations.$inferSelect;
+export type InsertUserIntegration = z.infer<typeof insertUserIntegrationSchema>;
+
+export type FinopsMetric = typeof finopsMetrics.$inferSelect;
+export type InsertFinopsMetric = z.infer<typeof insertFinopsMetricSchema>;
+export type CostBudget = typeof costBudgets.$inferSelect;
+export type InsertCostBudget = z.infer<typeof insertCostBudgetSchema>;
+export type FinopsOptimization = typeof finopsOptimizations.$inferSelect;
+export type InsertFinopsOptimization = z.infer<typeof insertFinopsOptimizationSchema>;
+
+export type AnalyticsForecast = typeof analyticsForecasts.$inferSelect;
+export type InsertAnalyticsForecast = z.infer<typeof insertAnalyticsForecastSchema>;
+export type RiskScore = typeof riskScores.$inferSelect;
+export type InsertRiskScore = z.infer<typeof insertRiskScoreSchema>;
+export type TrendAnalytic = typeof trendAnalytics.$inferSelect;
+export type InsertTrendAnalytic = z.infer<typeof insertTrendAnalyticSchema>;
+
+export type AgentInsurance = typeof agentInsurance.$inferSelect;
+export type InsertAgentInsurance = z.infer<typeof insertAgentInsuranceSchema>;
+export type InsuranceClaim = typeof insuranceClaims.$inferSelect;
+export type InsertInsuranceClaim = z.infer<typeof insertInsuranceClaimSchema>;
+export type AgentToken = typeof agentTokens.$inferSelect;
+export type InsertAgentToken = z.infer<typeof insertAgentTokenSchema>;
+export type TokenHolding = typeof tokenHoldings.$inferSelect;
+export type InsertTokenHolding = z.infer<typeof insertTokenHoldingSchema>;
+
+export type Translation = typeof translations.$inferSelect;
+export type InsertTranslation = z.infer<typeof insertTranslationSchema>;
+export type UserLanguagePref = typeof userLanguagePrefs.$inferSelect;
+export type InsertUserLanguagePref = z.infer<typeof insertUserLanguagePrefSchema>;
+
+export type QuantumKey = typeof quantumKeys.$inferSelect;
+export type InsertQuantumKey = z.infer<typeof insertQuantumKeySchema>;
+export type EncryptedData = typeof encryptedData.$inferSelect;
+export type InsertEncryptedData = z.infer<typeof insertEncryptedDataSchema>;
+export type KeyRotationHistory = typeof keyRotationHistory.$inferSelect;
+export type InsertKeyRotationHistory = z.infer<typeof insertKeyRotationHistorySchema>;

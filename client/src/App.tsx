@@ -43,6 +43,10 @@ import ReferralDashboardPage from "@/pages/referral-dashboard";
 import AIEthicsPage from "@/pages/ai-ethics";
 import LlmConfigPage from "@/pages/llm-config";
 import BlockchainVerificationPage from "@/pages/blockchain-verification";
+import IntegrationsHubPage from "@/pages/integrations-hub";
+import FinOpsConsolePage from "@/pages/finops-console";
+import PredictiveAnalyticsPage from "@/pages/predictive-analytics";
+import QuantumSecurityPage from "@/pages/quantum-security";
 
 function AuthenticatedRouter() {
   return (
@@ -81,6 +85,10 @@ function AuthenticatedRouter() {
       <Route path="/ai-ethics" component={AIEthicsPage} />
       <Route path="/llm-config" component={LlmConfigPage} />
       <Route path="/blockchain" component={BlockchainVerificationPage} />
+      <Route path="/integrations-hub" component={IntegrationsHubPage} />
+      <Route path="/finops" component={FinOpsConsolePage} />
+      <Route path="/predictive-analytics" component={PredictiveAnalyticsPage} />
+      <Route path="/quantum-security" component={QuantumSecurityPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -2578,5 +2578,764 @@ ${agentOutput}`
     }
   });
 
+  // ============================================
+  // ENTERPRISE FEATURE ROUTES
+  // ============================================
+
+  // Import enterprise services
+  const { swarmService } = await import('./swarmService');
+  const { integrationsHubService } = await import('./integrationsHubService');
+  const { finopsService } = await import('./finopsService');
+  const { predictiveAnalyticsService } = await import('./predictiveAnalyticsService');
+  const { insuranceTokenService } = await import('./insuranceTokenService');
+  const { localizationService } = await import('./localizationService');
+  const { quantumEncryptionService } = await import('./quantumEncryptionService');
+
+  // Initialize integrations hub connectors
+  await integrationsHubService.initializeConnectors();
+
+  // === AGENT SWARM ROUTES ===
+  app.get("/api/swarms", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const swarms = await swarmService.getUserSwarms(userId);
+      res.json(swarms);
+    } catch (error) {
+      console.error("Error fetching swarms:", error);
+      res.status(500).json({ message: "Failed to fetch swarms" });
+    }
+  });
+
+  app.post("/api/swarms", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { name, description, bountyId, maxMembers, communicationProtocol, consensusThreshold } = req.body;
+      const swarm = await swarmService.createSwarm(userId, name, description, {
+        bountyId, maxMembers, communicationProtocol, consensusThreshold
+      });
+      res.json(swarm);
+    } catch (error) {
+      console.error("Error creating swarm:", error);
+      res.status(500).json({ message: "Failed to create swarm" });
+    }
+  });
+
+  app.get("/api/swarms/:id", async (req, res) => {
+    try {
+      const swarm = await swarmService.getSwarm(parseInt(req.params.id));
+      if (!swarm) return res.status(404).json({ message: "Swarm not found" });
+      const members = await swarmService.getSwarmMembers(swarm.id);
+      res.json({ ...swarm, members });
+    } catch (error) {
+      console.error("Error fetching swarm:", error);
+      res.status(500).json({ message: "Failed to fetch swarm" });
+    }
+  });
+
+  app.post("/api/swarms/:id/members", hybridAuth, async (req: any, res) => {
+    try {
+      const { agentId, role, capabilities } = req.body;
+      const member = await swarmService.addMember(parseInt(req.params.id), agentId, role, capabilities);
+      res.json(member);
+    } catch (error: any) {
+      console.error("Error adding swarm member:", error);
+      res.status(400).json({ message: error.message || "Failed to add member" });
+    }
+  });
+
+  app.post("/api/swarms/:id/elect-leader", hybridAuth, async (req: any, res) => {
+    try {
+      const leader = await swarmService.electLeader(parseInt(req.params.id));
+      res.json(leader);
+    } catch (error) {
+      console.error("Error electing leader:", error);
+      res.status(500).json({ message: "Failed to elect leader" });
+    }
+  });
+
+  app.post("/api/swarms/:id/execute", hybridAuth, async (req: any, res) => {
+    try {
+      const { bountyId, input } = req.body;
+      const execution = await swarmService.executeSwarm(parseInt(req.params.id), bountyId, input);
+      res.json(execution);
+    } catch (error) {
+      console.error("Error executing swarm:", error);
+      res.status(500).json({ message: "Failed to execute swarm" });
+    }
+  });
+
+  app.post("/api/swarms/auto-assemble", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { bountyId, requiredCapabilities } = req.body;
+      const swarm = await swarmService.autoAssemble(userId, bountyId, requiredCapabilities);
+      res.json(swarm);
+    } catch (error) {
+      console.error("Error auto-assembling swarm:", error);
+      res.status(500).json({ message: "Failed to auto-assemble swarm" });
+    }
+  });
+
+  app.post("/api/swarms/:id/disband", hybridAuth, async (req: any, res) => {
+    try {
+      await swarmService.disbandSwarm(parseInt(req.params.id));
+      res.json({ message: "Swarm disbanded" });
+    } catch (error) {
+      console.error("Error disbanding swarm:", error);
+      res.status(500).json({ message: "Failed to disband swarm" });
+    }
+  });
+
+  // === INTEGRATIONS HUB ROUTES ===
+  app.get("/api/integrations/connectors", async (req, res) => {
+    try {
+      const { category, search } = req.query;
+      let connectors;
+      if (search) {
+        connectors = await integrationsHubService.searchConnectors(search as string);
+      } else if (category) {
+        connectors = await integrationsHubService.getConnectorsByCategory(category as any);
+      } else {
+        connectors = await integrationsHubService.getAllConnectors();
+      }
+      res.json(connectors);
+    } catch (error) {
+      console.error("Error fetching connectors:", error);
+      res.status(500).json({ message: "Failed to fetch connectors" });
+    }
+  });
+
+  app.get("/api/integrations/connectors/popular", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const connectors = await integrationsHubService.getPopularConnectors(limit);
+      res.json(connectors);
+    } catch (error) {
+      console.error("Error fetching popular connectors:", error);
+      res.status(500).json({ message: "Failed to fetch popular connectors" });
+    }
+  });
+
+  app.get("/api/integrations/connectors/:id", async (req, res) => {
+    try {
+      const connector = await integrationsHubService.getConnector(parseInt(req.params.id));
+      if (!connector) return res.status(404).json({ message: "Connector not found" });
+      res.json(connector);
+    } catch (error) {
+      console.error("Error fetching connector:", error);
+      res.status(500).json({ message: "Failed to fetch connector" });
+    }
+  });
+
+  app.get("/api/integrations/categories/stats", async (req, res) => {
+    try {
+      const stats = await integrationsHubService.getCategoryStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching category stats:", error);
+      res.status(500).json({ message: "Failed to fetch category stats" });
+    }
+  });
+
+  app.get("/api/integrations/user", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const integrations = await integrationsHubService.getUserIntegrations(userId);
+      res.json(integrations);
+    } catch (error) {
+      console.error("Error fetching user integrations:", error);
+      res.status(500).json({ message: "Failed to fetch user integrations" });
+    }
+  });
+
+  app.post("/api/integrations/connect", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { connectorId, credentials, config } = req.body;
+      const integration = await integrationsHubService.connectIntegration(userId, connectorId, credentials, config);
+      res.json(integration);
+    } catch (error: any) {
+      console.error("Error connecting integration:", error);
+      res.status(400).json({ message: error.message || "Failed to connect integration" });
+    }
+  });
+
+  app.delete("/api/integrations/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      await integrationsHubService.disconnectIntegration(parseInt(req.params.id), userId);
+      res.json({ message: "Integration disconnected" });
+    } catch (error) {
+      console.error("Error disconnecting integration:", error);
+      res.status(500).json({ message: "Failed to disconnect integration" });
+    }
+  });
+
+  // === FINOPS ROUTES ===
+  app.get("/api/finops/summary", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const summary = await finopsService.getDashboardSummary(userId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching FinOps summary:", error);
+      res.status(500).json({ message: "Failed to fetch FinOps summary" });
+    }
+  });
+
+  app.get("/api/finops/usage", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const days = parseInt(req.query.days as string) || 30;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      const stats = await finopsService.getUsageStats(userId, startDate, endDate);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching usage stats:", error);
+      res.status(500).json({ message: "Failed to fetch usage stats" });
+    }
+  });
+
+  app.get("/api/finops/budgets", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const budgets = await finopsService.getUserBudgets(userId);
+      res.json(budgets);
+    } catch (error) {
+      console.error("Error fetching budgets:", error);
+      res.status(500).json({ message: "Failed to fetch budgets" });
+    }
+  });
+
+  app.post("/api/finops/budgets", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const budget = await finopsService.createBudget(userId, req.body);
+      res.json(budget);
+    } catch (error) {
+      console.error("Error creating budget:", error);
+      res.status(500).json({ message: "Failed to create budget" });
+    }
+  });
+
+  app.delete("/api/finops/budgets/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      await finopsService.deleteBudget(parseInt(req.params.id), userId);
+      res.json({ message: "Budget deleted" });
+    } catch (error) {
+      console.error("Error deleting budget:", error);
+      res.status(500).json({ message: "Failed to delete budget" });
+    }
+  });
+
+  app.get("/api/finops/optimizations", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const optimizations = await finopsService.getUserOptimizations(userId);
+      res.json(optimizations);
+    } catch (error) {
+      console.error("Error fetching optimizations:", error);
+      res.status(500).json({ message: "Failed to fetch optimizations" });
+    }
+  });
+
+  app.post("/api/finops/optimizations/generate", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const optimizations = await finopsService.generateOptimizations(userId);
+      res.json(optimizations);
+    } catch (error) {
+      console.error("Error generating optimizations:", error);
+      res.status(500).json({ message: "Failed to generate optimizations" });
+    }
+  });
+
+  app.post("/api/finops/optimizations/:id/apply", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const optimization = await finopsService.applyOptimization(parseInt(req.params.id), userId);
+      res.json(optimization);
+    } catch (error) {
+      console.error("Error applying optimization:", error);
+      res.status(500).json({ message: "Failed to apply optimization" });
+    }
+  });
+
+  app.get("/api/finops/pricing", async (req, res) => {
+    try {
+      const pricing = finopsService.getTokenPricing();
+      res.json(pricing);
+    } catch (error) {
+      console.error("Error fetching pricing:", error);
+      res.status(500).json({ message: "Failed to fetch pricing" });
+    }
+  });
+
+  // === PREDICTIVE ANALYTICS ROUTES ===
+  app.get("/api/analytics/insights", hybridAuth, async (req: any, res) => {
+    try {
+      const insights = await predictiveAnalyticsService.getDashboardInsights();
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching insights:", error);
+      res.status(500).json({ message: "Failed to fetch insights" });
+    }
+  });
+
+  app.get("/api/analytics/trends", async (req, res) => {
+    try {
+      const period = (req.query.period as string) || "daily";
+      const limit = parseInt(req.query.limit as string) || 30;
+      const trends = await predictiveAnalyticsService.getPlatformTrends(period as any, limit);
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching trends:", error);
+      res.status(500).json({ message: "Failed to fetch trends" });
+    }
+  });
+
+  app.get("/api/analytics/forecasts", hybridAuth, async (req: any, res) => {
+    try {
+      const { type, entityType, entityId } = req.query;
+      const forecasts = await predictiveAnalyticsService.getForecasts(
+        type as string, 
+        entityType as string, 
+        entityId ? parseInt(entityId as string) : undefined
+      );
+      res.json(forecasts);
+    } catch (error) {
+      console.error("Error fetching forecasts:", error);
+      res.status(500).json({ message: "Failed to fetch forecasts" });
+    }
+  });
+
+  app.post("/api/analytics/forecast/bounty/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const forecast = await predictiveAnalyticsService.generateBountySuccessForecast(parseInt(req.params.id));
+      res.json(forecast);
+    } catch (error: any) {
+      console.error("Error generating bounty forecast:", error);
+      res.status(400).json({ message: error.message || "Failed to generate forecast" });
+    }
+  });
+
+  app.post("/api/analytics/forecast/agent/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const horizon = (req.query.horizon as string) || "30d";
+      const forecast = await predictiveAnalyticsService.generateAgentPerformanceForecast(
+        parseInt(req.params.id), 
+        horizon as any
+      );
+      res.json(forecast);
+    } catch (error: any) {
+      console.error("Error generating agent forecast:", error);
+      res.status(400).json({ message: error.message || "Failed to generate forecast" });
+    }
+  });
+
+  app.post("/api/analytics/forecast/revenue", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const horizon = (req.query.horizon as string) || "30d";
+      const forecast = await predictiveAnalyticsService.generateRevenueForecast(userId, horizon as any);
+      res.json(forecast);
+    } catch (error) {
+      console.error("Error generating revenue forecast:", error);
+      res.status(500).json({ message: "Failed to generate forecast" });
+    }
+  });
+
+  app.get("/api/analytics/risk/:entityType/:entityId", hybridAuth, async (req: any, res) => {
+    try {
+      const score = await predictiveAnalyticsService.calculateRiskScore(
+        req.params.entityType as any, 
+        parseInt(req.params.entityId)
+      );
+      res.json(score);
+    } catch (error) {
+      console.error("Error calculating risk score:", error);
+      res.status(500).json({ message: "Failed to calculate risk score" });
+    }
+  });
+
+  app.get("/api/analytics/risks", hybridAuth, async (req: any, res) => {
+    try {
+      const { entityType } = req.query;
+      const risks = await predictiveAnalyticsService.getRiskScores(entityType as string);
+      res.json(risks);
+    } catch (error) {
+      console.error("Error fetching risk scores:", error);
+      res.status(500).json({ message: "Failed to fetch risk scores" });
+    }
+  });
+
+  // === INSURANCE & TOKENIZATION ROUTES ===
+  app.get("/api/insurance/tiers", async (req, res) => {
+    try {
+      const tiers = insuranceTokenService.getInsuranceTiers();
+      res.json(tiers);
+    } catch (error) {
+      console.error("Error fetching insurance tiers:", error);
+      res.status(500).json({ message: "Failed to fetch insurance tiers" });
+    }
+  });
+
+  app.get("/api/insurance/user", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const insurances = await insuranceTokenService.getUserInsurances(userId);
+      res.json(insurances);
+    } catch (error) {
+      console.error("Error fetching user insurances:", error);
+      res.status(500).json({ message: "Failed to fetch user insurances" });
+    }
+  });
+
+  app.get("/api/insurance/agent/:agentId", async (req, res) => {
+    try {
+      const insurance = await insuranceTokenService.getAgentInsurance(parseInt(req.params.agentId));
+      res.json(insurance);
+    } catch (error) {
+      console.error("Error fetching agent insurance:", error);
+      res.status(500).json({ message: "Failed to fetch agent insurance" });
+    }
+  });
+
+  app.post("/api/insurance", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { agentId, tier, baseValue } = req.body;
+      const insurance = await insuranceTokenService.createInsurance(agentId, userId, tier, baseValue);
+      res.json(insurance);
+    } catch (error: any) {
+      console.error("Error creating insurance:", error);
+      res.status(400).json({ message: error.message || "Failed to create insurance" });
+    }
+  });
+
+  app.post("/api/insurance/:id/claims", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const claim = await insuranceTokenService.fileClaim(parseInt(req.params.id), userId, req.body);
+      res.json(claim);
+    } catch (error: any) {
+      console.error("Error filing claim:", error);
+      res.status(400).json({ message: error.message || "Failed to file claim" });
+    }
+  });
+
+  app.get("/api/insurance/claims", hybridAuth, async (req: any, res) => {
+    try {
+      const { insuranceId, status } = req.query;
+      const claims = await insuranceTokenService.getClaims(
+        insuranceId ? parseInt(insuranceId as string) : undefined,
+        status as string
+      );
+      res.json(claims);
+    } catch (error) {
+      console.error("Error fetching claims:", error);
+      res.status(500).json({ message: "Failed to fetch claims" });
+    }
+  });
+
+  app.post("/api/insurance/claims/:id/review", hybridAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { decision, approvedAmount, notes } = req.body;
+      const claim = await insuranceTokenService.reviewClaim(
+        parseInt(req.params.id), userId, decision, approvedAmount, notes
+      );
+      res.json(claim);
+    } catch (error) {
+      console.error("Error reviewing claim:", error);
+      res.status(500).json({ message: "Failed to review claim" });
+    }
+  });
+
+  app.get("/api/tokens", async (req, res) => {
+    try {
+      const tokens = await insuranceTokenService.getListedTokens();
+      res.json(tokens);
+    } catch (error) {
+      console.error("Error fetching tokens:", error);
+      res.status(500).json({ message: "Failed to fetch tokens" });
+    }
+  });
+
+  app.get("/api/tokens/agent/:agentId", async (req, res) => {
+    try {
+      const token = await insuranceTokenService.getAgentToken(parseInt(req.params.agentId));
+      res.json(token);
+    } catch (error) {
+      console.error("Error fetching agent token:", error);
+      res.status(500).json({ message: "Failed to fetch agent token" });
+    }
+  });
+
+  app.get("/api/tokens/holdings", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const holdings = await insuranceTokenService.getUserHoldings(userId);
+      res.json(holdings);
+    } catch (error) {
+      console.error("Error fetching holdings:", error);
+      res.status(500).json({ message: "Failed to fetch holdings" });
+    }
+  });
+
+  app.post("/api/tokens", hybridAuth, async (req: any, res) => {
+    try {
+      const token = await insuranceTokenService.tokenizeAgent(req.body.agentId, req.body);
+      res.json(token);
+    } catch (error: any) {
+      console.error("Error tokenizing agent:", error);
+      res.status(400).json({ message: error.message || "Failed to tokenize agent" });
+    }
+  });
+
+  app.post("/api/tokens/:id/list", hybridAuth, async (req: any, res) => {
+    try {
+      const token = await insuranceTokenService.listToken(parseInt(req.params.id));
+      res.json(token);
+    } catch (error) {
+      console.error("Error listing token:", error);
+      res.status(500).json({ message: "Failed to list token" });
+    }
+  });
+
+  app.post("/api/tokens/:id/buy", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { amount } = req.body;
+      const holding = await insuranceTokenService.buyTokens(parseInt(req.params.id), userId, amount);
+      res.json(holding);
+    } catch (error: any) {
+      console.error("Error buying tokens:", error);
+      res.status(400).json({ message: error.message || "Failed to buy tokens" });
+    }
+  });
+
+  app.post("/api/tokens/:id/sell", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { amount } = req.body;
+      const holding = await insuranceTokenService.sellTokens(parseInt(req.params.id), userId, amount);
+      res.json(holding);
+    } catch (error: any) {
+      console.error("Error selling tokens:", error);
+      res.status(400).json({ message: error.message || "Failed to sell tokens" });
+    }
+  });
+
+  // === LOCALIZATION ROUTES ===
+  app.get("/api/i18n/languages", async (req, res) => {
+    try {
+      const languages = localizationService.getSupportedLanguages();
+      res.json(languages);
+    } catch (error) {
+      console.error("Error fetching languages:", error);
+      res.status(500).json({ message: "Failed to fetch languages" });
+    }
+  });
+
+  app.get("/api/i18n/translations/:language", async (req, res) => {
+    try {
+      const { namespace } = req.query;
+      let translations;
+      if (namespace) {
+        translations = await localizationService.getNamespaceTranslations(namespace as string, req.params.language as any);
+      } else {
+        translations = await localizationService.getAllTranslations(req.params.language as any);
+      }
+      res.json(translations);
+    } catch (error) {
+      console.error("Error fetching translations:", error);
+      res.status(500).json({ message: "Failed to fetch translations" });
+    }
+  });
+
+  app.get("/api/i18n/preferences", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const prefs = await localizationService.getUserLanguagePreference(userId);
+      res.json(prefs);
+    } catch (error) {
+      console.error("Error fetching language preferences:", error);
+      res.status(500).json({ message: "Failed to fetch language preferences" });
+    }
+  });
+
+  app.post("/api/i18n/preferences", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const prefs = await localizationService.setUserLanguagePreference(userId, req.body);
+      res.json(prefs);
+    } catch (error) {
+      console.error("Error setting language preferences:", error);
+      res.status(500).json({ message: "Failed to set language preferences" });
+    }
+  });
+
+  app.get("/api/i18n/detect", async (req, res) => {
+    try {
+      const acceptLanguage = req.headers["accept-language"];
+      const language = localizationService.detectLanguageFromHeaders(acceptLanguage);
+      res.json({ language });
+    } catch (error) {
+      console.error("Error detecting language:", error);
+      res.status(500).json({ message: "Failed to detect language" });
+    }
+  });
+
+  app.get("/api/i18n/stats", hybridAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const stats = await localizationService.getTranslationStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching translation stats:", error);
+      res.status(500).json({ message: "Failed to fetch translation stats" });
+    }
+  });
+
+  app.get("/api/i18n/missing/:language", hybridAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const missing = await localizationService.getMissingTranslations(req.params.language as any);
+      res.json(missing);
+    } catch (error) {
+      console.error("Error fetching missing translations:", error);
+      res.status(500).json({ message: "Failed to fetch missing translations" });
+    }
+  });
+
+  app.post("/api/i18n/translations", hybridAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { key, language, value, namespace, context } = req.body;
+      const translation = await localizationService.addTranslation(key, language, value, namespace, context);
+      res.json(translation);
+    } catch (error) {
+      console.error("Error adding translation:", error);
+      res.status(500).json({ message: "Failed to add translation" });
+    }
+  });
+
+  // === QUANTUM ENCRYPTION ROUTES ===
+  app.get("/api/quantum/algorithms", async (req, res) => {
+    try {
+      const algorithms = quantumEncryptionService.getAlgorithmInfo();
+      res.json(algorithms);
+    } catch (error) {
+      console.error("Error fetching algorithms:", error);
+      res.status(500).json({ message: "Failed to fetch algorithms" });
+    }
+  });
+
+  app.get("/api/quantum/dashboard", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const dashboard = await quantumEncryptionService.getSecurityDashboard(userId);
+      res.json(dashboard);
+    } catch (error) {
+      console.error("Error fetching quantum dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch quantum dashboard" });
+    }
+  });
+
+  app.get("/api/quantum/keys", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const keys = await quantumEncryptionService.getUserKeys(userId);
+      res.json(keys);
+    } catch (error) {
+      console.error("Error fetching quantum keys:", error);
+      res.status(500).json({ message: "Failed to fetch quantum keys" });
+    }
+  });
+
+  app.post("/api/quantum/keys", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { keyType, algorithm, purpose, expiresInDays } = req.body;
+      const key = await quantumEncryptionService.generateKeyPair(userId, keyType, algorithm, purpose, expiresInDays);
+      res.json({ id: key.id, fingerprint: key.keyFingerprint, algorithm: key.algorithm, status: key.status });
+    } catch (error) {
+      console.error("Error generating quantum key:", error);
+      res.status(500).json({ message: "Failed to generate quantum key" });
+    }
+  });
+
+  app.post("/api/quantum/encrypt", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { dataType, plaintext, keyId } = req.body;
+      const encrypted = await quantumEncryptionService.encryptData(userId, dataType, plaintext, keyId);
+      res.json({ id: encrypted.id, dataType: encrypted.dataType, algorithm: encrypted.algorithm });
+    } catch (error: any) {
+      console.error("Error encrypting data:", error);
+      res.status(400).json({ message: error.message || "Failed to encrypt data" });
+    }
+  });
+
+  app.post("/api/quantum/decrypt/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const plaintext = await quantumEncryptionService.decryptData(parseInt(req.params.id), userId);
+      res.json({ plaintext });
+    } catch (error: any) {
+      console.error("Error decrypting data:", error);
+      res.status(400).json({ message: error.message || "Failed to decrypt data" });
+    }
+  });
+
+  app.get("/api/quantum/encrypted", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const data = await quantumEncryptionService.getEncryptedData(userId);
+      res.json(data.map(d => ({ id: d.id, dataType: d.dataType, algorithm: d.algorithm, createdAt: d.createdAt })));
+    } catch (error) {
+      console.error("Error fetching encrypted data:", error);
+      res.status(500).json({ message: "Failed to fetch encrypted data" });
+    }
+  });
+
+  app.post("/api/quantum/keys/:id/rotate", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { reason } = req.body;
+      const result = await quantumEncryptionService.rotateKey(parseInt(req.params.id), userId, reason);
+      res.json({ 
+        oldKeyId: result.oldKey.id, 
+        newKeyId: result.newKey.id, 
+        newFingerprint: result.newKey.keyFingerprint 
+      });
+    } catch (error: any) {
+      console.error("Error rotating key:", error);
+      res.status(400).json({ message: error.message || "Failed to rotate key" });
+    }
+  });
+
+  app.post("/api/quantum/keys/:id/revoke", hybridAuth, async (req: any, res) => {
+    try {
+      await quantumEncryptionService.revokeKey(parseInt(req.params.id));
+      res.json({ message: "Key revoked" });
+    } catch (error) {
+      console.error("Error revoking key:", error);
+      res.status(500).json({ message: "Failed to revoke key" });
+    }
+  });
+
+  app.get("/api/quantum/rotation-history", hybridAuth, async (req: any, res) => {
+    try {
+      const { keyId } = req.query;
+      const history = await quantumEncryptionService.getRotationHistory(keyId ? parseInt(keyId as string) : undefined);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching rotation history:", error);
+      res.status(500).json({ message: "Failed to fetch rotation history" });
+    }
+  });
+
   return httpServer;
 }

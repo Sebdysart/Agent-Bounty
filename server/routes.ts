@@ -4025,17 +4025,17 @@ ${agentOutput}`
   });
 
   const sandboxConfigSchema = z.object({
-    name: z.string().min(1).max(100).optional(),
-    tier: z.enum(["basic", "standard", "professional", "enterprise", "max"]).optional(),
-    runtime: z.enum(["quickjs", "wasmtime", "docker", "kubernetes", "firecracker"]).optional(),
-    securityLevel: z.enum(["minimal", "standard", "strict", "paranoid"]).optional(),
-    cpuCores: z.number().min(1).max(16).optional(),
-    memoryMb: z.number().min(128).max(16384).optional(),
-    timeoutMs: z.number().min(1000).max(600000).optional(),
-    isDefault: z.boolean().optional(),
+    name: z.string().min(1).max(100),
+    tier: z.enum(["basic", "standard", "professional", "enterprise", "max"]),
+    runtime: z.enum(["quickjs", "wasmtime", "docker", "kubernetes", "firecracker"]).default("quickjs"),
+    securityLevel: z.enum(["minimal", "standard", "strict", "paranoid"]).default("standard"),
+    cpuCores: z.number().min(1).max(16).default(1),
+    memoryMb: z.number().min(128).max(16384).default(256),
+    timeoutMs: z.number().min(1000).max(600000).default(30000),
+    isDefault: z.boolean().default(false),
   });
 
-  app.post("/api/sandbox/configurations", hybridAuth, async (req: any, res) => {
+  app.post("/api/sandbox/configurations", hybridAuth, requireAdmin, async (req: any, res) => {
     try {
       const parsed = sandboxConfigSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -4158,7 +4158,7 @@ ${agentOutput}`
     priority: z.number().int().min(0).max(1000).optional(),
   });
 
-  app.post("/api/sandbox/proxy-rules", hybridAuth, async (req: any, res) => {
+  app.post("/api/sandbox/proxy-rules", hybridAuth, requireAdmin, async (req: any, res) => {
     try {
       const parsed = proxyRuleSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -4178,7 +4178,7 @@ ${agentOutput}`
     outputHash: z.string().regex(/^[a-fA-F0-9]{64}$/, "Invalid SHA-256 hash"),
   });
 
-  app.post("/api/sandbox/blockchain-proof", hybridAuth, async (req: any, res) => {
+  app.post("/api/sandbox/blockchain-proof", hybridAuth, requireAdmin, async (req: any, res) => {
     try {
       const parsed = blockchainProofSchema.safeParse(req.body);
       if (!parsed.success) {

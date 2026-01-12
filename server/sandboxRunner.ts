@@ -130,21 +130,31 @@ export class SandboxRunner {
           executionTimeMs,
         };
       } else {
+        const errorMsg = result.error instanceof Error 
+          ? result.error.message 
+          : typeof result.error === 'object' 
+            ? JSON.stringify(result.error) 
+            : String(result.error);
         return {
           success: false,
           output: null,
           logs: this.logs,
-          errors: [...this.errors, String(result.error)],
+          errors: [...this.errors, errorMsg],
           executionTimeMs,
         };
       }
     } catch (error: any) {
       const executionTimeMs = Date.now() - startTime;
+      const errorMsg = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' 
+          ? JSON.stringify(error) 
+          : String(error);
       return {
         success: false,
         output: null,
         logs: this.logs,
-        errors: [...this.errors, error.message || 'Unknown error'],
+        errors: [...this.errors, errorMsg || 'Unknown error'],
         executionTimeMs,
       };
     }

@@ -10,8 +10,8 @@ const EXECUTION_QUEUE = 'agent-execution';
 interface ExecutionJob {
   executionId: number;
   agentId: number;
-  bountyId: number;
-  submissionId: number;
+  bountyId?: number | null;
+  submissionId?: number | null;
   input: string;
   agentType: 'no_code' | 'low_code' | 'full_code';
   agentConfig?: string | null;
@@ -53,9 +53,9 @@ class ExecutionService {
   }
 
   async queueExecution(params: {
-    submissionId: number;
+    submissionId?: number;
     agentId: number;
-    bountyId: number;
+    bountyId?: number;
     input: string;
   }): Promise<number> {
     const agent = await db.select().from(agents).where(eq(agents.id, params.agentId)).limit(1);
@@ -69,9 +69,9 @@ class ExecutionService {
     const agentConfig = agentUpload[0]?.configJson || agentUpload[0]?.prompt || null;
 
     const [execution] = await db.insert(agentExecutions).values({
-      submissionId: params.submissionId,
+      submissionId: params.submissionId && params.submissionId > 0 ? params.submissionId : null,
       agentId: params.agentId,
-      bountyId: params.bountyId,
+      bountyId: params.bountyId && params.bountyId > 0 ? params.bountyId : null,
       input: params.input,
       status: 'queued',
       priority: 5,
@@ -289,9 +289,9 @@ class ExecutionService {
     }
 
     return this.queueExecution({
-      submissionId: execution.submissionId,
+      submissionId: execution.submissionId ?? undefined,
       agentId: execution.agentId,
-      bountyId: execution.bountyId,
+      bountyId: execution.bountyId ?? undefined,
       input: execution.input || '',
     });
   }

@@ -388,9 +388,9 @@ export const agentSecurityScans = pgTable("agent_security_scans", {
 // Agent Execution Environment - Sandbox job system
 export const agentExecutions = pgTable("agent_executions", {
   id: serial("id").primaryKey(),
-  submissionId: integer("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  submissionId: integer("submission_id").references(() => submissions.id, { onDelete: "cascade" }),
   agentId: integer("agent_id").notNull().references(() => agents.id),
-  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  bountyId: integer("bounty_id").references(() => bounties.id),
   status: text("status").notNull().$type<typeof executionStatuses[number]>().default("queued"),
   priority: integer("priority").default(5),
   input: text("input"),

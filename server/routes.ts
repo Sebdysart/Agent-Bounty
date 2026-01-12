@@ -2893,9 +2893,13 @@ ${agentOutput}`
 
   const finopsBudgetSchema = z.object({
     name: z.string().min(1).max(100),
-    amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
-    period: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]),
-    alertThresholds: z.array(z.number().min(0).max(100)).optional(),
+    budgetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    budgetType: z.enum(["daily", "weekly", "monthly", "per_agent"]).default("monthly"),
+    periodStart: z.string().datetime().optional(),
+    periodEnd: z.string().datetime().optional(),
+    alertThreshold: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+    autoStop: z.boolean().optional(),
+    agentId: z.number().int().positive().optional(),
     isActive: z.boolean().optional(),
   });
 
@@ -2906,7 +2910,14 @@ ${agentOutput}`
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid budget data", errors: parsed.error.errors });
       }
-      const budget = await finopsService.createBudget(userId, parsed.data);
+      const now = new Date();
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const budgetData = {
+        ...parsed.data,
+        periodStart: parsed.data.periodStart ? new Date(parsed.data.periodStart) : now,
+        periodEnd: parsed.data.periodEnd ? new Date(parsed.data.periodEnd) : monthEnd,
+      };
+      const budget = await finopsService.createBudget(userId, budgetData);
       res.json(budget);
     } catch (error) {
       console.error("Error creating budget:", error);
@@ -3349,9 +3360,9 @@ ${agentOutput}`
   });
 
   const quantumKeySchema = z.object({
-    keyType: z.enum(["asymmetric", "symmetric"]),
-    algorithm: z.enum(["kyber1024", "dilithium5", "sphincs256", "aes256gcm"]),
-    purpose: z.string().min(1).max(200),
+    keyType: z.enum(["encryption", "signing", "hybrid"]),
+    algorithm: z.enum(["kyber512", "kyber768", "kyber1024", "dilithium2", "dilithium3", "dilithium5"]).optional(),
+    purpose: z.string().min(1).max(200).optional(),
     expiresInDays: z.number().int().min(1).max(365).optional(),
   });
 

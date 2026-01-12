@@ -92,7 +92,7 @@ class FinOpsService {
 
   async createBudget(
     userId: string,
-    data: InsertCostBudget
+    data: Omit<InsertCostBudget, 'userId'>
   ): Promise<CostBudget> {
     const [budget] = await db.insert(costBudgets).values({
       ...data,

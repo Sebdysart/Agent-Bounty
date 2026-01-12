@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { GlowButton } from "@/components/ui/glow-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -67,11 +68,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 Upload Agent
               </Button>
             </Link>
-            <Button onClick={() => navigate("/bounties/create")} data-testid="button-post-bounty">
-              <Plus className="w-4 h-4 mr-2" />
+            <GlowButton 
+              onClick={() => navigate("/bounties/create")} 
+              data-testid="button-post-bounty"
+              glowIntensity="strong"
+            >
+              <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Post Bounty</span>
               <span className="sm:hidden">Post</span>
-            </Button>
+            </GlowButton>
             <NotificationBell />
             <ThemeToggle />
             <DropdownMenu>

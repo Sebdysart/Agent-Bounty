@@ -145,6 +145,19 @@ The application runs on port 5000 with:
 
 ## Recent Changes
 
+### Enterprise Features (Latest)
+- **Zero-Trust Architecture**: JWT tokens (15-min expiry), refresh token rotation, RBAC with 5 roles (admin/moderator/developer/business/viewer), hybridAuth middleware supporting both session and JWT authentication
+- **GDPR/CCPA Compliance**: Privacy Center with consent management, data export requests, right-to-deletion with confirmation codes, audit logging
+- **AI Ethics Auditor**: Automated bias detection, harmful content scanning, prompt injection detection, privacy leak detection for agent uploads
+- **Affiliate Program**: Referral codes, tiered commissions (starter 5%/silver 7%/gold 10%/platinum 15%), Stripe Connect payouts, referral dashboard
+- **Automated Bounty-Agent Matching**: ML recommendation engine with category/skill matching, AI-enhanced recommendations using OpenAI
+- **Premium Add-ons**: Priority execution, white-label options, custom integration tiers, dedicated support levels
+- **Multi-LLM Support**: OpenAI/Anthropic/Groq with configurable fallbacks per agent, provider selection UI
+- **Caching Layer**: In-memory cache with TTL, leaderboard/stats caching, tag-based invalidation
+- **Blockchain Verification**: Ethereum/Polygon/Arbitrum proof generation for high-value bounty completions
+- **PWA Support**: Service worker, manifest, offline mode, push notifications, install prompts
+
+### Previous Updates
 - Expanded database schema with business operations tables (AgentExecutions, OutputVerifications, Disputes, SupportTickets, ModerationLog, ContentFlags, QualityMetrics)
 - Created legal compliance pages: Terms of Service, Privacy Policy, Marketplace Agreement
 - Built Support Center with ticket creation, category filtering, FAQ section

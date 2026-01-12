@@ -1711,6 +1711,267 @@ export const insertKeyRotationHistorySchema = createInsertSchema(keyRotationHist
   completedAt: true,
 });
 
+// ============================================
+// MULTI-AGENT COLLABORATION (Enterprise Feature - Phase 1)
+// ============================================
+
+export const collaborationSessions = pgTable("collaboration_sessions", {
+  id: serial("id").primaryKey(),
+  swarmId: integer("swarm_id").references(() => agentSwarms.id, { onDelete: "cascade" }),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  name: text("name").notNull(),
+  status: text("status").$type<"active" | "paused" | "completed" | "failed">().default("active"),
+  sharedContext: text("shared_context"), // JSON: shared memory/context store
+  taskGraph: text("task_graph"), // JSON: DAG of tasks with dependencies
+  consensusLog: text("consensus_log"), // JSON: voting/consensus history
+  totalMessages: integer("total_messages").default(0),
+  totalTasks: integer("total_tasks").default(0),
+  completedTasks: integer("completed_tasks").default(0),
+  createdById: varchar("created_by_id").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const collaborationMessages = pgTable("collaboration_messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => collaborationSessions.id, { onDelete: "cascade" }),
+  fromAgentId: integer("from_agent_id").references(() => agents.id),
+  toAgentId: integer("to_agent_id").references(() => agents.id), // null = broadcast
+  messageType: text("message_type").$type<"task" | "result" | "query" | "vote" | "status" | "error">().default("task"),
+  content: text("content").notNull(),
+  metadata: text("metadata"), // JSON: additional context
+  isProcessed: boolean("is_processed").default(false),
+  priority: integer("priority").default(5),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const collaborationTasks = pgTable("collaboration_tasks", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => collaborationSessions.id, { onDelete: "cascade" }),
+  taskId: text("task_id").notNull(), // UUID for DAG reference
+  parentTaskId: text("parent_task_id"),
+  assignedAgentId: integer("assigned_agent_id").references(() => agents.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  inputData: text("input_data"), // JSON
+  outputData: text("output_data"), // JSON
+  status: text("status").$type<"pending" | "assigned" | "running" | "completed" | "failed" | "blocked">().default("pending"),
+  dependencies: text("dependencies").array().default([]), // task_ids that must complete first
+  priority: integer("priority").default(5),
+  estimatedDuration: integer("estimated_duration"), // seconds
+  actualDuration: integer("actual_duration"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// AI AGENT EXECUTION (Enterprise Feature - Phase 1)
+// ============================================
+
+export const aiExecutionRuns = pgTable("ai_execution_runs", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").notNull().references(() => agents.id),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  submissionId: integer("submission_id").references(() => submissions.id),
+  sessionId: integer("session_id").references(() => collaborationSessions.id),
+  status: text("status").$type<"queued" | "running" | "completed" | "failed" | "cancelled">().default("queued"),
+  input: text("input").notNull(),
+  systemPrompt: text("system_prompt"),
+  output: text("output"),
+  model: text("model").default("gpt-4o"),
+  provider: text("provider").default("openai"),
+  tokensInput: integer("tokens_input"),
+  tokensOutput: integer("tokens_output"),
+  costUsd: decimal("cost_usd", { precision: 12, scale: 6 }),
+  executionTimeMs: integer("execution_time_ms"),
+  toolCalls: text("tool_calls"), // JSON: function calls made
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").default(0),
+  sandboxId: text("sandbox_id"), // QuickJS isolation ID
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// AUTOMATED VERIFICATION (Enterprise Feature - Phase 1)
+// ============================================
+
+export const verificationAudits = pgTable("verification_audits", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id),
+  auditorType: text("auditor_type").$type<"ai" | "human" | "hybrid">().default("ai"),
+  status: text("status").$type<"pending" | "in_progress" | "passed" | "failed" | "needs_review">().default("pending"),
+  criteriaChecks: text("criteria_checks"), // JSON: individual criteria results
+  overallScore: decimal("overall_score", { precision: 5, scale: 2 }),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }),
+  aiAnalysis: text("ai_analysis"),
+  humanNotes: text("human_notes"),
+  assignedReviewerId: varchar("assigned_reviewer_id"),
+  passedCriteria: integer("passed_criteria").default(0),
+  totalCriteria: integer("total_criteria").default(0),
+  executionTimeMs: integer("execution_time_ms"),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// ENTERPRISE TIER & SLAs (Enterprise Feature - Phase 2)
+// ============================================
+
+export const enterpriseTiers = ["starter", "professional", "business", "enterprise"] as const;
+export const slaLevels = ["standard", "priority", "premium", "dedicated"] as const;
+
+export const enterpriseSubscriptions = pgTable("enterprise_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().unique(),
+  tier: text("tier").notNull().$type<typeof enterpriseTiers[number]>().default("starter"),
+  slaLevel: text("sla_level").$type<typeof slaLevels[number]>().default("standard"),
+  responseTimeSla: integer("response_time_sla"), // minutes
+  uptimeGuarantee: decimal("uptime_guarantee", { precision: 5, scale: 2 }),
+  dedicatedSupport: boolean("dedicated_support").default(false),
+  customVerification: boolean("custom_verification").default(false),
+  priorityExecution: boolean("priority_execution").default(false),
+  apiRateLimit: integer("api_rate_limit"),
+  maxAgents: integer("max_agents"),
+  maxBounties: integer("max_bounties"),
+  monthlyCredits: integer("monthly_credits"),
+  usedCredits: integer("used_credits").default(0),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").$type<"active" | "cancelled" | "paused" | "trial">().default("active"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// AGENT REPUTATION SYSTEM (Enterprise Feature - Phase 3)
+// ============================================
+
+export const agentReputations = pgTable("agent_reputations", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").notNull().unique().references(() => agents.id, { onDelete: "cascade" }),
+  overallScore: decimal("overall_score", { precision: 5, scale: 2 }).default("50"),
+  qualityScore: decimal("quality_score", { precision: 5, scale: 2 }).default("50"),
+  reliabilityScore: decimal("reliability_score", { precision: 5, scale: 2 }).default("50"),
+  speedScore: decimal("speed_score", { precision: 5, scale: 2 }).default("50"),
+  communicationScore: decimal("communication_score", { precision: 5, scale: 2 }).default("50"),
+  totalReviews: integer("total_reviews").default(0),
+  positiveReviews: integer("positive_reviews").default(0),
+  neutralReviews: integer("neutral_reviews").default(0),
+  negativeReviews: integer("negative_reviews").default(0),
+  completedBounties: integer("completed_bounties").default(0),
+  failedBounties: integer("failed_bounties").default(0),
+  disputesWon: integer("disputes_won").default(0),
+  disputesLost: integer("disputes_lost").default(0),
+  avgResponseTime: integer("avg_response_time"), // seconds
+  avgCompletionTime: integer("avg_completion_time"), // seconds
+  badges: text("badges").array().default([]),
+  tier: text("tier").$type<"bronze" | "silver" | "gold" | "platinum" | "diamond">().default("bronze"),
+  lastCalculatedAt: timestamp("last_calculated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const reputationEvents = pgTable("reputation_events", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  eventType: text("event_type").$type<"review" | "completion" | "failure" | "dispute" | "badge" | "penalty">().notNull(),
+  scoreChange: decimal("score_change", { precision: 5, scale: 2 }).notNull(),
+  previousScore: decimal("previous_score", { precision: 5, scale: 2 }),
+  newScore: decimal("new_score", { precision: 5, scale: 2 }),
+  reason: text("reason"),
+  relatedId: integer("related_id"), // bounty/review/dispute id
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// LIVE CHAT SUPPORT (Enterprise Feature - Phase 4)
+// ============================================
+
+export const liveChatSessions = pgTable("live_chat_sessions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  assignedAgentId: varchar("assigned_agent_id"),
+  status: text("status").$type<"waiting" | "active" | "resolved" | "abandoned">().default("waiting"),
+  category: text("category").$type<"billing" | "technical" | "account" | "bounty" | "agent" | "general">().default("general"),
+  priority: text("priority").$type<"low" | "medium" | "high" | "urgent">().default("medium"),
+  subject: text("subject"),
+  userSatisfaction: integer("user_satisfaction"), // 1-5
+  totalMessages: integer("total_messages").default(0),
+  firstResponseAt: timestamp("first_response_at"),
+  resolvedAt: timestamp("resolved_at"),
+  lastMessageAt: timestamp("last_message_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const liveChatMessages = pgTable("live_chat_messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => liveChatSessions.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull(),
+  senderType: text("sender_type").$type<"user" | "support" | "bot">().notNull(),
+  content: text("content").notNull(),
+  attachments: text("attachments").array().default([]),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================
+// QUICK START / ONBOARDING (Enterprise Feature - Phase 4)
+// ============================================
+
+export const onboardingProgress = pgTable("onboarding_progress", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().unique(),
+  currentStep: integer("current_step").default(1),
+  completedSteps: text("completed_steps").array().default([]),
+  skippedSteps: text("skipped_steps").array().default([]),
+  role: text("role").$type<"business" | "developer">(),
+  goals: text("goals").array().default([]),
+  preferences: text("preferences"), // JSON
+  tourCompleted: boolean("tour_completed").default(false),
+  profileCompleted: boolean("profile_completed").default(false),
+  firstBountyCreated: boolean("first_bounty_created").default(false),
+  firstAgentRegistered: boolean("first_agent_registered").default(false),
+  firstSubmission: boolean("first_submission").default(false),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================
+// CUSTOMIZABLE DASHBOARD (Enterprise Feature - Phase 3)
+// ============================================
+
+export const dashboardWidgets = pgTable("dashboard_widgets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  widgetType: text("widget_type").notNull(), // performance, earnings, bounties, reputation, etc.
+  title: text("title").notNull(),
+  position: integer("position").default(0),
+  size: text("size").$type<"small" | "medium" | "large" | "full">().default("medium"),
+  config: text("config"), // JSON: widget-specific settings
+  isVisible: boolean("is_visible").default(true),
+  refreshInterval: integer("refresh_interval"), // seconds
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const dashboardLayouts = pgTable("dashboard_layouts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().unique(),
+  layoutName: text("layout_name").default("default"),
+  gridConfig: text("grid_config"), // JSON: grid layout configuration
+  theme: text("theme").$type<"default" | "compact" | "expanded">().default("default"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Enterprise Types
 export type AgentSwarm = typeof agentSwarms.$inferSelect;
 export type InsertAgentSwarm = z.infer<typeof insertAgentSwarmSchema>;
@@ -1758,3 +2019,18 @@ export type EncryptedData = typeof encryptedData.$inferSelect;
 export type InsertEncryptedData = z.infer<typeof insertEncryptedDataSchema>;
 export type KeyRotationHistory = typeof keyRotationHistory.$inferSelect;
 export type InsertKeyRotationHistory = z.infer<typeof insertKeyRotationHistorySchema>;
+
+// Phase 1-4 Enterprise Types
+export type CollaborationSession = typeof collaborationSessions.$inferSelect;
+export type CollaborationMessage = typeof collaborationMessages.$inferSelect;
+export type CollaborationTask = typeof collaborationTasks.$inferSelect;
+export type AiExecutionRun = typeof aiExecutionRuns.$inferSelect;
+export type VerificationAudit = typeof verificationAudits.$inferSelect;
+export type EnterpriseSubscription = typeof enterpriseSubscriptions.$inferSelect;
+export type AgentReputation = typeof agentReputations.$inferSelect;
+export type ReputationEvent = typeof reputationEvents.$inferSelect;
+export type LiveChatSession = typeof liveChatSessions.$inferSelect;
+export type LiveChatMessage = typeof liveChatMessages.$inferSelect;
+export type OnboardingProgress = typeof onboardingProgress.$inferSelect;
+export type DashboardWidget = typeof dashboardWidgets.$inferSelect;
+export type DashboardLayout = typeof dashboardLayouts.$inferSelect;

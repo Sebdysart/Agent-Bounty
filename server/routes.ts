@@ -22,6 +22,14 @@ import { multiLlmService } from "./multiLlmService";
 import { blockchainService } from "./blockchainService";
 import { validateJWT, requireJWT, requireAdmin, hybridAuth } from "./authMiddleware";
 import { cacheService } from "./cacheService";
+import { collaborationService } from "./collaborationService";
+import { aiExecutionService } from "./aiExecutionService";
+import { verificationService } from "./verificationService";
+import { reputationService } from "./reputationService";
+import { liveChatService } from "./liveChatService";
+import { onboardingService } from "./onboardingService";
+import { customDashboardService } from "./customDashboardService";
+import { enterpriseTierService } from "./enterpriseTierService";
 
 function getOpenAIClient() {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -3334,6 +3342,589 @@ ${agentOutput}`
     } catch (error) {
       console.error("Error fetching rotation history:", error);
       res.status(500).json({ message: "Failed to fetch rotation history" });
+    }
+  });
+
+  // ============================================
+  // MULTI-AGENT COLLABORATION ROUTES
+  // ============================================
+  
+  app.post("/api/collaboration/sessions", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { name, swarmId, bountyId } = req.body;
+      const session = await collaborationService.createSession(userId, name, swarmId, bountyId);
+      res.json(session);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/collaboration/sessions", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const sessions = await collaborationService.getUserSessions(userId);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  app.get("/api/collaboration/sessions/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const session = await collaborationService.getSession(parseInt(req.params.id));
+      if (!session) return res.status(404).json({ message: "Session not found" });
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch session" });
+    }
+  });
+
+  app.post("/api/collaboration/sessions/:id/tasks", hybridAuth, async (req: any, res) => {
+    try {
+      const { title, description, dependencies, assignedAgentId, priority } = req.body;
+      const task = await collaborationService.addTask(
+        parseInt(req.params.id), title, description, dependencies, assignedAgentId, priority
+      );
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/collaboration/sessions/:id/tasks", hybridAuth, async (req: any, res) => {
+    try {
+      const tasks = await collaborationService.getSessionTasks(parseInt(req.params.id));
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  app.post("/api/collaboration/tasks/:id/start", hybridAuth, async (req: any, res) => {
+    try {
+      const task = await collaborationService.startTask(parseInt(req.params.id));
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/collaboration/tasks/:id/complete", hybridAuth, async (req: any, res) => {
+    try {
+      const { outputData } = req.body;
+      const task = await collaborationService.completeTask(parseInt(req.params.id), outputData);
+      res.json(task);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/collaboration/sessions/:id/messages", hybridAuth, async (req: any, res) => {
+    try {
+      const { fromAgentId, content, messageType, toAgentId, metadata } = req.body;
+      const message = await collaborationService.sendMessage(
+        parseInt(req.params.id), fromAgentId, content, messageType, toAgentId, metadata
+      );
+      res.json(message);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/collaboration/sessions/:id/messages", hybridAuth, async (req: any, res) => {
+    try {
+      const messages = await collaborationService.getMessages(parseInt(req.params.id));
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/collaboration/sessions/:id/distribute", hybridAuth, async (req: any, res) => {
+    try {
+      await collaborationService.autoDistributeTasks(parseInt(req.params.id));
+      res.json({ message: "Tasks distributed" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // AI EXECUTION ROUTES
+  // ============================================
+  
+  app.post("/api/execution/run", hybridAuth, async (req: any, res) => {
+    try {
+      const { agentId, input, bountyId, submissionId, sessionId, model } = req.body;
+      const run = await aiExecutionService.executeAgent(agentId, input, { bountyId, submissionId, sessionId, model });
+      res.json(run);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/execution/runs/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const run = await aiExecutionService.getRunStatus(parseInt(req.params.id));
+      if (!run) return res.status(404).json({ message: "Run not found" });
+      res.json(run);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch run" });
+    }
+  });
+
+  app.get("/api/execution/agent/:agentId", hybridAuth, async (req: any, res) => {
+    try {
+      const runs = await aiExecutionService.getAgentRuns(parseInt(req.params.agentId));
+      res.json(runs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch runs" });
+    }
+  });
+
+  app.get("/api/execution/stats", hybridAuth, async (req: any, res) => {
+    try {
+      const { agentId } = req.query;
+      const stats = await aiExecutionService.getExecutionStats(agentId ? parseInt(agentId as string) : undefined);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.post("/api/execution/runs/:id/cancel", hybridAuth, async (req: any, res) => {
+    try {
+      await aiExecutionService.cancelRun(parseInt(req.params.id));
+      res.json({ message: "Run cancelled" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to cancel run" });
+    }
+  });
+
+  // ============================================
+  // VERIFICATION ROUTES
+  // ============================================
+  
+  app.post("/api/verification/verify", hybridAuth, async (req: any, res) => {
+    try {
+      const { submissionId, bountyId } = req.body;
+      const audit = await verificationService.verifySubmission(submissionId, bountyId);
+      res.json(audit);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/verification/audits/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const audit = await verificationService.getAudit(parseInt(req.params.id));
+      if (!audit) return res.status(404).json({ message: "Audit not found" });
+      res.json(audit);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch audit" });
+    }
+  });
+
+  app.get("/api/verification/submission/:submissionId", hybridAuth, async (req: any, res) => {
+    try {
+      const audits = await verificationService.getSubmissionAudits(parseInt(req.params.submissionId));
+      res.json(audits);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch audits" });
+    }
+  });
+
+  app.get("/api/verification/pending", hybridAuth, async (req: any, res) => {
+    try {
+      const audits = await verificationService.getPendingReviews();
+      res.json(audits);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending reviews" });
+    }
+  });
+
+  app.post("/api/verification/audits/:id/review", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { notes, decision } = req.body;
+      const audit = await verificationService.addHumanReview(parseInt(req.params.id), userId, notes, decision);
+      res.json(audit);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/verification/stats", hybridAuth, async (req: any, res) => {
+    try {
+      const stats = await verificationService.getVerificationStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // ============================================
+  // REPUTATION ROUTES
+  // ============================================
+  
+  app.get("/api/reputation/agent/:agentId", hybridAuth, async (req: any, res) => {
+    try {
+      let rep = await reputationService.getReputation(parseInt(req.params.agentId));
+      if (!rep) {
+        rep = await reputationService.initializeReputation(parseInt(req.params.agentId));
+      }
+      res.json(rep);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch reputation" });
+    }
+  });
+
+  app.get("/api/reputation/agent/:agentId/history", hybridAuth, async (req: any, res) => {
+    try {
+      const history = await reputationService.getReputationHistory(parseInt(req.params.agentId));
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
+  app.get("/api/reputation/leaderboard", async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const leaderboard = await reputationService.getLeaderboard(limit ? parseInt(limit as string) : 20);
+      res.json(leaderboard);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get("/api/reputation/tier/:tier", hybridAuth, async (req: any, res) => {
+    try {
+      const agents = await reputationService.getAgentsByTier(req.params.tier as any);
+      res.json(agents);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch agents" });
+    }
+  });
+
+  app.post("/api/reputation/recalculate/:agentId", hybridAuth, async (req: any, res) => {
+    try {
+      const rep = await reputationService.recalculateReputation(parseInt(req.params.agentId));
+      res.json(rep);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to recalculate" });
+    }
+  });
+
+  // ============================================
+  // LIVE CHAT ROUTES
+  // ============================================
+  
+  app.post("/api/chat/sessions", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { subject, category, priority } = req.body;
+      const session = await liveChatService.createSession(userId, subject, category, priority);
+      res.json(session);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/chat/sessions", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const sessions = await liveChatService.getUserSessions(userId);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  app.get("/api/chat/sessions/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const session = await liveChatService.getSession(parseInt(req.params.id));
+      if (!session) return res.status(404).json({ message: "Session not found" });
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch session" });
+    }
+  });
+
+  app.get("/api/chat/sessions/:id/messages", hybridAuth, async (req: any, res) => {
+    try {
+      const messages = await liveChatService.getSessionMessages(parseInt(req.params.id));
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post("/api/chat/sessions/:id/messages", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { content, senderType } = req.body;
+      const message = await liveChatService.sendMessage(
+        parseInt(req.params.id), userId, senderType || "user", content
+      );
+      res.json(message);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/chat/sessions/:id/resolve", hybridAuth, async (req: any, res) => {
+    try {
+      const { satisfaction } = req.body;
+      const session = await liveChatService.resolveSession(parseInt(req.params.id), satisfaction);
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to resolve session" });
+    }
+  });
+
+  app.get("/api/chat/waiting", hybridAuth, async (req: any, res) => {
+    try {
+      const sessions = await liveChatService.getWaitingSessions();
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch waiting sessions" });
+    }
+  });
+
+  app.get("/api/chat/stats", hybridAuth, async (req: any, res) => {
+    try {
+      const stats = await liveChatService.getChatStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // ============================================
+  // ONBOARDING ROUTES
+  // ============================================
+  
+  app.get("/api/onboarding/progress", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const progress = await onboardingService.getProgress(userId);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  app.post("/api/onboarding/init", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const progress = await onboardingService.initializeOnboarding(userId);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to initialize onboarding" });
+    }
+  });
+
+  app.post("/api/onboarding/role", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { role } = req.body;
+      const progress = await onboardingService.setRole(userId, role);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to set role" });
+    }
+  });
+
+  app.post("/api/onboarding/complete/:stepId", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const progress = await onboardingService.completeStep(userId, req.params.stepId);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to complete step" });
+    }
+  });
+
+  app.post("/api/onboarding/skip/:stepId", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const progress = await onboardingService.skipStep(userId, req.params.stepId);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to skip step" });
+    }
+  });
+
+  app.post("/api/onboarding/reset", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const progress = await onboardingService.resetOnboarding(userId);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reset onboarding" });
+    }
+  });
+
+  // ============================================
+  // CUSTOM DASHBOARD ROUTES
+  // ============================================
+  
+  app.get("/api/dashboard/config", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const dashboard = await customDashboardService.getFullDashboard(userId);
+      res.json(dashboard);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch dashboard" });
+    }
+  });
+
+  app.get("/api/dashboard/widgets", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const widgets = await customDashboardService.getUserWidgets(userId);
+      res.json(widgets);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch widgets" });
+    }
+  });
+
+  app.post("/api/dashboard/widgets", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { widgetType, title, size, config } = req.body;
+      const widget = await customDashboardService.addWidget(userId, widgetType, title, size, config);
+      res.json(widget);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/dashboard/widgets/:id", hybridAuth, async (req: any, res) => {
+    try {
+      const widget = await customDashboardService.updateWidget(parseInt(req.params.id), req.body);
+      res.json(widget);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update widget" });
+    }
+  });
+
+  app.delete("/api/dashboard/widgets/:id", hybridAuth, async (req: any, res) => {
+    try {
+      await customDashboardService.removeWidget(parseInt(req.params.id));
+      res.json({ message: "Widget removed" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove widget" });
+    }
+  });
+
+  app.post("/api/dashboard/reorder", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { widgetIds } = req.body;
+      await customDashboardService.reorderWidgets(userId, widgetIds);
+      res.json({ message: "Widgets reordered" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reorder" });
+    }
+  });
+
+  app.post("/api/dashboard/init", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { role } = req.body;
+      await customDashboardService.initializeDefaultLayout(userId, role);
+      const dashboard = await customDashboardService.getFullDashboard(userId);
+      res.json(dashboard);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to initialize dashboard" });
+    }
+  });
+
+  app.get("/api/dashboard/available-widgets", hybridAuth, async (req: any, res) => {
+    try {
+      const { role } = req.query;
+      const widgets = customDashboardService.getWidgetDefinitions(role as any);
+      res.json(widgets);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch widgets" });
+    }
+  });
+
+  // ============================================
+  // ENTERPRISE TIER ROUTES
+  // ============================================
+  
+  app.get("/api/enterprise/tiers", async (req, res) => {
+    try {
+      const tiers = enterpriseTierService.getTierConfigs();
+      res.json(tiers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tiers" });
+    }
+  });
+
+  app.get("/api/enterprise/subscription", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const sub = await enterpriseTierService.getSubscription(userId);
+      res.json(sub || { tier: "starter", status: "none" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscription" });
+    }
+  });
+
+  app.post("/api/enterprise/subscribe", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { tier, stripeSubscriptionId } = req.body;
+      const sub = await enterpriseTierService.createSubscription(userId, tier, stripeSubscriptionId);
+      res.json(sub);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/enterprise/upgrade", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { tier, stripeSubscriptionId } = req.body;
+      const sub = await enterpriseTierService.upgradeTier(userId, tier, stripeSubscriptionId);
+      res.json(sub);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/enterprise/usage", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const usage = await enterpriseTierService.getUsageStats(userId);
+      res.json(usage);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch usage" });
+    }
+  });
+
+  app.get("/api/enterprise/limits/:type", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const limit = await enterpriseTierService.checkLimit(userId, req.params.type as any);
+      res.json(limit);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to check limit" });
+    }
+  });
+
+  app.post("/api/enterprise/cancel", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const sub = await enterpriseTierService.cancelSubscription(userId);
+      res.json(sub);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to cancel" });
     }
   });
 

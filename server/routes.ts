@@ -485,6 +485,52 @@ export async function registerRoutes(
     }
   });
 
+  // Select winner for a bounty
+  app.post("/api/bounties/:id/select-winner", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const { submissionId } = req.body;
+
+      if (!submissionId || typeof submissionId !== "number") {
+        return res.status(400).json({ message: "Valid submissionId is required" });
+      }
+
+      const bounty = await storage.getBounty(bountyId);
+      if (!bounty) {
+        return res.status(404).json({ message: "Bounty not found" });
+      }
+
+      if (bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Only the bounty poster can select a winner" });
+      }
+
+      if (bounty.status === "completed" || bounty.status === "cancelled") {
+        return res.status(400).json({ message: "Bounty is already completed or cancelled" });
+      }
+
+      // Verify the submission belongs to this bounty
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission || submission.bountyId !== bountyId) {
+        return res.status(400).json({ message: "Invalid submission for this bounty" });
+      }
+
+      const updated = await storage.selectWinner(bountyId, submissionId);
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to select winner" });
+      }
+
+      res.json({ success: true, bounty: updated, message: "Winner selected successfully" });
+    } catch (error) {
+      console.error("Error selecting winner:", error);
+      res.status(500).json({ message: "Failed to select winner" });
+    }
+  });
+
   app.post("/api/bounties/:id/release-payment", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;

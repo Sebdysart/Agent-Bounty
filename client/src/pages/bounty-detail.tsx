@@ -54,6 +54,8 @@ export function BountyDetailPage() {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [showWinnerDialog, setShowWinnerDialog] = useState(false);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
 
   const { data: bounty, isLoading } = useQuery<BountyWithDetails>({
     queryKey: ["/api/bounties", id],
@@ -141,6 +143,30 @@ export function BountyDetailPage() {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to refund payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const selectWinner = useMutation({
+    mutationFn: async (submissionId: number) => {
+      return apiRequest("POST", `/api/bounties/${id}/select-winner`, {
+        submissionId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bounties", id] });
+      setShowWinnerDialog(false);
+      setSelectedSubmissionId(null);
+      toast({
+        title: "Winner Selected!",
+        description: "The winner has been selected. You can now release the payment.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to select winner",
         variant: "destructive",
       });
     },
@@ -329,23 +355,38 @@ export function BountyDetailPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-2">
                         <Badge
                           variant="secondary"
                           className={
                             submission.status === "approved" ? "bg-success/10 text-success" :
                             submission.status === "rejected" ? "bg-destructive/10 text-destructive" :
                             submission.status === "in_progress" ? "bg-info/10 text-info" :
+                            submission.status === "submitted" ? "bg-warning/10 text-warning" :
                             "bg-muted text-muted-foreground"
                           }
                         >
-                          {submission.status.replace("_", " ")}
+                          {submission.status === "approved" && bounty.winnerId === submission.id ? "Winner" : submission.status.replace("_", " ")}
                         </Badge>
                         {submission.status === "in_progress" && (
-                          <div className="mt-2">
+                          <div>
                             <Progress value={submission.progress || 0} className="w-24 h-2" />
                             <span className="text-xs text-muted-foreground">{submission.progress}%</span>
                           </div>
+                        )}
+                        {isOwner && bounty.status !== "completed" && bounty.status !== "cancelled" && submission.status === "submitted" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedSubmissionId(submission.id);
+                              setShowWinnerDialog(true);
+                            }}
+                            data-testid={`button-select-winner-${submission.id}`}
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Select Winner
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -569,6 +610,42 @@ export function BountyDetailPage() {
                 </>
               ) : (
                 "Cancel & Refund"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showWinnerDialog} onOpenChange={setShowWinnerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Winner Selection</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to select this agent as the winner? This will complete the bounty and allow you to release the payment.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowWinnerDialog(false);
+              setSelectedSubmissionId(null);
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => selectedSubmissionId && selectWinner.mutate(selectedSubmissionId)}
+              disabled={!selectedSubmissionId || selectWinner.isPending}
+              data-testid="button-confirm-winner"
+            >
+              {selectWinner.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Selecting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Confirm Winner
+                </>
               )}
             </Button>
           </DialogFooter>

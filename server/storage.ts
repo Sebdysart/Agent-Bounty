@@ -18,7 +18,10 @@ import {
   type AgentSecurityScan, type InsertAgentSecurityScan,
   type SupportTicket, type InsertSupportTicket, type TicketMessage, type InsertTicketMessage,
   type Dispute, type InsertDispute, type DisputeMessage, type InsertDisputeMessage, type ContentFlag,
-  bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes
+  bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes,
+  bountyCategories, orchestrationModes, userRoles, agentUploadTypes, agentToolCategories,
+  integrationCategories, discussionTypes, voteTypes, securityEventTypes, ticketCategories,
+  ticketPriorities, disputeCategories
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
@@ -33,6 +36,7 @@ export interface IStorage {
   getAllBounties(): Promise<(Bounty & { submissionCount: number })[]>;
   createBounty(bounty: InsertBounty): Promise<Bounty>;
   updateBountyStatus(id: number, status: BountyStatus): Promise<Bounty | undefined>;
+  selectWinner(bountyId: number, submissionId: number): Promise<Bounty | undefined>;
 
   getAgent(id: number): Promise<Agent | undefined>;
   getAllAgents(): Promise<Agent[]>;
@@ -133,6 +137,8 @@ export class DatabaseStorage implements IStorage {
     const bountyData = {
       ...bounty,
       deadline: new Date(bounty.deadline),
+      category: bounty.category as typeof bountyCategories[number],
+      orchestrationMode: (bounty.orchestrationMode || "single") as typeof orchestrationModes[number],
     };
     const [created] = await db.insert(bounties).values(bountyData).returning();
     await this.addTimelineEvent(created.id, "open", "Bounty posted and open for submissions");
@@ -145,6 +151,49 @@ export class DatabaseStorage implements IStorage {
       .set({ status, updatedAt: new Date() })
       .where(eq(bounties.id, id))
       .returning();
+    return updated;
+  }
+
+  async selectWinner(bountyId: number, submissionId: number): Promise<Bounty | undefined> {
+    // Get the submission to find the agent
+    const [submission] = await db.select().from(submissions)
+      .where(eq(submissions.id, submissionId));
+    
+    if (!submission) return undefined;
+
+    // Update submission to approved
+    await db.update(submissions)
+      .set({ status: "approved" as typeof submissionStatuses[number], submittedAt: new Date() })
+      .where(eq(submissions.id, submissionId));
+
+    // Update bounty with winner and status
+    const [updated] = await db
+      .update(bounties)
+      .set({ 
+        winnerId: submissionId,
+        status: "completed" as typeof bountyStatuses[number],
+        updatedAt: new Date() 
+      })
+      .where(eq(bounties.id, bountyId))
+      .returning();
+
+    // Add timeline event
+    if (updated) {
+      await this.addTimelineEvent(bountyId, "completed", "Winner selected and bounty completed");
+    }
+
+    // Update agent stats
+    const agent = await this.getAgent(submission.agentId);
+    if (agent) {
+      const bounty = await this.getBounty(bountyId);
+      const newEarnings = parseFloat(agent.totalEarnings || "0") + parseFloat(bounty?.reward || "0") * 0.85;
+      const newBounties = (agent.totalBounties || 0) + 1;
+      await this.updateAgentStats(agent.id, {
+        totalEarnings: String(newEarnings),
+        totalBounties: newBounties,
+      });
+    }
+
     return updated;
   }
 
@@ -383,13 +432,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
+    const profileData = {
+      ...profile,
+      role: (profile.role || "business") as typeof userRoles[number],
+    };
     const [upserted] = await db
       .insert(userProfiles)
-      .values(profile)
+      .values(profileData)
       .onConflictDoUpdate({
         target: userProfiles.id,
         set: { 
-          role: profile.role,
+          role: profileData.role,
           companyName: profile.companyName,
           bio: profile.bio,
           updatedAt: new Date() 
@@ -712,7 +765,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAgentUpload(upload: InsertAgentUpload): Promise<AgentUpload> {
-    const [created] = await db.insert(agentUploads).values(upload).returning();
+    const uploadData = {
+      ...upload,
+      uploadType: upload.uploadType as typeof agentUploadTypes[number],
+    };
+    const [created] = await db.insert(agentUploads).values([uploadData]).returning();
     return created;
   }
 
@@ -740,7 +797,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAgentTool(tool: InsertAgentTool): Promise<AgentTool> {
-    const [created] = await db.insert(agentTools).values(tool).returning();
+    const toolData = {
+      ...tool,
+      category: tool.category as typeof agentToolCategories[number],
+    };
+    const [created] = await db.insert(agentTools).values([toolData]).returning();
     return created;
   }
 
@@ -824,7 +885,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async awardBadge(badge: InsertAgentBadge): Promise<AgentBadge> {
-    const [created] = await db.insert(agentBadges).values(badge).returning();
+    const badgeData = {
+      ...badge,
+      badgeType: badge.badgeType as typeof badgeTypes[number],
+    };
+    const [created] = await db.insert(agentBadges).values([badgeData]).returning();
     return created;
   }
 
@@ -847,7 +912,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createIntegrationConnector(connector: InsertIntegrationConnector): Promise<IntegrationConnector> {
-    const [created] = await db.insert(integrationConnectors).values(connector).returning();
+    const connectorData = {
+      ...connector,
+      category: connector.category as typeof integrationCategories[number],
+    };
+    const [created] = await db.insert(integrationConnectors).values([connectorData]).returning();
     return created;
   }
 
@@ -874,11 +943,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async forkAgent(fork: Omit<InsertAgentFork, 'forkedAgentId'>, newAgentData: InsertAgentUpload): Promise<AgentUpload> {
-    const [forkedAgent] = await db.insert(agentUploads).values(newAgentData).returning();
-    await db.insert(agentForks).values({
+    const uploadData = {
+      ...newAgentData,
+      uploadType: newAgentData.uploadType as typeof agentUploadTypes[number],
+    };
+    const [forkedAgent] = await db.insert(agentUploads).values([uploadData]).returning();
+    await db.insert(agentForks).values([{
       ...fork,
       forkedAgentId: forkedAgent.id,
-    });
+    }]);
     return forkedAgent;
   }
 
@@ -915,7 +988,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDiscussion(discussion: InsertDiscussion): Promise<Discussion> {
-    const [created] = await db.insert(discussions).values(discussion).returning();
+    const discussionData = {
+      ...discussion,
+      discussionType: (discussion.discussionType || "general") as typeof discussionTypes[number],
+    };
+    const [created] = await db.insert(discussions).values([discussionData]).returning();
     return created;
   }
 
@@ -960,16 +1037,22 @@ export class DatabaseStorage implements IStorage {
       )
     );
     
+    const typedVoteType = voteData.voteType as typeof voteTypes[number];
+    
     if (existing.length > 0) {
       if (existing[0].voteType === voteData.voteType) {
         await db.delete(votes).where(eq(votes.id, existing[0].id));
         return existing[0];
       }
-      const [updated] = await db.update(votes).set({ voteType: voteData.voteType }).where(eq(votes.id, existing[0].id)).returning();
+      const [updated] = await db.update(votes).set({ voteType: typedVoteType }).where(eq(votes.id, existing[0].id)).returning();
       return updated;
     }
     
-    const [created] = await db.insert(votes).values(voteData).returning();
+    const votePayload = {
+      ...voteData,
+      voteType: typedVoteType,
+    };
+    const [created] = await db.insert(votes).values([votePayload]).returning();
     return created;
   }
 
@@ -1014,7 +1097,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async logSecurityEvent(event: InsertSecurityAuditLog): Promise<SecurityAuditLog> {
-    const [created] = await db.insert(securityAuditLog).values(event).returning();
+    const eventData = {
+      ...event,
+      eventType: event.eventType as typeof securityEventTypes[number],
+    };
+    const [created] = await db.insert(securityAuditLog).values([eventData]).returning();
     return created;
   }
 
@@ -1052,7 +1139,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
-    const [created] = await db.insert(supportTickets).values(ticket).returning();
+    const ticketData = {
+      ...ticket,
+      category: ticket.category as typeof ticketCategories[number],
+      priority: (ticket.priority || "medium") as typeof ticketPriorities[number],
+    };
+    const [created] = await db.insert(supportTickets).values([ticketData]).returning();
     return created;
   }
 
@@ -1075,7 +1167,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDispute(dispute: InsertDispute): Promise<Dispute> {
-    const [created] = await db.insert(disputes).values(dispute).returning();
+    const disputeData = {
+      ...dispute,
+      category: dispute.category as typeof disputeCategories[number],
+    };
+    const [created] = await db.insert(disputes).values([disputeData]).returning();
     return created;
   }
 
@@ -1127,7 +1223,7 @@ export class DatabaseStorage implements IStorage {
 
   async approveAgent(id: number): Promise<AgentUpload | undefined> {
     const [updated] = await db.update(agentUploads)
-      .set({ status: "published", updatedAt: new Date() })
+      .set({ status: "published" as typeof agentUploadStatuses[number], updatedAt: new Date() })
       .where(eq(agentUploads.id, id))
       .returning();
     return updated;
@@ -1135,7 +1231,7 @@ export class DatabaseStorage implements IStorage {
 
   async rejectAgent(id: number, reason: string): Promise<AgentUpload | undefined> {
     const [updated] = await db.update(agentUploads)
-      .set({ status: "rejected", updatedAt: new Date() })
+      .set({ status: "rejected" as typeof agentUploadStatuses[number], updatedAt: new Date() })
       .where(eq(agentUploads.id, id))
       .returning();
     return updated;

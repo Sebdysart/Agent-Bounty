@@ -1,15 +1,26 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { 
   Search, Plug, Link2, Cloud, Database, MessageSquare, 
   BarChart3, FolderOpen, Cpu, DollarSign, Briefcase,
-  Check, ExternalLink, Star
+  Check, ExternalLink, Star, Key, Loader2, AlertCircle, Settings
 } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const categoryIcons: Record<string, any> = {
   crm: Briefcase,
@@ -37,11 +48,34 @@ const categoryLabels: Record<string, string> = {
   storage: "Storage",
 };
 
+const authTypeLabels: Record<string, string> = {
+  oauth2: "OAuth 2.0",
+  api_key: "API Key",
+  bearer: "Bearer Token",
+  basic: "Username & Password",
+};
+
+interface Connector {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+  authType: string;
+  webhookSupport: boolean;
+  isPremium: boolean;
+  baseUrl: string;
+}
+
 export default function IntegrationsHub() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
 
-  const { data: connectors = [], isLoading } = useQuery<any[]>({
+  const { data: connectors = [], isLoading } = useQuery<Connector[]>({
     queryKey: ["/api/integrations/connectors", searchQuery, selectedCategory],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -60,11 +94,101 @@ export default function IntegrationsHub() {
     queryKey: ["/api/integrations/user"],
   });
 
-  const { data: popularConnectors = [] } = useQuery<any[]>({
+  const { data: popularConnectors = [] } = useQuery<Connector[]>({
     queryKey: ["/api/integrations/connectors/popular"],
   });
 
+  const connectMutation = useMutation({
+    mutationFn: async (data: { connectorId: number; credentials: Record<string, string> }) => {
+      return apiRequest("POST", "/api/integrations/connect", {
+        connectorId: data.connectorId,
+        credentials: data.credentials,
+        config: {},
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/user"] });
+      toast({
+        title: "Integration connected!",
+        description: `Successfully connected to ${selectedConnector?.name}`,
+      });
+      setConnectDialogOpen(false);
+      setSelectedConnector(null);
+      setCredentials({});
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Connection failed",
+        description: error.message || "Failed to connect integration",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async (integrationId: number) => {
+      return apiRequest("DELETE", `/api/integrations/${integrationId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/user"] });
+      toast({
+        title: "Disconnected",
+        description: "Integration has been disconnected",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect integration",
+        variant: "destructive",
+      });
+    },
+  });
+
   const connectedIds = new Set(userIntegrations.map((i: any) => i.connectorId));
+  const getUserIntegration = (connectorId: number) => 
+    userIntegrations.find((i: any) => i.connectorId === connectorId);
+
+  const handleConnectClick = (connector: Connector) => {
+    setSelectedConnector(connector);
+    setCredentials({});
+    setConnectDialogOpen(true);
+  };
+
+  const handleConnect = () => {
+    if (!selectedConnector) return;
+    connectMutation.mutate({
+      connectorId: selectedConnector.id,
+      credentials,
+    });
+  };
+
+  const handleDisconnect = (integrationId: number) => {
+    if (confirm("Are you sure you want to disconnect this integration?")) {
+      disconnectMutation.mutate(integrationId);
+    }
+  };
+
+  const getCredentialFields = (authType: string) => {
+    switch (authType) {
+      case "api_key":
+        return [{ key: "apiKey", label: "API Key", type: "password" }];
+      case "bearer":
+        return [{ key: "token", label: "Access Token", type: "password" }];
+      case "basic":
+        return [
+          { key: "username", label: "Username", type: "text" },
+          { key: "password", label: "Password", type: "password" },
+        ];
+      case "oauth2":
+        return [
+          { key: "clientId", label: "Client ID", type: "text" },
+          { key: "clientSecret", label: "Client Secret", type: "password" },
+        ];
+      default:
+        return [{ key: "apiKey", label: "API Key", type: "password" }];
+    }
+  };
 
   const categories = [
     "all",
@@ -199,9 +323,10 @@ export default function IntegrationsHub() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {connectors.map((connector: any) => {
+              {connectors.map((connector) => {
                 const Icon = categoryIcons[connector.category] || Plug;
                 const isConnected = connectedIds.has(connector.id);
+                const userIntegration = getUserIntegration(connector.id);
                 return (
                   <Card
                     key={connector.id}
@@ -251,15 +376,38 @@ export default function IntegrationsHub() {
                             </Badge>
                           )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant={isConnected ? "outline" : "default"}
-                          className={!isConnected ? "bg-gradient-to-r from-violet-600 to-fuchsia-600" : ""}
-                          data-testid={`button-connect-${connector.id}`}
-                        >
-                          {isConnected ? "Configure" : "Connect"}
-                          <ExternalLink className="h-3 w-3 ml-1" />
-                        </Button>
+                        {isConnected ? (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleConnectClick(connector)}
+                              data-testid={`button-configure-${connector.id}`}
+                            >
+                              <Settings className="h-3 w-3 mr-1" />
+                              Configure
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => userIntegration && handleDisconnect(userIntegration.id)}
+                              disabled={disconnectMutation.isPending}
+                              data-testid={`button-disconnect-${connector.id}`}
+                            >
+                              Disconnect
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-violet-600 to-fuchsia-600"
+                            onClick={() => handleConnectClick(connector)}
+                            data-testid={`button-connect-${connector.id}`}
+                          >
+                            Connect
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -271,8 +419,9 @@ export default function IntegrationsHub() {
 
         <TabsContent value="popular">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {popularConnectors.map((connector: any, index: number) => {
+            {popularConnectors.map((connector, index) => {
               const Icon = categoryIcons[connector.category] || Plug;
+              const isConnected = connectedIds.has(connector.id);
               return (
                 <Card key={connector.id} className="hover-elevate" data-testid={`card-popular-${connector.id}`}>
                   <CardHeader className="pb-2">
@@ -286,15 +435,25 @@ export default function IntegrationsHub() {
                       <div>
                         <CardTitle className="text-base">{connector.name}</CardTitle>
                         <p className="text-xs text-muted-foreground">
-                          {connector.usageCount?.toLocaleString() || 0} users
+                          {(connector as any).usageCount?.toLocaleString() || 0} users
                         </p>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="text-sm">
+                    <CardDescription className="text-sm mb-4">
                       {connector.description}
                     </CardDescription>
+                    <Button
+                      size="sm"
+                      className={isConnected ? "" : "bg-gradient-to-r from-violet-600 to-fuchsia-600"}
+                      variant={isConnected ? "outline" : "default"}
+                      onClick={() => handleConnectClick(connector)}
+                      data-testid={`button-connect-popular-${connector.id}`}
+                    >
+                      {isConnected ? "Configure" : "Connect"}
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
                   </CardContent>
                 </Card>
               );
@@ -350,11 +509,26 @@ export default function IntegrationsHub() {
                           : "Never"}
                       </p>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" data-testid={`button-configure-${integration.id}`}>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => integration.connector && handleConnectClick(integration.connector)}
+                          data-testid={`button-configure-integration-${integration.id}`}
+                        >
                           Configure
                         </Button>
-                        <Button size="sm" variant="destructive" data-testid={`button-disconnect-${integration.id}`}>
-                          Disconnect
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => handleDisconnect(integration.id)}
+                          disabled={disconnectMutation.isPending}
+                          data-testid={`button-disconnect-integration-${integration.id}`}
+                        >
+                          {disconnectMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            "Disconnect"
+                          )}
                         </Button>
                       </div>
                     </CardContent>
@@ -365,6 +539,84 @@ export default function IntegrationsHub() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Connect Integration Dialog */}
+      <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10">
+                <Key className="h-5 w-5 text-violet-400" />
+              </div>
+              Connect to {selectedConnector?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Enter your credentials to connect this integration. Your credentials are encrypted and stored securely.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedConnector && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Authentication type: <span className="font-medium text-foreground">{authTypeLabels[selectedConnector.authType] || selectedConnector.authType}</span>
+                </p>
+              </div>
+
+              {getCredentialFields(selectedConnector.authType).map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <Label htmlFor={field.key}>{field.label}</Label>
+                  <Input
+                    id={field.key}
+                    type={field.type}
+                    placeholder={`Enter your ${field.label.toLowerCase()}`}
+                    value={credentials[field.key] || ""}
+                    onChange={(e) => setCredentials({ ...credentials, [field.key]: e.target.value })}
+                    data-testid={`input-credential-${field.key}`}
+                  />
+                </div>
+              ))}
+
+              {selectedConnector.authType === "oauth2" && (
+                <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                  <p className="text-sm text-violet-300">
+                    For OAuth2 integrations, you'll need to configure your app in the {selectedConnector.name} developer console and obtain client credentials.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConnectDialogOpen(false)}
+              data-testid="button-cancel-connect"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConnect}
+              disabled={connectMutation.isPending || Object.keys(credentials).length === 0}
+              className="bg-gradient-to-r from-violet-600 to-fuchsia-600"
+              data-testid="button-confirm-connect"
+            >
+              {connectMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Connect
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

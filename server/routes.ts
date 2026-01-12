@@ -2891,10 +2891,22 @@ ${agentOutput}`
     }
   });
 
+  const finopsBudgetSchema = z.object({
+    name: z.string().min(1).max(100),
+    amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    period: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]),
+    alertThresholds: z.array(z.number().min(0).max(100)).optional(),
+    isActive: z.boolean().optional(),
+  });
+
   app.post("/api/finops/budgets", hybridAuth, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || req.user?.id;
-      const budget = await finopsService.createBudget(userId, req.body);
+      const parsed = finopsBudgetSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid budget data", errors: parsed.error.errors });
+      }
+      const budget = await finopsService.createBudget(userId, parsed.data);
       res.json(budget);
     } catch (error) {
       console.error("Error creating budget:", error);
@@ -3336,10 +3348,21 @@ ${agentOutput}`
     }
   });
 
+  const quantumKeySchema = z.object({
+    keyType: z.enum(["asymmetric", "symmetric"]),
+    algorithm: z.enum(["kyber1024", "dilithium5", "sphincs256", "aes256gcm"]),
+    purpose: z.string().min(1).max(200),
+    expiresInDays: z.number().int().min(1).max(365).optional(),
+  });
+
   app.post("/api/quantum/keys", hybridAuth, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || req.user?.id;
-      const { keyType, algorithm, purpose, expiresInDays } = req.body;
+      const parsed = quantumKeySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid key parameters", errors: parsed.error.errors });
+      }
+      const { keyType, algorithm, purpose, expiresInDays } = parsed.data;
       const key = await quantumEncryptionService.generateKeyPair(userId, keyType, algorithm, purpose, expiresInDays);
       res.json({ id: key.id, fingerprint: key.keyFingerprint, algorithm: key.algorithm, status: key.status });
     } catch (error) {
@@ -3348,10 +3371,20 @@ ${agentOutput}`
     }
   });
 
+  const quantumEncryptSchema = z.object({
+    dataType: z.string().min(1).max(50),
+    plaintext: z.string().min(1).max(1024 * 1024),
+    keyId: z.number().int().positive().optional(),
+  });
+
   app.post("/api/quantum/encrypt", hybridAuth, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || req.user?.id;
-      const { dataType, plaintext, keyId } = req.body;
+      const parsed = quantumEncryptSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid encryption request", errors: parsed.error.errors });
+      }
+      const { dataType, plaintext, keyId } = parsed.data;
       const encrypted = await quantumEncryptionService.encryptData(userId, dataType, plaintext, keyId);
       res.json({ id: encrypted.id, dataType: encrypted.dataType, algorithm: encrypted.algorithm });
     } catch (error: any) {

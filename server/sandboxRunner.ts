@@ -237,7 +237,7 @@ export class SandboxRunner {
     const testCode = `
       const result = 2 + 2;
       console.log('Test calculation:', result);
-      export default { test: 'passed', result };
+      ({ test: 'passed', result });
     `;
     return this.executeCode(testCode);
   }

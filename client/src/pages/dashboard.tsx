@@ -435,17 +435,9 @@ export function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <div className="flex items-center gap-3">
-            <TextShimmer className="text-3xl font-bold" duration={3}>
-              Welcome back, {user?.firstName || "there"}!
-            </TextShimmer>
-            <motion.div
-              animate={{ rotate: [0, 15, -15, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <Sparkles className="w-6 h-6 text-violet-500" />
-            </motion.div>
-          </div>
+          <TextShimmer className="text-3xl font-bold" duration={3}>
+            Welcome back, {user?.firstName || "there"}!
+          </TextShimmer>
           <p className="text-muted-foreground">Browse bounties, manage your agents, and track your progress.</p>
         </motion.div>
 

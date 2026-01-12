@@ -722,7 +722,7 @@ export const agentLlmConfigs = pgTable("agent_llm_configs", {
 // BLOCKCHAIN VERIFICATION PROOFS
 // ============================================
 
-export const blockchainNetworks = ["ethereum", "polygon", "arbitrum"] as const;
+export const blockchainNetworks = ["ethereum", "polygon", "arbitrum", "optimism"] as const;
 export const verificationProofs = pgTable("verification_proofs", {
   id: serial("id").primaryKey(),
   bountyId: integer("bounty_id").notNull().references(() => bounties.id),
@@ -2034,3 +2034,162 @@ export type LiveChatMessage = typeof liveChatMessages.$inferSelect;
 export type OnboardingProgress = typeof onboardingProgress.$inferSelect;
 export type DashboardWidget = typeof dashboardWidgets.$inferSelect;
 export type DashboardLayout = typeof dashboardLayouts.$inferSelect;
+
+// ==================== MAX TIER SANDBOX SYSTEM ====================
+
+export const sandboxTiers = ["basic", "standard", "professional", "enterprise", "max"] as const;
+export const sandboxRuntimes = ["quickjs", "wasmtime", "docker", "kubernetes", "firecracker"] as const;
+export const securityLevels = ["minimal", "standard", "strict", "paranoid"] as const;
+export const proxyRuleTypes = ["allow", "deny", "rate_limit", "transform"] as const;
+export const violationSeverities = ["low", "medium", "high", "critical"] as const;
+
+export const sandboxConfigurations = pgTable("sandbox_configurations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tier: text("tier").notNull().$type<typeof sandboxTiers[number]>().default("standard"),
+  runtime: text("runtime").notNull().$type<typeof sandboxRuntimes[number]>().default("quickjs"),
+  securityLevel: text("security_level").notNull().$type<typeof securityLevels[number]>().default("standard"),
+  cpuCores: integer("cpu_cores").default(1),
+  memoryMb: integer("memory_mb").default(512),
+  timeoutMs: integer("timeout_ms").default(30000),
+  maxCodeSizeKb: integer("max_code_size_kb").default(512),
+  maxInputSizeKb: integer("max_input_size_kb").default(1024),
+  allowFetch: boolean("allow_fetch").default(false),
+  allowFs: boolean("allow_fs").default(false),
+  allowNetworking: boolean("allow_networking").default(false),
+  allowedDomains: text("allowed_domains").array(),
+  blockedPatterns: text("blocked_patterns").array(),
+  environmentVars: text("environment_vars"), // JSON encrypted
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const sandboxSessions = pgTable("sandbox_sessions", {
+  id: serial("id").primaryKey(),
+  sessionId: text("session_id").notNull().unique(),
+  configId: integer("config_id").references(() => sandboxConfigurations.id),
+  agentId: integer("agent_id").references(() => agents.id),
+  executionId: integer("execution_id").references(() => agentExecutions.id),
+  status: text("status").notNull().$type<typeof executionStatuses[number]>().default("queued"),
+  runtime: text("runtime").notNull().$type<typeof sandboxRuntimes[number]>(),
+  cpuUsagePercent: decimal("cpu_usage_percent", { precision: 5, scale: 2 }),
+  memoryUsedMb: integer("memory_used_mb"),
+  peakMemoryMb: integer("peak_memory_mb"),
+  networkBytesIn: integer("network_bytes_in").default(0),
+  networkBytesOut: integer("network_bytes_out").default(0),
+  filesystemOps: integer("filesystem_ops").default(0),
+  apiCalls: integer("api_calls").default(0),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  durationMs: integer("duration_ms"),
+  exitCode: integer("exit_code"),
+  outputHash: text("output_hash"),
+  logs: text("logs"),
+  errors: text("errors"),
+  metadata: text("metadata"), // JSON
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const toolProxyRules = pgTable("tool_proxy_rules", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  toolId: integer("tool_id").references(() => agentTools.id),
+  ruleType: text("rule_type").notNull().$type<typeof proxyRuleTypes[number]>(),
+  pattern: text("pattern").notNull(),
+  action: text("action").notNull(), // JSON: action config
+  rateLimit: integer("rate_limit"), // requests per minute
+  priority: integer("priority").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const securityViolations = pgTable("security_violations", {
+  id: serial("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  agentId: integer("agent_id").references(() => agents.id),
+  violationType: text("violation_type").notNull(),
+  severity: text("severity").notNull().$type<typeof violationSeverities[number]>(),
+  description: text("description").notNull(),
+  stackTrace: text("stack_trace"),
+  blockedAction: text("blocked_action"),
+  metadata: text("metadata"), // JSON
+  resolved: boolean("resolved").default(false),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const blockchainProofs = pgTable("blockchain_proofs", {
+  id: serial("id").primaryKey(),
+  executionId: integer("execution_id").references(() => agentExecutions.id),
+  network: text("network").notNull().$type<typeof blockchainNetworks[number]>(),
+  transactionHash: text("transaction_hash"),
+  blockNumber: integer("block_number"),
+  contractAddress: text("contract_address"),
+  proofData: text("proof_data").notNull(), // JSON: Merkle proof
+  inputHash: text("input_hash").notNull(),
+  outputHash: text("output_hash").notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  gasUsed: integer("gas_used"),
+  status: text("status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const resourceQuotas = pgTable("resource_quotas", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  quotaType: text("quota_type").notNull(), // cpu_hours, memory_gb_hours, api_calls, storage_gb
+  dailyLimit: integer("daily_limit"),
+  monthlyLimit: integer("monthly_limit"),
+  currentDaily: integer("current_daily").default(0),
+  currentMonthly: integer("current_monthly").default(0),
+  lastResetDaily: timestamp("last_reset_daily").defaultNow(),
+  lastResetMonthly: timestamp("last_reset_monthly").defaultNow(),
+  overage_allowed: boolean("overage_allowed").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const anomalyDetections = pgTable("anomaly_detections", {
+  id: serial("id").primaryKey(),
+  sessionId: text("session_id"),
+  agentId: integer("agent_id").references(() => agents.id),
+  anomalyType: text("anomaly_type").notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 4 }).notNull(),
+  baselineValue: decimal("baseline_value", { precision: 15, scale: 4 }),
+  observedValue: decimal("observed_value", { precision: 15, scale: 4 }),
+  deviation: decimal("deviation", { precision: 10, scale: 4 }),
+  description: text("description").notNull(),
+  autoResolved: boolean("auto_resolved").default(false),
+  actionTaken: text("action_taken"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert schemas
+export const insertSandboxConfigurationSchema = createInsertSchema(sandboxConfigurations).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSandboxSessionSchema = createInsertSchema(sandboxSessions).omit({ id: true, createdAt: true });
+export const insertToolProxyRuleSchema = createInsertSchema(toolProxyRules).omit({ id: true, createdAt: true });
+export const insertSecurityViolationSchema = createInsertSchema(securityViolations).omit({ id: true, createdAt: true });
+export const insertBlockchainProofSchema = createInsertSchema(blockchainProofs).omit({ id: true, createdAt: true });
+export const insertResourceQuotaSchema = createInsertSchema(resourceQuotas).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAnomalyDetectionSchema = createInsertSchema(anomalyDetections).omit({ id: true, createdAt: true });
+
+// Types
+export type SandboxConfiguration = typeof sandboxConfigurations.$inferSelect;
+export type InsertSandboxConfiguration = z.infer<typeof insertSandboxConfigurationSchema>;
+export type SandboxSession = typeof sandboxSessions.$inferSelect;
+export type InsertSandboxSession = z.infer<typeof insertSandboxSessionSchema>;
+export type ToolProxyRule = typeof toolProxyRules.$inferSelect;
+export type InsertToolProxyRule = z.infer<typeof insertToolProxyRuleSchema>;
+export type SecurityViolation = typeof securityViolations.$inferSelect;
+export type InsertSecurityViolation = z.infer<typeof insertSecurityViolationSchema>;
+export type BlockchainProof = typeof blockchainProofs.$inferSelect;
+export type InsertBlockchainProof = z.infer<typeof insertBlockchainProofSchema>;
+export type ResourceQuota = typeof resourceQuotas.$inferSelect;
+export type InsertResourceQuota = z.infer<typeof insertResourceQuotaSchema>;
+export type AnomalyDetection = typeof anomalyDetections.$inferSelect;
+export type InsertAnomalyDetection = z.infer<typeof insertAnomalyDetectionSchema>;

@@ -115,7 +115,7 @@ export function IntegrationWizard({ open, onOpenChange, connector, isReconfigure
 
   const connectMutation = useMutation({
     mutationFn: async (data: { connectorId: number; credentials: Record<string, string> }) => {
-      return apiRequest("POST", "/api/gateway/connect", data);
+      return apiRequest("POST", "/api/integrations/connect", data);
     },
     onSuccess: async () => {
       setConnectionStatus({

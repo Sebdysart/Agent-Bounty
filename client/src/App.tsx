@@ -47,6 +47,7 @@ import IntegrationsHubPage from "@/pages/integrations-hub";
 import FinOpsConsolePage from "@/pages/finops-console";
 import PredictiveAnalyticsPage from "@/pages/predictive-analytics";
 import QuantumSecurityPage from "@/pages/quantum-security";
+import SandboxControlPage from "@/pages/sandbox-control";
 
 function AuthenticatedRouter() {
   return (
@@ -89,6 +90,7 @@ function AuthenticatedRouter() {
       <Route path="/finops" component={FinOpsConsolePage} />
       <Route path="/predictive-analytics" component={PredictiveAnalyticsPage} />
       <Route path="/quantum-security" component={QuantumSecurityPage} />
+      <Route path="/sandbox-control" component={SandboxControlPage} />
       <Route component={NotFound} />
     </Switch>
   );

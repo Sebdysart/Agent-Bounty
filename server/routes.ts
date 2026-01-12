@@ -30,6 +30,7 @@ import { liveChatService } from "./liveChatService";
 import { onboardingService } from "./onboardingService";
 import { customDashboardService } from "./customDashboardService";
 import { enterpriseTierService } from "./enterpriseTierService";
+import { maxTierSandboxService } from "./maxTierSandboxService";
 
 function getOpenAIClient() {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -4000,6 +4001,208 @@ ${agentOutput}`
       res.status(500).json({ message: "Failed to cancel" });
     }
   });
+
+  // ============================================
+  // MAX TIER SANDBOX ROUTES
+  // ============================================
+
+  app.get("/api/sandbox/configurations", hybridAuth, async (req, res) => {
+    try {
+      const configs = await maxTierSandboxService.getAllConfigurations();
+      res.json(configs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch configurations" });
+    }
+  });
+
+  app.get("/api/sandbox/configurations/default", hybridAuth, async (req, res) => {
+    try {
+      const config = await maxTierSandboxService.getDefaultConfiguration();
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch default configuration" });
+    }
+  });
+
+  const sandboxConfigSchema = z.object({
+    name: z.string().min(1).max(100).optional(),
+    tier: z.enum(["basic", "standard", "professional", "enterprise", "max"]).optional(),
+    runtime: z.enum(["quickjs", "wasmtime", "docker", "kubernetes", "firecracker"]).optional(),
+    securityLevel: z.enum(["minimal", "standard", "strict", "paranoid"]).optional(),
+    cpuCores: z.number().min(1).max(16).optional(),
+    memoryMb: z.number().min(128).max(16384).optional(),
+    timeoutMs: z.number().min(1000).max(600000).optional(),
+    isDefault: z.boolean().optional(),
+  });
+
+  app.post("/api/sandbox/configurations", hybridAuth, async (req: any, res) => {
+    try {
+      const parsed = sandboxConfigSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid configuration", errors: parsed.error.errors });
+      }
+      const config = await maxTierSandboxService.createConfiguration(parsed.data);
+      res.json(config);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  const sandboxExecuteSchema = z.object({
+    code: z.string().min(1).max(512 * 1024),
+    input: z.any().optional(),
+    agentId: z.number().int().positive(),
+    executionId: z.number().int().positive().optional(),
+    configId: z.number().int().positive().optional(),
+  });
+
+  app.post("/api/sandbox/execute", hybridAuth, async (req: any, res) => {
+    try {
+      const parsed = sandboxExecuteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid execution request", errors: parsed.error.errors });
+      }
+      const { code, input, agentId, executionId, configId } = parsed.data;
+      const result = await maxTierSandboxService.executeWithMonitoring(
+        code, input, agentId, executionId, configId
+      );
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  const sandboxScanSchema = z.object({
+    code: z.string().min(1).max(1024 * 1024),
+  });
+
+  app.post("/api/sandbox/scan", hybridAuth, async (req: any, res) => {
+    try {
+      const parsed = sandboxScanSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid scan request", errors: parsed.error.errors });
+      }
+      const result = await maxTierSandboxService.scanCodeSecurity(parsed.data.code);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/sandbox/sessions", hybridAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const sessions = await maxTierSandboxService.getRecentSessions(limit);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  app.get("/api/sandbox/sessions/:sessionId", hybridAuth, async (req, res) => {
+    try {
+      const session = await maxTierSandboxService.getSessionById(req.params.sessionId);
+      if (!session) return res.status(404).json({ message: "Session not found" });
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch session" });
+    }
+  });
+
+  app.get("/api/sandbox/violations", hybridAuth, async (req, res) => {
+    try {
+      const resolved = req.query.resolved === 'true' ? true : req.query.resolved === 'false' ? false : undefined;
+      const violations = await maxTierSandboxService.getSecurityViolations(resolved);
+      res.json(violations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch violations" });
+    }
+  });
+
+  app.get("/api/sandbox/anomalies", hybridAuth, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const anomalies = await maxTierSandboxService.getAnomalies(limit);
+      res.json(anomalies);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch anomalies" });
+    }
+  });
+
+  app.get("/api/sandbox/stats", hybridAuth, async (req, res) => {
+    try {
+      const stats = await maxTierSandboxService.getExecutionStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.get("/api/sandbox/proxy-rules", hybridAuth, async (req, res) => {
+    try {
+      const rules = await maxTierSandboxService.getToolProxyRules();
+      res.json(rules);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proxy rules" });
+    }
+  });
+
+  const proxyRuleSchema = z.object({
+    name: z.string().min(1).max(100),
+    description: z.string().max(500).optional(),
+    toolId: z.number().int().positive().optional(),
+    ruleType: z.enum(["allow", "deny", "rate_limit", "transform"]),
+    pattern: z.string().min(1).max(500),
+    action: z.string().max(2000).optional(),
+    rateLimit: z.number().int().min(1).max(10000).optional(),
+    priority: z.number().int().min(0).max(1000).optional(),
+  });
+
+  app.post("/api/sandbox/proxy-rules", hybridAuth, async (req: any, res) => {
+    try {
+      const parsed = proxyRuleSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid proxy rule", errors: parsed.error.errors });
+      }
+      const rule = await maxTierSandboxService.createToolProxyRule(parsed.data);
+      res.json(rule);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  const blockchainProofSchema = z.object({
+    executionId: z.number().int().positive(),
+    network: z.enum(["ethereum", "polygon", "arbitrum", "optimism"]),
+    inputHash: z.string().regex(/^[a-fA-F0-9]{64}$/, "Invalid SHA-256 hash"),
+    outputHash: z.string().regex(/^[a-fA-F0-9]{64}$/, "Invalid SHA-256 hash"),
+  });
+
+  app.post("/api/sandbox/blockchain-proof", hybridAuth, async (req: any, res) => {
+    try {
+      const parsed = blockchainProofSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid proof request", errors: parsed.error.errors });
+      }
+      const { executionId, network, inputHash, outputHash } = parsed.data;
+      const proof = await maxTierSandboxService.createBlockchainProof(executionId, network, inputHash, outputHash);
+      res.json(proof);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/sandbox/blockchain-proofs/:executionId", hybridAuth, async (req, res) => {
+    try {
+      const proofs = await maxTierSandboxService.getBlockchainProofs(parseInt(req.params.executionId));
+      res.json(proofs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proofs" });
+    }
+  });
+
+  // Initialize default sandbox configurations
+  maxTierSandboxService.initializeDefaultConfigurations().catch(console.error);
 
   return httpServer;
 }

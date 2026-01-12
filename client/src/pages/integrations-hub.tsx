@@ -13,6 +13,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { IntegrationWizard } from "@/components/integration-wizard";
+import { DashboardLayout } from "@/components/dashboard-layout";
 
 const categoryIcons: Record<string, any> = {
   crm: Briefcase,
@@ -125,15 +126,16 @@ export default function IntegrationsHub() {
   ];
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
-          Integrations Hub
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Connect your favorite tools and services to supercharge your AI agents
-        </p>
-      </div>
+    <DashboardLayout>
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
+            Integrations Hub
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Connect your favorite tools and services to supercharge your AI agents
+          </p>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-transparent">
@@ -472,12 +474,13 @@ export default function IntegrationsHub() {
         </TabsContent>
       </Tabs>
 
-      <IntegrationWizard
-        open={wizardOpen}
-        onOpenChange={setWizardOpen}
-        connector={selectedConnector}
-        isReconfigure={isReconfigure}
-      />
-    </div>
+        <IntegrationWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          connector={selectedConnector}
+          isReconfigure={isReconfigure}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

@@ -223,99 +223,152 @@ export function AgentUploadPage() {
   const renderStep1 = () => (
     <div className="space-y-6">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold mb-2">Choose Your Upload Method</h2>
+        <h2 className="text-3xl font-bold font-display bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent mb-2">
+          Choose Your Upload Method
+        </h2>
         <p className="text-muted-foreground">Select how you want to create your AI agent</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
         <Card 
-          className={`cursor-pointer transition-all hover-elevate ${uploadType === "no_code" ? "ring-2 ring-primary" : ""}`}
+          className={`cursor-pointer transition-all duration-200 group relative overflow-hidden border-border/50 hover:border-violet-500/50 ${
+            uploadType === "no_code" ? "ring-2 ring-violet-500 border-violet-500/50" : ""
+          }`}
           onClick={() => setUploadType("no_code")}
           data-testid="card-nocode-option"
         >
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-4">
-              <Wand2 className="w-8 h-8 text-white" />
+          {uploadType === "no_code" && (
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500" />
+          )}
+          <CardHeader className="text-center pb-4">
+            <div className="w-14 h-14 mx-auto bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-200">
+              <Wand2 className="w-7 h-7 text-white" />
             </div>
-            <CardTitle>No-Code</CardTitle>
-            <CardDescription>Describe your agent in plain language</CardDescription>
+            <CardTitle className="text-xl font-display">No-Code</CardTitle>
+            <CardDescription className="text-sm">Describe your agent in plain language</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Natural language input
+          <CardContent className="pt-0">
+            <ul className="text-sm text-muted-foreground space-y-2.5">
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Natural language input
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> AI generates config
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                AI generates config
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Ready in minutes
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Ready in minutes
               </li>
             </ul>
           </CardContent>
-          <CardFooter>
-            <Badge variant="secondary" className="w-full justify-center">Best for beginners</Badge>
+          <CardFooter className="pt-4">
+            <span className="w-full text-center text-xs font-medium px-3 py-2 rounded-full bg-card border border-border/50 text-muted-foreground">
+              Best for beginners
+            </span>
           </CardFooter>
+          <div className="absolute -bottom-16 -right-16 w-32 h-32 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-full blur-3xl opacity-5 group-hover:opacity-15 transition-opacity duration-500" />
         </Card>
 
         <Card 
-          className={`cursor-pointer transition-all hover-elevate ${uploadType === "low_code" ? "ring-2 ring-primary" : ""}`}
+          className={`cursor-pointer transition-all duration-200 group relative overflow-hidden border-border/50 hover:border-fuchsia-500/50 ${
+            uploadType === "low_code" ? "ring-2 ring-fuchsia-500 border-fuchsia-500/50" : ""
+          }`}
           onClick={() => setUploadType("low_code")}
           data-testid="card-lowcode-option"
         >
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-4">
-              <FileJson className="w-8 h-8 text-white" />
+          {uploadType === "low_code" && (
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-fuchsia-500 via-cyan-500 to-fuchsia-500" />
+          )}
+          <CardHeader className="text-center pb-4">
+            <div className="w-14 h-14 mx-auto bg-gradient-to-br from-fuchsia-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-fuchsia-500/20 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-200">
+              <FileJson className="w-7 h-7 text-white" />
             </div>
-            <CardTitle>Low-Code</CardTitle>
-            <CardDescription>Import JSON manifest or use visual editor</CardDescription>
+            <CardTitle className="text-xl font-display">Low-Code</CardTitle>
+            <CardDescription className="text-sm">Import JSON manifest or use visual editor</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> JSON/YAML import
+          <CardContent className="pt-0">
+            <ul className="text-sm text-muted-foreground space-y-2.5">
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                JSON/YAML import
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Visual configuration
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Visual configuration
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Flexible customization
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Flexible customization
               </li>
             </ul>
           </CardContent>
-          <CardFooter>
-            <Badge variant="secondary" className="w-full justify-center">Intermediate users</Badge>
+          <CardFooter className="pt-4">
+            <span className="w-full text-center text-xs font-medium px-3 py-2 rounded-full bg-card border border-border/50 text-muted-foreground">
+              Intermediate users
+            </span>
           </CardFooter>
+          <div className="absolute -bottom-16 -right-16 w-32 h-32 bg-gradient-to-br from-fuchsia-500 to-cyan-500 rounded-full blur-3xl opacity-5 group-hover:opacity-15 transition-opacity duration-500" />
         </Card>
 
         <Card 
-          className={`cursor-pointer transition-all hover-elevate ${uploadType === "full_code" ? "ring-2 ring-primary" : ""}`}
+          className={`cursor-pointer transition-all duration-200 group relative overflow-hidden border-border/50 hover:border-cyan-500/50 ${
+            uploadType === "full_code" ? "ring-2 ring-cyan-500 border-cyan-500/50" : ""
+          }`}
           onClick={() => setUploadType("full_code")}
           data-testid="card-fullcode-option"
         >
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mb-4">
-              <GitBranch className="w-8 h-8 text-white" />
+          {uploadType === "full_code" && (
+            <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500" />
+          )}
+          <CardHeader className="text-center pb-4">
+            <div className="w-14 h-14 mx-auto bg-gradient-to-br from-cyan-500 to-violet-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/20 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-200">
+              <GitBranch className="w-7 h-7 text-white" />
             </div>
-            <CardTitle>Full-Code</CardTitle>
-            <CardDescription>Connect Git repository or upload code</CardDescription>
+            <CardTitle className="text-xl font-display">Full-Code</CardTitle>
+            <CardDescription className="text-sm">Connect Git repository or upload code</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Git integration
+          <CardContent className="pt-0">
+            <ul className="text-sm text-muted-foreground space-y-2.5">
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Git integration
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Custom frameworks
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Custom frameworks
               </li>
-              <li className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" /> Full control
+              <li className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+                Full control
               </li>
             </ul>
           </CardContent>
-          <CardFooter>
-            <Badge variant="secondary" className="w-full justify-center">Advanced developers</Badge>
+          <CardFooter className="pt-4">
+            <span className="w-full text-center text-xs font-medium px-3 py-2 rounded-full bg-card border border-border/50 text-muted-foreground">
+              Advanced developers
+            </span>
           </CardFooter>
+          <div className="absolute -bottom-16 -right-16 w-32 h-32 bg-gradient-to-br from-cyan-500 to-violet-500 rounded-full blur-3xl opacity-5 group-hover:opacity-15 transition-opacity duration-500" />
         </Card>
       </div>
 
@@ -323,6 +376,7 @@ export function AgentUploadPage() {
         <Button 
           onClick={() => setStep(2)} 
           disabled={!uploadType}
+          className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
           data-testid="button-continue-step1"
         >
           Continue <ArrowRight className="w-4 h-4 ml-2" />

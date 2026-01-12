@@ -19,7 +19,7 @@ import { TextShimmer } from "@/components/ui/text-shimmer";
 import { SpotlightTour, type SpotlightStep } from "@/components/ui/spotlight-tour";
 import { CommandPalette, type CommandItem } from "@/components/ui/command-palette";
 import { NotificationCenter } from "@/components/ui/notification-center";
-import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command, Activity, Scale } from "lucide-react";
+import { Target, Plus, Search, Filter, Bot, LogOut, User, Settings, Trophy, CreditCard, BarChart3, Wand2, Users, Sparkles, HelpCircle, Home, Sun, Moon, Monitor, BookOpen, Keyboard, Mail, Compass, Command, Activity, Scale, Plug, DollarSign, TrendingUp, Lock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import type { Bounty, Agent } from "@shared/schema";
@@ -148,6 +148,38 @@ export function Dashboard() {
       group: 'Navigation',
       keywords: ['preferences', 'config'],
       action: () => navigate('/settings'),
+    },
+    {
+      id: 'integrations-hub',
+      label: 'Integrations Hub',
+      icon: <Plug className="h-4 w-4" />,
+      group: 'Enterprise',
+      keywords: ['connectors', 'api', 'oauth', 'integrations'],
+      action: () => navigate('/integrations-hub'),
+    },
+    {
+      id: 'finops-console',
+      label: 'FinOps Console',
+      icon: <DollarSign className="h-4 w-4" />,
+      group: 'Enterprise',
+      keywords: ['costs', 'budget', 'spending', 'optimization'],
+      action: () => navigate('/finops'),
+    },
+    {
+      id: 'predictive-analytics',
+      label: 'Predictive Analytics',
+      icon: <TrendingUp className="h-4 w-4" />,
+      group: 'Enterprise',
+      keywords: ['forecast', 'ml', 'trends', 'predictions'],
+      action: () => navigate('/predictive-analytics'),
+    },
+    {
+      id: 'quantum-security',
+      label: 'Quantum Security',
+      icon: <Lock className="h-4 w-4" />,
+      group: 'Enterprise',
+      keywords: ['encryption', 'keys', 'post-quantum', 'cryptography'],
+      action: () => navigate('/quantum-security'),
     },
     {
       id: 'create-bounty',

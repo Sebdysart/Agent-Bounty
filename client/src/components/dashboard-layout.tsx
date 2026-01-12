@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { 
   Target, Plus, Trophy, CreditCard, BarChart3, Wand2, Users, 
-  LogOut, User, Settings, Bot, Upload, Store, Plug, Shield
+  LogOut, User, Settings, Bot, Upload, Store, Plug, Shield,
+  Network, DollarSign, TrendingUp, Lock, Coins, Globe
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -132,6 +133,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuItem onClick={() => navigate("/security")} className="cursor-pointer">
                   <Shield className="w-4 h-4 mr-2" />
                   Security Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Enterprise</div>
+                <DropdownMenuItem onClick={() => navigate("/integrations-hub")} className="cursor-pointer">
+                  <Plug className="w-4 h-4 mr-2" />
+                  Integrations Hub
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/finops")} className="cursor-pointer">
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  FinOps Console
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/predictive-analytics")} className="cursor-pointer">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Predictive Analytics
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/quantum-security")} className="cursor-pointer">
+                  <Lock className="w-4 h-4 mr-2" />
+                  Quantum Security
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()} className="cursor-pointer text-destructive">

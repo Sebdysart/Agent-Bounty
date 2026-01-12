@@ -17,7 +17,7 @@ type ExecutionState = {
   status: 'idle' | 'loading' | 'error';
 };
 
-const groupOrder: CommandGroupKey[] = ['Recent', 'Navigation', 'Actions', 'Settings', 'Help'];
+const groupOrder: CommandGroupKey[] = ['Recent', 'Navigation', 'Enterprise', 'Actions', 'Settings', 'Help'];
 
 function renderHighlightedText(text: string, matches: number[]): React.ReactNode {
   if (matches.length === 0) {

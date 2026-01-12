@@ -1,4 +1,4 @@
-export type CommandGroupKey = 'Recent' | 'Navigation' | 'Actions' | 'Settings' | 'Help';
+export type CommandGroupKey = 'Recent' | 'Navigation' | 'Enterprise' | 'Actions' | 'Settings' | 'Help';
 
 export type CommandItem = {
   id: string;

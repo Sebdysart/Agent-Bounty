@@ -5,22 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { 
   Search, Plug, Link2, Cloud, Database, MessageSquare, 
   BarChart3, FolderOpen, Cpu, DollarSign, Briefcase,
-  Check, ExternalLink, Star, Key, Loader2, AlertCircle, Settings
+  Check, ExternalLink, Star, Loader2, Settings, Activity
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { IntegrationWizard } from "@/components/integration-wizard";
 
 const categoryIcons: Record<string, any> = {
   crm: Briefcase,
@@ -48,13 +40,6 @@ const categoryLabels: Record<string, string> = {
   storage: "Storage",
 };
 
-const authTypeLabels: Record<string, string> = {
-  oauth2: "OAuth 2.0",
-  api_key: "API Key",
-  bearer: "Bearer Token",
-  basic: "Username & Password",
-};
-
 interface Connector {
   id: number;
   name: string;
@@ -71,9 +56,9 @@ export default function IntegrationsHub() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
-  const [credentials, setCredentials] = useState<Record<string, string>>({});
+  const [isReconfigure, setIsReconfigure] = useState(false);
 
   const { data: connectors = [], isLoading } = useQuery<Connector[]>({
     queryKey: ["/api/integrations/connectors", searchQuery, selectedCategory],
@@ -96,33 +81,6 @@ export default function IntegrationsHub() {
 
   const { data: popularConnectors = [] } = useQuery<Connector[]>({
     queryKey: ["/api/integrations/connectors/popular"],
-  });
-
-  const connectMutation = useMutation({
-    mutationFn: async (data: { connectorId: number; credentials: Record<string, string> }) => {
-      return apiRequest("POST", "/api/integrations/connect", {
-        connectorId: data.connectorId,
-        credentials: data.credentials,
-        config: {},
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/integrations/user"] });
-      toast({
-        title: "Integration connected!",
-        description: `Successfully connected to ${selectedConnector?.name}`,
-      });
-      setConnectDialogOpen(false);
-      setSelectedConnector(null);
-      setCredentials({});
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Connection failed",
-        description: error.message || "Failed to connect integration",
-        variant: "destructive",
-      });
-    },
   });
 
   const disconnectMutation = useMutation({
@@ -149,18 +107,10 @@ export default function IntegrationsHub() {
   const getUserIntegration = (connectorId: number) => 
     userIntegrations.find((i: any) => i.connectorId === connectorId);
 
-  const handleConnectClick = (connector: Connector) => {
+  const handleConnectClick = (connector: Connector, reconfigure: boolean = false) => {
     setSelectedConnector(connector);
-    setCredentials({});
-    setConnectDialogOpen(true);
-  };
-
-  const handleConnect = () => {
-    if (!selectedConnector) return;
-    connectMutation.mutate({
-      connectorId: selectedConnector.id,
-      credentials,
-    });
+    setIsReconfigure(reconfigure);
+    setWizardOpen(true);
   };
 
   const handleDisconnect = (integrationId: number) => {
@@ -169,39 +119,9 @@ export default function IntegrationsHub() {
     }
   };
 
-  const getCredentialFields = (authType: string) => {
-    switch (authType) {
-      case "api_key":
-        return [{ key: "apiKey", label: "API Key", type: "password" }];
-      case "bearer":
-        return [{ key: "token", label: "Access Token", type: "password" }];
-      case "basic":
-        return [
-          { key: "username", label: "Username", type: "text" },
-          { key: "password", label: "Password", type: "password" },
-        ];
-      case "oauth2":
-        return [
-          { key: "clientId", label: "Client ID", type: "text" },
-          { key: "clientSecret", label: "Client Secret", type: "password" },
-        ];
-      default:
-        return [{ key: "apiKey", label: "API Key", type: "password" }];
-    }
-  };
-
   const categories = [
-    "all",
-    "crm",
-    "marketing",
-    "data",
-    "devops",
-    "ai_ml",
-    "finance",
-    "communication",
-    "productivity",
-    "analytics",
-    "storage",
+    "all", "crm", "marketing", "data", "devops", "ai_ml",
+    "finance", "communication", "productivity", "analytics", "storage",
   ];
 
   return (
@@ -381,7 +301,7 @@ export default function IntegrationsHub() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleConnectClick(connector)}
+                              onClick={() => handleConnectClick(connector, true)}
                               data-testid={`button-configure-${connector.id}`}
                             >
                               <Settings className="h-3 w-3 mr-1" />
@@ -448,7 +368,7 @@ export default function IntegrationsHub() {
                       size="sm"
                       className={isConnected ? "" : "bg-gradient-to-r from-violet-600 to-fuchsia-600"}
                       variant={isConnected ? "outline" : "default"}
-                      onClick={() => handleConnectClick(connector)}
+                      onClick={() => handleConnectClick(connector, isConnected)}
                       data-testid={`button-connect-popular-${connector.id}`}
                     >
                       {isConnected ? "Configure" : "Connect"}
@@ -491,30 +411,42 @@ export default function IntegrationsHub() {
                             {integration.connector?.name || "Unknown"}
                           </CardTitle>
                         </div>
-                        <Badge
-                          className={
-                            integration.isActive
-                              ? "bg-green-500/20 text-green-400"
-                              : "bg-yellow-500/20 text-yellow-400"
-                          }
-                        >
-                          {integration.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Activity className={`h-4 w-4 ${integration.isActive ? "text-green-400" : "text-yellow-400"}`} />
+                          <Badge
+                            className={
+                              integration.isActive
+                                ? "bg-green-500/20 text-green-400"
+                                : "bg-yellow-500/20 text-yellow-400"
+                            }
+                          >
+                            {integration.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Last used: {integration.lastUsedAt 
-                          ? new Date(integration.lastUsedAt).toLocaleDateString() 
-                          : "Never"}
-                      </p>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+                        <span>
+                          Last used: {integration.lastUsedAt 
+                            ? new Date(integration.lastUsedAt).toLocaleDateString() 
+                            : "Never"}
+                        </span>
+                        {integration.isActive && (
+                          <span className="text-green-400 text-xs flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                            Healthy
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          onClick={() => integration.connector && handleConnectClick(integration.connector)}
+                          onClick={() => integration.connector && handleConnectClick(integration.connector, true)}
                           data-testid={`button-configure-integration-${integration.id}`}
                         >
+                          <Settings className="h-3 w-3 mr-1" />
                           Configure
                         </Button>
                         <Button 
@@ -540,83 +472,12 @@ export default function IntegrationsHub() {
         </TabsContent>
       </Tabs>
 
-      {/* Connect Integration Dialog */}
-      <Dialog open={connectDialogOpen} onOpenChange={setConnectDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10">
-                <Key className="h-5 w-5 text-violet-400" />
-              </div>
-              Connect to {selectedConnector?.name}
-            </DialogTitle>
-            <DialogDescription>
-              Enter your credentials to connect this integration. Your credentials are encrypted and stored securely.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedConnector && (
-            <div className="space-y-4 py-4">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
-                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                <p className="text-sm text-muted-foreground">
-                  Authentication type: <span className="font-medium text-foreground">{authTypeLabels[selectedConnector.authType] || selectedConnector.authType}</span>
-                </p>
-              </div>
-
-              {getCredentialFields(selectedConnector.authType).map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <Label htmlFor={field.key}>{field.label}</Label>
-                  <Input
-                    id={field.key}
-                    type={field.type}
-                    placeholder={`Enter your ${field.label.toLowerCase()}`}
-                    value={credentials[field.key] || ""}
-                    onChange={(e) => setCredentials({ ...credentials, [field.key]: e.target.value })}
-                    data-testid={`input-credential-${field.key}`}
-                  />
-                </div>
-              ))}
-
-              {selectedConnector.authType === "oauth2" && (
-                <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
-                  <p className="text-sm text-violet-300">
-                    For OAuth2 integrations, you'll need to configure your app in the {selectedConnector.name} developer console and obtain client credentials.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setConnectDialogOpen(false)}
-              data-testid="button-cancel-connect"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConnect}
-              disabled={connectMutation.isPending || Object.keys(credentials).length === 0}
-              className="bg-gradient-to-r from-violet-600 to-fuchsia-600"
-              data-testid="button-confirm-connect"
-            >
-              {connectMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <Link2 className="h-4 w-4 mr-2" />
-                  Connect
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IntegrationWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        connector={selectedConnector}
+        isReconfigure={isReconfigure}
+      />
     </div>
   );
 }

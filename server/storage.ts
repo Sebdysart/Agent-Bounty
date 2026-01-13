@@ -4,6 +4,7 @@ import {
   agentBadges, integrationConnectors, agentIntegrations, agentForks, agentAnalytics, agentRunLogs,
   discussions, discussionReplies, votes, securitySettings, securityAuditLog, agentSecurityScans,
   supportTickets, ticketMessages, disputes, disputeMessages, contentFlags,
+  bountyClarifyingQuestions, bountyCredentialRequirements, credentialConsents, credentialAccessLogs,
   type Bounty, type InsertBounty, type Agent, type InsertAgent,
   type Submission, type InsertSubmission, type Review, type InsertReview,
   type UserProfile, type InsertUserProfile, type BountyTimeline,
@@ -18,10 +19,14 @@ import {
   type AgentSecurityScan, type InsertAgentSecurityScan,
   type SupportTicket, type InsertSupportTicket, type TicketMessage, type InsertTicketMessage,
   type Dispute, type InsertDispute, type DisputeMessage, type InsertDisputeMessage, type ContentFlag,
+  type BountyClarifyingQuestion, type InsertBountyClarifyingQuestion,
+  type BountyCredentialRequirement, type InsertBountyCredentialRequirement,
+  type CredentialConsent, type InsertCredentialConsent,
+  type CredentialAccessLog, type InsertCredentialAccessLog,
   bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes,
   bountyCategories, orchestrationModes, userRoles, agentUploadTypes, agentToolCategories,
   integrationCategories, discussionTypes, voteTypes, securityEventTypes, ticketCategories,
-  ticketPriorities, disputeCategories, subscriptionTiers
+  ticketPriorities, disputeCategories, subscriptionTiers, bountyQuestionStatuses, consentStatuses
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
@@ -1482,6 +1487,95 @@ export class DatabaseStorage implements IStorage {
       .where(eq(agentUploads.id, id))
       .returning();
     return updated;
+  }
+
+  // Bounty Clarifying Questions
+  async getBountyClarifyingQuestions(bountyId: number): Promise<BountyClarifyingQuestion[]> {
+    return db.select().from(bountyClarifyingQuestions)
+      .where(eq(bountyClarifyingQuestions.bountyId, bountyId))
+      .orderBy(bountyClarifyingQuestions.createdAt);
+  }
+
+  async saveBountyClarifyingQuestions(bountyId: number, questions: Array<{
+    question: string;
+    questionType: string;
+    options?: string[];
+    isRequired?: boolean;
+  }>): Promise<BountyClarifyingQuestion[]> {
+    const results: BountyClarifyingQuestion[] = [];
+    for (const q of questions) {
+      const [created] = await db.insert(bountyClarifyingQuestions).values({
+        bountyId,
+        question: q.question,
+        questionType: q.questionType as any,
+        options: q.options || null,
+        isRequired: q.isRequired ?? false,
+        aiGenerated: true,
+        status: "pending" as typeof bountyQuestionStatuses[number],
+      }).returning();
+      results.push(created);
+    }
+    return results;
+  }
+
+  async answerBountyClarifyingQuestion(
+    questionId: number,
+    answer: string,
+    status: typeof bountyQuestionStatuses[number]
+  ): Promise<BountyClarifyingQuestion | undefined> {
+    const [updated] = await db.update(bountyClarifyingQuestions)
+      .set({ answer, status, answeredAt: new Date() })
+      .where(eq(bountyClarifyingQuestions.id, questionId))
+      .returning();
+    return updated;
+  }
+
+  // Credential Requirements & Consents
+  async getBountyCredentialRequirements(bountyId: number): Promise<BountyCredentialRequirement[]> {
+    return db.select().from(bountyCredentialRequirements)
+      .where(eq(bountyCredentialRequirements.bountyId, bountyId));
+  }
+
+  async createCredentialRequirement(requirement: InsertBountyCredentialRequirement): Promise<BountyCredentialRequirement> {
+    const [created] = await db.insert(bountyCredentialRequirements).values(requirement as any).returning();
+    return created;
+  }
+
+  async getUserCredentialConsents(userId: string, bountyId?: number): Promise<CredentialConsent[]> {
+    if (bountyId) {
+      const requirements = await this.getBountyCredentialRequirements(bountyId);
+      const requirementIds = requirements.map(r => r.id);
+      if (requirementIds.length === 0) return [];
+      
+      return db.select().from(credentialConsents)
+        .where(and(
+          eq(credentialConsents.userId, userId),
+          sql`${credentialConsents.requirementId} = ANY(${requirementIds})`
+        ));
+    }
+    return db.select().from(credentialConsents)
+      .where(eq(credentialConsents.userId, userId));
+  }
+
+  async createCredentialConsent(consent: InsertCredentialConsent): Promise<CredentialConsent> {
+    const [created] = await db.insert(credentialConsents).values(consent as any).returning();
+    return created;
+  }
+
+  async revokeCredentialConsent(consentId: number, userId: string): Promise<CredentialConsent | undefined> {
+    const [updated] = await db.update(credentialConsents)
+      .set({ status: "revoked" as typeof consentStatuses[number], revokedAt: new Date() })
+      .where(and(
+        eq(credentialConsents.id, consentId),
+        eq(credentialConsents.userId, userId)
+      ))
+      .returning();
+    return updated;
+  }
+
+  async logCredentialAccess(log: InsertCredentialAccessLog): Promise<CredentialAccessLog> {
+    const [created] = await db.insert(credentialAccessLogs).values(log as any).returning();
+    return created;
   }
 }
 

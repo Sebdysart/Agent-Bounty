@@ -173,6 +173,254 @@ export async function registerRoutes(
     }
   });
 
+  // AI-powered clarifying questions for bounties
+  app.post("/api/bounties/analyze", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { title, description, requirements, reward, category } = req.body;
+      
+      const openai = getOpenAIClient();
+      if (!openai) {
+        return res.json({ questions: [], message: "AI analysis unavailable" });
+      }
+
+      const prompt = `You are an expert at analyzing bounty/task requests to identify missing information that would help AI agents better complete the task.
+
+Analyze this bounty and generate 2-4 clarifying questions to gather important missing details:
+
+Title: ${title || "Not provided"}
+Description: ${description || "Not provided"}
+Requirements: ${requirements || "Not provided"}
+Reward: ${reward || "Not provided"}
+Category: ${category || "Not provided"}
+
+For each question, determine:
+1. The question text
+2. Question type: "text" (open-ended), "choice" (multiple choice), "confirmation" (yes/no), "number" (numeric input), or "date" (date input)
+3. If type is "choice", provide options array
+4. Whether it's required (true/false) - only mark as required if the bounty truly cannot proceed without this info
+
+Return a JSON array of questions like:
+[
+  {"question": "...", "questionType": "text", "isRequired": true},
+  {"question": "...", "questionType": "choice", "options": ["Option A", "Option B"], "isRequired": false}
+]
+
+Only ask questions about genuinely missing or unclear information. If the bounty is clear enough, return an empty array.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 1000,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      let questions = [];
+      try {
+        const parsed = JSON.parse(content);
+        questions = parsed.questions || parsed || [];
+      } catch {
+        questions = [];
+      }
+
+      res.json({ questions, success: true });
+    } catch (error) {
+      console.error("Error analyzing bounty:", error);
+      res.json({ questions: [], success: false, message: "Analysis failed" });
+    }
+  });
+
+  // Get clarifying questions for a bounty
+  app.get("/api/bounties/:id/questions", async (req, res) => {
+    try {
+      const bountyId = parseInt(req.params.id);
+      const questions = await storage.getBountyClarifyingQuestions(bountyId);
+      res.json(questions);
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: "Failed to fetch questions" });
+    }
+  });
+
+  // Save answers to clarifying questions
+  app.post("/api/bounties/:id/questions/:questionId/answer", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const questionId = parseInt(req.params.questionId);
+      const { answer, status } = req.body;
+
+      const bounty = await storage.getBounty(bountyId);
+      if (!bounty || bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const updated = await storage.answerBountyClarifyingQuestion(questionId, answer, status || "answered");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error answering question:", error);
+      res.status(500).json({ message: "Failed to save answer" });
+    }
+  });
+
+  // Save clarifying questions for a bounty
+  app.post("/api/bounties/:id/questions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const { questions } = req.body;
+
+      const bounty = await storage.getBounty(bountyId);
+      if (!bounty || bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const saved = await storage.saveBountyClarifyingQuestions(bountyId, questions);
+      res.json(saved);
+    } catch (error) {
+      console.error("Error saving questions:", error);
+      res.status(500).json({ message: "Failed to save questions" });
+    }
+  });
+
+  // Credential consent routes
+  app.get("/api/bounties/:id/credentials", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const requirements = await storage.getBountyCredentialRequirements(bountyId);
+      const consents = await storage.getUserCredentialConsents(userId, bountyId);
+      
+      res.json({ requirements, consents });
+    } catch (error) {
+      console.error("Error fetching credentials:", error);
+      res.status(500).json({ message: "Failed to fetch credentials" });
+    }
+  });
+
+  app.post("/api/bounties/:id/credentials", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const bountyId = parseInt(req.params.id);
+      const { credentialType, serviceName, description, isRequired } = req.body;
+
+      const bounty = await storage.getBounty(bountyId);
+      if (!bounty || bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const requirement = await storage.createCredentialRequirement({
+        bountyId,
+        credentialType,
+        serviceName,
+        description,
+        isRequired: isRequired ?? true,
+      });
+      
+      res.status(201).json(requirement);
+    } catch (error) {
+      console.error("Error creating credential requirement:", error);
+      res.status(500).json({ message: "Failed to create credential requirement" });
+    }
+  });
+
+  app.post("/api/credentials/:requirementId/consent", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const requirementId = parseInt(req.params.requirementId);
+      const { agentId, consentText, expiresAt } = req.body;
+      const ipAddress = req.ip || req.connection?.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+
+      const consent = await storage.createCredentialConsent({
+        requirementId,
+        userId,
+        agentId,
+        status: "granted",
+        consentedAt: new Date(),
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        ipAddress,
+        userAgent,
+        consentText,
+      });
+
+      res.status(201).json(consent);
+    } catch (error) {
+      console.error("Error creating consent:", error);
+      res.status(500).json({ message: "Failed to create consent" });
+    }
+  });
+
+  app.post("/api/credentials/:consentId/revoke", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const consentId = parseInt(req.params.consentId);
+      const consent = await storage.revokeCredentialConsent(consentId, userId);
+      
+      if (!consent) {
+        return res.status(404).json({ message: "Consent not found or unauthorized" });
+      }
+
+      res.json(consent);
+    } catch (error) {
+      console.error("Error revoking consent:", error);
+      res.status(500).json({ message: "Failed to revoke consent" });
+    }
+  });
+
+  // Log credential access (for audit)
+  app.post("/api/credentials/access-log", isAuthenticated, async (req: any, res) => {
+    try {
+      const { consentId, agentId, bountyId, accessType, success } = req.body;
+      const ipAddress = req.ip || req.connection?.remoteAddress;
+      const sessionId = req.sessionID;
+
+      const log = await storage.logCredentialAccess({
+        consentId,
+        agentId,
+        bountyId,
+        accessType,
+        success,
+        ipAddress,
+        sessionId,
+      });
+
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Error logging credential access:", error);
+      res.status(500).json({ message: "Failed to log access" });
+    }
+  });
+
   app.patch("/api/bounties/:id/status", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;

@@ -32,6 +32,27 @@ import { customDashboardService } from "./customDashboardService";
 import { enterpriseTierService } from "./enterpriseTierService";
 import { maxTierSandboxService } from "./maxTierSandboxService";
 
+// Secure in-memory credential vault (not persisted to database)
+// Keyed by consentId for cross-session access by authorized agents
+interface StoredCredentials {
+  credentials: Record<string, string>;
+  expiresAt: Date;
+  userId: string;
+  agentId: number;
+  requirementId: number;
+}
+const credentialVault = new Map<number, StoredCredentials>();
+
+// Clean up expired credentials periodically (every 5 minutes)
+setInterval(() => {
+  const now = new Date();
+  for (const [consentId, data] of credentialVault.entries()) {
+    if (data.expiresAt < now) {
+      credentialVault.delete(consentId);
+    }
+  }
+}, 5 * 60 * 1000);
+
 function getOpenAIClient() {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
     return null;
@@ -369,17 +390,17 @@ Only ask questions about genuinely missing or unclear information. If the bounty
         consentText,
       });
 
-      // Store credentials securely in session (not in database)
-      if (credentials && req.session) {
-        if (!req.session.secureCredentials) {
-          req.session.secureCredentials = {};
-        }
-        req.session.secureCredentials[consent.id] = {
+      // Store credentials in secure in-memory vault (not in database, not in session)
+      // This allows cross-session access by authorized agents
+      if (credentials) {
+        const expiry = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+        credentialVault.set(consent.id, {
           credentials,
-          expiresAt: expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          requirementId,
+          expiresAt: expiry,
           userId,
-        };
+          agentId,
+          requirementId,
+        });
       }
 
       res.status(201).json(consent);
@@ -389,7 +410,7 @@ Only ask questions about genuinely missing or unclear information. If the bounty
     }
   });
 
-  // Secure endpoint for agents to access credentials (checks consent)
+  // Secure endpoint for agents to access credentials (checks consent and agent authorization)
   app.get("/api/credentials/:consentId/access", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
@@ -400,9 +421,9 @@ Only ask questions about genuinely missing or unclear information. If the bounty
       const consentId = parseInt(req.params.consentId);
       const ipAddress = req.ip || req.connection?.remoteAddress;
 
-      // Verify the session has credentials for this consent
-      const sessionCreds = req.session?.secureCredentials?.[consentId];
-      if (!sessionCreds) {
+      // Retrieve from in-memory vault
+      const vaultData = credentialVault.get(consentId);
+      if (!vaultData) {
         await storage.logCredentialAccess({
           consentId,
           accessType: "read",
@@ -410,12 +431,12 @@ Only ask questions about genuinely missing or unclear information. If the bounty
           ipAddress,
           sessionId: req.sessionID,
         });
-        return res.status(404).json({ message: "Credentials not found or session expired" });
+        return res.status(404).json({ message: "Credentials not found or expired" });
       }
 
       // Check expiration
-      if (new Date(sessionCreds.expiresAt) < new Date()) {
-        delete req.session.secureCredentials[consentId];
+      if (vaultData.expiresAt < new Date()) {
+        credentialVault.delete(consentId);
         await storage.logCredentialAccess({
           consentId,
           accessType: "read",
@@ -424,6 +445,23 @@ Only ask questions about genuinely missing or unclear information. If the bounty
           sessionId: req.sessionID,
         });
         return res.status(410).json({ message: "Credentials expired" });
+      }
+
+      // Verify the requesting user is authorized (either the consent owner or an agent developer)
+      // For now, allow the consent owner and check if user owns the authorized agent
+      const userAgents = await storage.getAgentsByDeveloper(userId);
+      const isAgentOwner = userAgents.some(a => a.id === vaultData.agentId);
+      const isConsentOwner = vaultData.userId === userId;
+      
+      if (!isAgentOwner && !isConsentOwner) {
+        await storage.logCredentialAccess({
+          consentId,
+          accessType: "read",
+          success: false,
+          ipAddress,
+          sessionId: req.sessionID,
+        });
+        return res.status(403).json({ message: "Not authorized to access these credentials" });
       }
 
       // Log successful access
@@ -435,7 +473,7 @@ Only ask questions about genuinely missing or unclear information. If the bounty
         sessionId: req.sessionID,
       });
 
-      res.json({ credentials: sessionCreds.credentials, expiresAt: sessionCreds.expiresAt });
+      res.json({ credentials: vaultData.credentials, expiresAt: vaultData.expiresAt.toISOString() });
     } catch (error) {
       console.error("Error accessing credentials:", error);
       res.status(500).json({ message: "Failed to access credentials" });
@@ -456,10 +494,8 @@ Only ask questions about genuinely missing or unclear information. If the bounty
         return res.status(404).json({ message: "Consent not found or unauthorized" });
       }
 
-      // Clear credentials from session on revocation
-      if (req.session?.secureCredentials?.[consentId]) {
-        delete req.session.secureCredentials[consentId];
-      }
+      // Clear credentials from in-memory vault on revocation
+      credentialVault.delete(consentId);
 
       res.json(consent);
     } catch (error) {

@@ -12,7 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Clock, Users, Shield, DollarSign, CheckCircle, AlertCircle, Loader2, XCircle, Timer, Bot, Star, TrendingUp, Calendar, Target, CreditCard, RefreshCw, Wallet } from "lucide-react";
+import { motion } from "framer-motion";
+import { 
+  ArrowLeft, Clock, Users, Shield, DollarSign, CheckCircle, AlertCircle, 
+  Loader2, XCircle, Timer, Bot, Star, TrendingUp, Calendar, Target, 
+  CreditCard, RefreshCw, Wallet, Sparkles, Lock, ShieldCheck
+} from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import type { Bounty, Agent, Submission } from "@shared/schema";
 
@@ -22,28 +27,28 @@ interface BountyWithDetails extends Bounty {
 }
 
 const statusConfig = {
-  open: { color: "border-l-primary", icon: Timer, label: "Open", bg: "bg-primary/10 text-primary" },
-  in_progress: { color: "border-l-info", icon: Loader2, label: "In Progress", bg: "bg-info/10 text-info" },
-  under_review: { color: "border-l-warning", icon: AlertCircle, label: "Under Review", bg: "bg-warning/10 text-warning" },
-  completed: { color: "border-l-success", icon: CheckCircle, label: "Completed", bg: "bg-success/10 text-success" },
-  failed: { color: "border-l-destructive", icon: XCircle, label: "Failed", bg: "bg-destructive/10 text-destructive" },
-  cancelled: { color: "border-l-muted", icon: XCircle, label: "Cancelled", bg: "bg-muted text-muted-foreground" },
+  open: { color: "from-violet-500 to-fuchsia-500", icon: Timer, label: "Open", bg: "bg-violet-500/10 text-violet-400 border-violet-500/30" },
+  in_progress: { color: "from-cyan-500 to-blue-500", icon: Loader2, label: "In Progress", bg: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" },
+  under_review: { color: "from-amber-500 to-orange-500", icon: AlertCircle, label: "Under Review", bg: "bg-amber-500/10 text-amber-400 border-amber-500/30" },
+  completed: { color: "from-emerald-500 to-green-500", icon: CheckCircle, label: "Completed", bg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
+  failed: { color: "from-red-500 to-rose-500", icon: XCircle, label: "Failed", bg: "bg-red-500/10 text-red-400 border-red-500/30" },
+  cancelled: { color: "from-gray-500 to-slate-500", icon: XCircle, label: "Cancelled", bg: "bg-muted text-muted-foreground border-border" },
 };
 
 const categoryConfig: Record<string, { label: string; color: string }> = {
-  marketing: { label: "Marketing", color: "bg-chart-1/10 text-chart-1" },
-  sales: { label: "Sales", color: "bg-chart-2/10 text-chart-2" },
-  research: { label: "Research", color: "bg-chart-3/10 text-chart-3" },
-  data_analysis: { label: "Data Analysis", color: "bg-chart-4/10 text-chart-4" },
-  development: { label: "Development", color: "bg-chart-5/10 text-chart-5" },
-  other: { label: "Other", color: "bg-muted text-muted-foreground" },
+  marketing: { label: "Marketing", color: "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30" },
+  sales: { label: "Sales", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" },
+  research: { label: "Research", color: "bg-violet-500/10 text-violet-400 border-violet-500/30" },
+  data_analysis: { label: "Data Analysis", color: "bg-blue-500/10 text-blue-400 border-blue-500/30" },
+  development: { label: "Development", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" },
+  other: { label: "Other", color: "bg-muted text-muted-foreground border-border" },
 };
 
 const paymentStatusConfig = {
-  pending: { label: "Not Funded", color: "bg-warning/10 text-warning", icon: Wallet },
-  funded: { label: "Funded (Escrow)", color: "bg-success/10 text-success", icon: Shield },
-  released: { label: "Payment Released", color: "bg-info/10 text-info", icon: CheckCircle },
-  refunded: { label: "Refunded", color: "bg-muted text-muted-foreground", icon: RefreshCw },
+  pending: { label: "Not Funded", color: "bg-amber-500/10 text-amber-400 border-amber-500/30", icon: Wallet },
+  funded: { label: "Funded (Escrow)", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", icon: Shield },
+  released: { label: "Payment Released", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30", icon: CheckCircle },
+  refunded: { label: "Refunded", color: "bg-muted text-muted-foreground border-border", icon: RefreshCw },
 };
 
 export function BountyDetailPage() {
@@ -174,20 +179,24 @@ export function BountyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
-          <div className="max-w-4xl mx-auto px-4 md:px-6 h-16 flex items-center gap-4">
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-500/5 rounded-full blur-3xl" />
+        </div>
+        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+          <div className="max-w-5xl mx-auto px-4 md:px-6 h-16 flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="h-6 w-48 bg-muted animate-pulse rounded" />
           </div>
         </header>
-        <main className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+        <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
           <div className="space-y-6">
             <div className="h-8 w-3/4 bg-muted animate-pulse rounded" />
-            <div className="h-32 bg-muted animate-pulse rounded-lg" />
-            <div className="h-48 bg-muted animate-pulse rounded-lg" />
+            <div className="h-32 bg-muted animate-pulse rounded-xl" />
+            <div className="h-48 bg-muted animate-pulse rounded-xl" />
           </div>
         </main>
       </div>
@@ -197,11 +206,24 @@ export function BountyDetailPage() {
   if (!bounty) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Target className="w-16 h-16 text-muted-foreground mx-auto" />
-          <h2 className="text-xl font-semibold">Bounty not found</h2>
-          <Button onClick={() => navigate("/")}>Go back to dashboard</Button>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center space-y-4"
+        >
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center mx-auto">
+            <Target className="w-10 h-10 text-violet-400" />
+          </div>
+          <h2 className="text-xl font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            Bounty not found
+          </h2>
+          <Button 
+            onClick={() => navigate("/")}
+            className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+          >
+            Go back to dashboard
+          </Button>
+        </motion.div>
       </div>
     );
   }
@@ -214,21 +236,50 @@ export function BountyDetailPage() {
   const isOwner = user?.id === bounty.posterId;
   const paymentStatus = paymentStatusConfig[bounty.paymentStatus as keyof typeof paymentStatusConfig] || paymentStatusConfig.pending;
   const PaymentIcon = paymentStatus.icon;
+  const isFunded = bounty.paymentStatus === "funded" || bounty.paymentStatus === "released";
+  const canSubmitAgent = bounty.status === "open" && isFunded;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
-        <div className="max-w-4xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-fuchsia-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl" />
+      </div>
+
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link href="/">
               <Button variant="ghost" size="icon" data-testid="button-back">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <span className="font-semibold truncate max-w-xs sm:max-w-md">{bounty.title}</span>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${status.color}`} />
+              <span className="font-semibold truncate max-w-xs sm:max-w-md">{bounty.title}</span>
+            </div>
           </div>
           {bounty.status === "open" && (
-            <Button onClick={() => setShowSubmitDialog(true)} data-testid="button-submit-agent">
+            <Button 
+              onClick={() => {
+                if (!isFunded) {
+                  toast({
+                    title: "Funding Required",
+                    description: "This bounty must be funded before agents can submit. Fund it to attract competitors!",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setShowSubmitDialog(true);
+              }}
+              className={canSubmitAgent 
+                ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600" 
+                : "bg-muted text-muted-foreground"
+              }
+              data-testid="button-submit-agent"
+            >
+              {!isFunded && <Lock className="w-4 h-4 mr-2" />}
               <Bot className="w-4 h-4 mr-2" />
               Submit Agent
             </Button>
@@ -236,312 +287,460 @@ export function BountyDetailPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-8 space-y-6">
-        <div className={`border-l-4 ${status.color} pl-6`}>
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Badge variant="secondary" className={`${category.color} text-xs`}>
-              {category.label}
-            </Badge>
-            <Badge variant="secondary" className={`${status.bg} text-xs`}>
-              <StatusIcon className={`w-3 h-3 mr-1 ${bounty.status === "in_progress" ? "animate-spin" : ""}`} />
-              {status.label}
-            </Badge>
+      <main className="relative z-10 max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative"
+        >
+          <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-violet-500/40 via-fuchsia-500/40 to-cyan-500/40">
+            <div className="bg-background/95 backdrop-blur-xl rounded-2xl p-6 md:p-8">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Badge variant="outline" className={`${category.color} border text-xs`}>
+                  {category.label}
+                </Badge>
+                <Badge variant="outline" className={`${status.bg} border text-xs`}>
+                  <StatusIcon className={`w-3 h-3 mr-1 ${bounty.status === "in_progress" ? "animate-spin" : ""}`} />
+                  {status.label}
+                </Badge>
+                <Badge variant="outline" className={`${paymentStatus.color} border text-xs`}>
+                  <PaymentIcon className="w-3 h-3 mr-1" />
+                  {paymentStatus.label}
+                </Badge>
+              </div>
+              
+              <h1 
+                className="text-2xl md:text-3xl font-bold mb-6" 
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                {bounty.title}
+              </h1>
+              
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/20">
+                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold font-mono text-emerald-400">
+                      ${parseFloat(bounty.reward).toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Reward</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${isExpired ? "bg-red-500/20" : "bg-violet-500/20"}`}>
+                    <Clock className={`w-5 h-5 ${isExpired ? "text-red-400" : "text-violet-400"}`} />
+                  </div>
+                  <div>
+                    <div className={`font-medium ${isExpired ? "text-red-400" : ""}`}>
+                      {isExpired ? "Expired" : formatDistanceToNow(deadline, { addSuffix: true })}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Deadline</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-cyan-500/20">
+                    <Users className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium">{bounty.submissions?.length || 0}</div>
+                    <div className="text-xs text-muted-foreground">Agents</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-emerald-500/20">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-emerald-400">Protected</div>
+                    <div className="text-xs text-muted-foreground">Escrow</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-4">{bounty.title}</h1>
-          <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2 text-2xl font-bold font-mono text-success">
-              <DollarSign className="w-6 h-6" />
-              {parseFloat(bounty.reward).toLocaleString()}
+        </motion.div>
+
+        {!isFunded && bounty.status === "open" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="relative rounded-xl p-[1px] bg-gradient-to-r from-amber-500/60 to-orange-500/60"
+          >
+            <div className="bg-background/95 backdrop-blur-xl rounded-xl p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/30">
+                  <Wallet className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    Fund Your Bounty to Attract Agents
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Agents cannot submit until the bounty is funded. Your payment is held in secure escrow until you approve a winner.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2 text-sm text-emerald-400">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>100% Money-Back Guarantee</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Full refund if no winner selected</span>
+                    </div>
+                  </div>
+                </div>
+                {isOwner && (
+                  <Button
+                    onClick={() => fundBounty.mutate()}
+                    disabled={fundBounty.isPending}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg shadow-amber-500/30"
+                    data-testid="button-fund-bounty-hero"
+                  >
+                    {fundBounty.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-4 h-4 mr-2" />
+                    )}
+                    Fund Now
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className={isExpired ? "text-destructive" : ""} />
-              <span className={isExpired ? "text-destructive" : ""}>
-                {isExpired ? "Expired" : `Due ${formatDistanceToNow(deadline, { addSuffix: true })}`}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users />
-              {bounty.submissions?.length || 0} agents
-            </div>
-            <div className="flex items-center gap-2">
-              <Shield className="text-success" />
-              Escrow Protected
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{bounty.description}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-success" />
-                  Success Metrics
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {bounty.successMetrics.split('\n').map((metric, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-success/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <CheckCircle className="w-3.5 h-3.5 text-success" />
-                      </div>
-                      <span>{metric}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-info" />
-                  Verification Criteria
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{bounty.verificationCriteria}</p>
-              </CardContent>
-            </Card>
-
-            {bounty.submissions && bounty.submissions.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="w-5 h-5" />
-                    Agent Submissions ({bounty.submissions.length})
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    <Sparkles className="w-5 h-5 text-violet-400" />
+                    Description
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {bounty.submissions.map((submission) => (
-                    <div
-                      key={submission.id}
-                      className="flex items-center gap-4 p-4 rounded-lg bg-muted/50"
-                      data-testid={`submission-${submission.id}`}
-                    >
-                      <Avatar className="w-10 h-10 rounded-lg">
-                        <AvatarFallback
-                          className="rounded-lg text-white"
-                          style={{ backgroundColor: submission.agent.avatarColor }}
-                        >
-                          <Bot className="w-5 h-5" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{submission.agent.name}</span>
-                          {submission.agent.isVerified && (
-                            <CheckCircle className="w-3 h-3 text-success" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" />
-                            {parseFloat(submission.agent.completionRate || "0").toFixed(0)}%
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Star className="w-3 h-3 text-warning fill-warning" />
-                            {parseFloat(submission.agent.avgRating || "0").toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-2">
-                        <Badge
-                          variant="secondary"
-                          className={
-                            submission.status === "approved" ? "bg-success/10 text-success" :
-                            submission.status === "rejected" ? "bg-destructive/10 text-destructive" :
-                            submission.status === "in_progress" ? "bg-info/10 text-info" :
-                            submission.status === "submitted" ? "bg-warning/10 text-warning" :
-                            "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {submission.status === "approved" && bounty.winnerId === submission.id ? "Winner" : submission.status.replace("_", " ")}
-                        </Badge>
-                        {submission.status === "in_progress" && (
-                          <div>
-                            <Progress value={submission.progress || 0} className="w-24 h-2" />
-                            <span className="text-xs text-muted-foreground">{submission.progress}%</span>
-                          </div>
-                        )}
-                        {isOwner && bounty.status !== "completed" && bounty.status !== "cancelled" && submission.status === "submitted" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedSubmissionId(submission.id);
-                              setShowWinnerDialog(true);
-                            }}
-                            data-testid={`button-select-winner-${submission.id}`}
-                          >
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Select Winner
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                <CardContent>
+                  <p className="whitespace-pre-wrap text-muted-foreground">{bounty.description}</p>
                 </CardContent>
               </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    <Target className="w-5 h-5 text-emerald-400" />
+                    Success Metrics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {bounty.successMetrics.split('\n').filter(m => m.trim()).map((metric, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <span className="text-muted-foreground">{metric}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    <Shield className="w-5 h-5 text-cyan-400" />
+                    Verification Criteria
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-wrap text-muted-foreground">{bounty.verificationCriteria}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {bounty.submissions && bounty.submissions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <Bot className="w-5 h-5 text-fuchsia-400" />
+                      Agent Submissions ({bounty.submissions.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {bounty.submissions.map((submission) => (
+                      <div
+                        key={submission.id}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 hover-elevate transition-all"
+                        data-testid={`submission-${submission.id}`}
+                      >
+                        <Avatar className="w-12 h-12 rounded-xl">
+                          <AvatarFallback
+                            className="rounded-xl text-white"
+                            style={{ backgroundColor: submission.agent.avatarColor }}
+                          >
+                            <Bot className="w-6 h-6" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{submission.agent.name}</span>
+                            {submission.agent.isVerified && (
+                              <CheckCircle className="w-4 h-4 text-emerald-400" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1">
+                              <TrendingUp className="w-3 h-3" />
+                              {parseFloat(submission.agent.completionRate || "0").toFixed(0)}%
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                              {parseFloat(submission.agent.avgRating || "0").toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-2">
+                          <Badge
+                            variant="outline"
+                            className={
+                              submission.status === "approved" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" :
+                              submission.status === "rejected" ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                              submission.status === "in_progress" ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" :
+                              submission.status === "submitted" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
+                              "bg-muted text-muted-foreground border-border"
+                            }
+                          >
+                            {submission.status === "approved" && bounty.winnerId === submission.id ? "Winner" : submission.status.replace("_", " ")}
+                          </Badge>
+                          {submission.status === "in_progress" && (
+                            <div className="flex items-center gap-2">
+                              <Progress value={submission.progress || 0} className="w-20 h-2" />
+                              <span className="text-xs text-muted-foreground">{submission.progress}%</span>
+                            </div>
+                          )}
+                          {isOwner && bounty.status !== "completed" && bounty.status !== "cancelled" && submission.status === "submitted" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedSubmissionId(submission.id);
+                                setShowWinnerDialog(true);
+                              }}
+                              className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                              data-testid={`button-select-winner-${submission.id}`}
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Select Winner
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
           </div>
 
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Bounty Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Posted</span>
-                  <span className="text-sm font-medium">
-                    {format(new Date(bounty.createdAt), "MMM d, yyyy")}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Deadline</span>
-                  <span className={`text-sm font-medium ${isExpired ? "text-destructive" : ""}`}>
-                    {format(deadline, "MMM d, yyyy")}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Platform Fee</span>
-                  <span className="text-sm font-medium">15%</span>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Winner Payout</span>
-                  <span className="text-sm font-mono font-bold text-success">
-                    ${(parseFloat(bounty.reward) * 0.85).toLocaleString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {isOwner && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    Payment
-                  </CardTitle>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-muted-foreground">Bounty Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Status</span>
-                    <Badge variant="secondary" className={paymentStatus.color}>
-                      <PaymentIcon className="w-3 h-3 mr-1" />
-                      {paymentStatus.label}
-                    </Badge>
+                    <span className="text-sm text-muted-foreground">Posted</span>
+                    <span className="text-sm font-medium">
+                      {format(new Date(bounty.createdAt), "MMM d, yyyy")}
+                    </span>
                   </div>
-                  <Separator />
-                  <div className="space-y-2">
-                    {bounty.paymentStatus === "pending" && bounty.status !== "cancelled" && (
-                      <Button 
-                        className="w-full" 
-                        onClick={() => fundBounty.mutate()}
-                        disabled={fundBounty.isPending}
-                        data-testid="button-fund-bounty"
-                      >
-                        {fundBounty.isPending ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <CreditCard className="w-4 h-4 mr-2" />
-                        )}
-                        Fund Bounty
-                      </Button>
-                    )}
-                    {bounty.paymentStatus === "funded" && bounty.status === "completed" && (
-                      <Button 
-                        className="w-full" 
-                        onClick={() => releasePayment.mutate()}
-                        disabled={releasePayment.isPending}
-                        data-testid="button-release-payment"
-                      >
-                        {releasePayment.isPending ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                        )}
-                        Release Payment
-                      </Button>
-                    )}
-                    {bounty.paymentStatus === "funded" && bounty.status !== "completed" && bounty.status !== "cancelled" && (
-                      <Button 
-                        variant="outline" 
-                        className="w-full text-destructive hover:text-destructive" 
-                        onClick={() => setShowRefundDialog(true)}
-                        data-testid="button-cancel-refund"
-                      >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Cancel & Refund
-                      </Button>
-                    )}
+                  <Separator className="bg-border/50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Deadline</span>
+                    <span className={`text-sm font-medium ${isExpired ? "text-red-400" : ""}`}>
+                      {format(deadline, "MMM d, yyyy")}
+                    </span>
                   </div>
-                  {bounty.paymentStatus === "pending" && (
-                    <p className="text-xs text-muted-foreground">
-                      Fund your bounty to attract more agents. Payments are held in escrow until completion.
-                    </p>
-                  )}
+                  <Separator className="bg-border/50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Platform Fee</span>
+                    <span className="text-sm font-medium">15%</span>
+                  </div>
+                  <Separator className="bg-border/50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Winner Payout</span>
+                    <span className="text-sm font-mono font-bold text-emerald-400">
+                      ${(parseFloat(bounty.reward) * 0.85).toLocaleString()}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
+            </motion.div>
+
+            {isOwner && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+                      <CreditCard className="w-4 h-4" />
+                      Payment
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant="outline" className={paymentStatus.color}>
+                        <PaymentIcon className="w-3 h-3 mr-1" />
+                        {paymentStatus.label}
+                      </Badge>
+                    </div>
+                    <Separator className="bg-border/50" />
+                    <div className="space-y-3">
+                      {bounty.paymentStatus === "pending" && bounty.status !== "cancelled" && (
+                        <>
+                          <Button 
+                            className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600" 
+                            onClick={() => fundBounty.mutate()}
+                            disabled={fundBounty.isPending}
+                            data-testid="button-fund-bounty"
+                          >
+                            {fundBounty.isPending ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <CreditCard className="w-4 h-4 mr-2" />
+                            )}
+                            Fund Bounty
+                          </Button>
+                          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                            <div className="flex items-center gap-2 text-xs text-emerald-400 mb-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              <span className="font-medium">100% Refund Guarantee</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Get a full refund if no agent completes your bounty successfully.
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {bounty.paymentStatus === "funded" && bounty.status === "completed" && (
+                        <Button 
+                          className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600" 
+                          onClick={() => releasePayment.mutate()}
+                          disabled={releasePayment.isPending}
+                          data-testid="button-release-payment"
+                        >
+                          {releasePayment.isPending ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                          )}
+                          Release Payment
+                        </Button>
+                      )}
+                      {bounty.paymentStatus === "funded" && bounty.status !== "completed" && bounty.status !== "cancelled" && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10" 
+                          onClick={() => setShowRefundDialog(true)}
+                          data-testid="button-cancel-refund"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Cancel & Refund
+                        </Button>
+                      )}
+                    </div>
+                    {bounty.paymentStatus === "pending" && (
+                      <p className="text-xs text-muted-foreground">
+                        Fund your bounty to attract more agents. Payments are held in escrow until completion.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
 
             {bounty.timeline && bounty.timeline.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Timeline
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative">
-                    <div className="absolute left-3 top-0 bottom-0 w-px bg-border" />
-                    <div className="space-y-4">
-                      {bounty.timeline.map((event, i) => (
-                        <div key={i} className="relative pl-8">
-                          <div className="absolute left-0 w-6 h-6 rounded-full bg-background border-2 border-primary flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-primary" />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <Card className="bg-background/80 backdrop-blur-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      Timeline
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      <div className="absolute left-3 top-0 bottom-0 w-px bg-gradient-to-b from-violet-500/50 via-fuchsia-500/50 to-cyan-500/50" />
+                      <div className="space-y-4">
+                        {bounty.timeline.map((event, i) => (
+                          <div key={i} className="relative pl-8">
+                            <div className="absolute left-0 w-6 h-6 rounded-full bg-background border-2 border-violet-500/50 flex items-center justify-center">
+                              <div className="w-2 h-2 rounded-full bg-violet-500" />
+                            </div>
+                            <div className="text-sm font-medium">{event.description}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(event.createdAt), "MMM d, h:mm a")}
+                            </div>
                           </div>
-                          <div className="text-sm font-medium">{event.description}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {format(new Date(event.createdAt), "MMM d, h:mm a")}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
             )}
           </div>
         </div>
       </main>
 
       <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <DialogContent>
+        <DialogContent className="bg-background/95 backdrop-blur-xl border-violet-500/20">
           <DialogHeader>
-            <DialogTitle>Submit Agent to Bounty</DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Submit Agent to Bounty</DialogTitle>
             <DialogDescription>
               Select one of your registered agents to compete for this bounty.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-              <SelectTrigger data-testid="select-agent">
+              <SelectTrigger data-testid="select-agent" className="border-border/50">
                 <SelectValue placeholder="Select an agent" />
               </SelectTrigger>
               <SelectContent>
@@ -563,7 +762,7 @@ export function BountyDetailPage() {
             {(!myAgents || myAgents.length === 0) && (
               <p className="text-sm text-muted-foreground">
                 You don't have any agents registered yet.{" "}
-                <Link href="/agents/create" className="text-primary underline">
+                <Link href="/agents/create" className="text-violet-400 underline">
                   Register an agent
                 </Link>{" "}
                 first.
@@ -577,6 +776,7 @@ export function BountyDetailPage() {
             <Button
               onClick={() => submitAgent.mutate()}
               disabled={!selectedAgentId || submitAgent.isPending}
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
               data-testid="button-confirm-submit"
             >
               {submitAgent.isPending ? "Submitting..." : "Submit Agent"}
@@ -586,9 +786,9 @@ export function BountyDetailPage() {
       </Dialog>
 
       <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
-        <DialogContent>
+        <DialogContent className="bg-background/95 backdrop-blur-xl border-red-500/20">
           <DialogHeader>
-            <DialogTitle>Cancel Bounty & Request Refund</DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Cancel Bounty & Request Refund</DialogTitle>
             <DialogDescription>
               Are you sure you want to cancel this bounty? The full payment will be refunded to your original payment method. This action cannot be undone.
             </DialogDescription>
@@ -617,9 +817,9 @@ export function BountyDetailPage() {
       </Dialog>
 
       <Dialog open={showWinnerDialog} onOpenChange={setShowWinnerDialog}>
-        <DialogContent>
+        <DialogContent className="bg-background/95 backdrop-blur-xl border-emerald-500/20">
           <DialogHeader>
-            <DialogTitle>Confirm Winner Selection</DialogTitle>
+            <DialogTitle style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Confirm Winner Selection</DialogTitle>
             <DialogDescription>
               Are you sure you want to select this agent as the winner? This will complete the bounty and allow you to release the payment.
             </DialogDescription>
@@ -634,6 +834,7 @@ export function BountyDetailPage() {
             <Button
               onClick={() => selectedSubmissionId && selectWinner.mutate(selectedSubmissionId)}
               disabled={!selectedSubmissionId || selectWinner.isPending}
+              className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
               data-testid="button-confirm-winner"
             >
               {selectWinner.isPending ? (

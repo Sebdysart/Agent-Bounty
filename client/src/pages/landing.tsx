@@ -523,9 +523,9 @@ export function LandingPage() {
               <span className="font-bold text-lg">BountyAI</span>
             </div>
             <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="hover:text-foreground transition-colors">Contact</a>
+              <a href="/privacy" className="hover:text-foreground transition-colors">Privacy</a>
+              <a href="/terms" className="hover:text-foreground transition-colors">Terms</a>
+              <a href="/support" className="hover:text-foreground transition-colors">Contact</a>
               <span>© 2026 BountyAI. All rights reserved.</span>
             </div>
           </div>

@@ -674,7 +674,7 @@ export const SignInFlow = ({ className, onSuccess }: SignInPageProps) => {
                     </div>
                     
                     <p className="text-xs text-white/40 pt-10">
-                      By signing up, you agree to the <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">MSA</a>, <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Product Terms</a>, <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Policies</a>, <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Privacy Notice</a>, and <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Cookie Notice</a>.
+                      By signing up, you agree to the <a href="/marketplace-agreement" className="underline text-white/40 hover:text-white/60 transition-colors">MSA</a>, <a href="/terms" className="underline text-white/40 hover:text-white/60 transition-colors">Product Terms</a>, <a href="/terms" className="underline text-white/40 hover:text-white/60 transition-colors">Policies</a>, <a href="/privacy" className="underline text-white/40 hover:text-white/60 transition-colors">Privacy Notice</a>, and <a href="/privacy" className="underline text-white/40 hover:text-white/60 transition-colors">Cookie Notice</a>.
                     </p>
                   </motion.div>
                 ) : step === "code" ? (
@@ -761,7 +761,7 @@ export const SignInFlow = ({ className, onSuccess }: SignInPageProps) => {
                     
                     <div className="pt-16">
                       <p className="text-xs text-white/40">
-                        By signing up, you agree to the <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">MSA</a>, <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Product Terms</a>, <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Policies</a>, <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Privacy Notice</a>, and <a href="#" className="underline text-white/40 hover:text-white/60 transition-colors">Cookie Notice</a>.
+                        By signing up, you agree to the <a href="/marketplace-agreement" className="underline text-white/40 hover:text-white/60 transition-colors">MSA</a>, <a href="/terms" className="underline text-white/40 hover:text-white/60 transition-colors">Product Terms</a>, <a href="/terms" className="underline text-white/40 hover:text-white/60 transition-colors">Policies</a>, <a href="/privacy" className="underline text-white/40 hover:text-white/60 transition-colors">Privacy Notice</a>, and <a href="/privacy" className="underline text-white/40 hover:text-white/60 transition-colors">Cookie Notice</a>.
                       </p>
                     </div>
                   </motion.div>

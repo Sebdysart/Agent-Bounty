@@ -13,13 +13,29 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { motion } from "framer-motion";
+import { CredentialConsentForm } from "@/components/credential-consent";
 import { 
   ArrowLeft, Clock, Users, Shield, DollarSign, CheckCircle, AlertCircle, 
   Loader2, XCircle, Timer, Bot, Star, TrendingUp, Calendar, Target, 
-  CreditCard, RefreshCw, Wallet, Sparkles, Lock, ShieldCheck
+  CreditCard, RefreshCw, Wallet, Sparkles, Lock, ShieldCheck, Key
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import type { Bounty, Agent, Submission } from "@shared/schema";
+
+interface CredentialRequirement {
+  id: number;
+  bountyId: number;
+  credentialType: string;
+  serviceName: string;
+  description: string;
+  isRequired: boolean;
+}
+
+interface CredentialConsent {
+  id: number;
+  requirementId: number;
+  status: string;
+}
 
 interface BountyWithDetails extends Bounty {
   submissions: (Submission & { agent: Agent })[];
@@ -61,6 +77,7 @@ export function BountyDetailPage() {
   const [showRefundDialog, setShowRefundDialog] = useState(false);
   const [showWinnerDialog, setShowWinnerDialog] = useState(false);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
 
   const { data: bounty, isLoading } = useQuery<BountyWithDetails>({
     queryKey: ["/api/bounties", id],
@@ -68,6 +85,12 @@ export function BountyDetailPage() {
 
   const { data: myAgents } = useQuery<Agent[]>({
     queryKey: ["/api/agents/mine"],
+  });
+
+  // Fetch credential requirements for this bounty
+  const { data: credentialData } = useQuery<{ requirements: CredentialRequirement[]; consents: CredentialConsent[] }>({
+    queryKey: ["/api/bounties", id, "credentials"],
+    enabled: !!id,
   });
 
   const submitAgent = useMutation({
@@ -238,6 +261,15 @@ export function BountyDetailPage() {
   const PaymentIcon = paymentStatus.icon;
   const isFunded = bounty.paymentStatus === "funded" || bounty.paymentStatus === "released";
   const canSubmitAgent = bounty.status === "open" && isFunded;
+  
+  // Credential requirements - check what's needed and what's consented
+  const credentialRequirements = credentialData?.requirements || [];
+  const credentialConsents = credentialData?.consents || [];
+  const hasCredentialRequirements = credentialRequirements.length > 0;
+  const requiredCredentials = credentialRequirements.filter(r => r.isRequired);
+  const consentedIds = new Set(credentialConsents.filter(c => c.status === "granted").map(c => c.requirementId));
+  const pendingCredentials = requiredCredentials.filter(r => !consentedIds.has(r.id));
+  const allCredentialsProvided = requiredCredentials.every(r => consentedIds.has(r.id));
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -692,6 +724,75 @@ export function BountyDetailPage() {
               </motion.div>
             )}
 
+            {isOwner && hasCredentialRequirements && isFunded && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.42 }}
+              >
+                <Card className={`bg-background/80 backdrop-blur-sm ${
+                  allCredentialsProvided ? "border-emerald-500/30" : "border-amber-500/30"
+                }`}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+                      <Key className="w-4 h-4" />
+                      Credentials
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {allCredentialsProvided ? (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                        <span className="text-sm text-emerald-400 font-medium">All credentials provided</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <AlertCircle className="w-4 h-4 text-amber-400" />
+                          <span className="text-sm text-amber-400">
+                            {pendingCredentials.length} credential{pendingCredentials.length > 1 ? "s" : ""} needed
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {credentialRequirements.map((req) => {
+                            const isConsented = consentedIds.has(req.id);
+                            return (
+                              <div 
+                                key={req.id} 
+                                className="flex items-center justify-between p-2 rounded-lg bg-muted/30"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${isConsented ? "bg-emerald-400" : "bg-amber-400"}`} />
+                                  <span className="text-sm">{req.serviceName}</span>
+                                </div>
+                                {isConsented ? (
+                                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
+                                    Provided
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-xs">
+                                    Pending
+                                  </Badge>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <Button 
+                          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                          onClick={() => setShowCredentialsDialog(true)}
+                          data-testid="button-provide-credentials"
+                        >
+                          <Key className="w-4 h-4 mr-2" />
+                          Provide Credentials
+                        </Button>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
             {bounty.timeline && bounty.timeline.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -850,6 +951,31 @@ export function BountyDetailPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
+        <DialogContent className="bg-background/95 backdrop-blur-xl border-amber-500/20 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Provide Credentials</DialogTitle>
+            <DialogDescription>
+              This bounty requires access to your accounts. Provide credentials securely to enable agents to complete the task.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <CredentialConsentForm
+              bountyId={parseInt(id || "0")}
+              onConsentComplete={() => {
+                setShowCredentialsDialog(false);
+                queryClient.invalidateQueries({ queryKey: ["/api/bounties", id, "credentials"] });
+                toast({
+                  title: "Credentials Saved",
+                  description: "Your credentials have been securely stored.",
+                });
+              }}
+              onCancel={() => setShowCredentialsDialog(false)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

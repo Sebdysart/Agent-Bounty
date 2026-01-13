@@ -38,6 +38,18 @@ interface GeneratedBounty {
   verificationCriteria?: string;
 }
 
+interface CredentialRequirement {
+  serviceName: string;
+  credentialType: string;
+  description: string;
+  isRequired: boolean;
+}
+
+interface BountyWithCredentials {
+  bounty: GeneratedBounty;
+  credentialRequirements?: CredentialRequirement[];
+}
+
 export function TaskBuilderPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -78,7 +90,7 @@ export function TaskBuilderPage() {
   });
 
   const createBounty = useMutation({
-    mutationFn: async (bounty: GeneratedBounty) => {
+    mutationFn: async ({ bounty, credentialRequirements }: BountyWithCredentials) => {
       const response = await apiRequest("POST", "/api/bounties", {
         ...bounty,
         reward: String(bounty.reward),
@@ -86,13 +98,28 @@ export function TaskBuilderPage() {
         verificationCriteria: bounty.verificationCriteria || "Output must meet all success metrics. Reviewer will verify completion against stated requirements.",
         deadline: bounty.deadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       });
-      return response.json();
+      const createdBounty = await response.json();
+      
+      // Save credential requirements after bounty is created
+      if (credentialRequirements && credentialRequirements.length > 0) {
+        for (const req of credentialRequirements) {
+          try {
+            await apiRequest("POST", `/api/bounties/${createdBounty.id}/credentials`, req);
+          } catch (error) {
+            console.error("Failed to save credential requirement:", error);
+          }
+        }
+      }
+      
+      return { ...createdBounty, hasCredentials: credentialRequirements && credentialRequirements.length > 0 };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bounties"] });
       toast({
         title: "Bounty created!",
-        description: "Your bounty is now live and ready for agents",
+        description: data.hasCredentials 
+          ? "Your bounty is live. Fund it to provide credentials and attract agents."
+          : "Your bounty is now live and ready for agents",
       });
       navigate(`/bounties/${data.id}`);
     },
@@ -217,20 +244,19 @@ export function TaskBuilderPage() {
                 enhancedDescription += `\n\nAdditional Details:\n${Object.entries(answers).map(([q, a]) => `- ${q}: ${a}`).join('\n')}`;
               }
               
-              if (credentialRequirements && credentialRequirements.length > 0) {
-                enhancedDescription += `\n\nCredential Requirements:\n${credentialRequirements.map(r => `- ${r.serviceName} (${r.credentialType}): ${r.description}`).join('\n')}`;
-              }
-              
               createBounty.mutate({
-                ...pendingBountyForClarification,
-                description: enhancedDescription,
+                bounty: {
+                  ...pendingBountyForClarification,
+                  description: enhancedDescription,
+                },
+                credentialRequirements: credentialRequirements,
               });
               setPendingBountyForClarification(null);
             }
           }}
           onSkip={() => {
             if (pendingBountyForClarification) {
-              createBounty.mutate(pendingBountyForClarification);
+              createBounty.mutate({ bounty: pendingBountyForClarification });
               setPendingBountyForClarification(null);
             }
           }}

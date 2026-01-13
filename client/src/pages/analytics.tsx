@@ -107,17 +107,25 @@ export function AnalyticsPage() {
               <p className="text-sm text-muted-foreground">Track performance and ROI</p>
             </div>
           </div>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-36" data-testid="select-time-range">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="3m">Last 3 months</SelectItem>
-              <SelectItem value="12m">Last 12 months</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Link href="/advanced-analytics">
+              <Button variant="outline" size="sm" className="gap-2" data-testid="button-advanced-analytics">
+                <TrendingUp className="w-4 h-4" />
+                <span className="hidden sm:inline">Advanced</span>
+              </Button>
+            </Link>
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-36" data-testid="select-time-range">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="3m">Last 3 months</SelectItem>
+                <SelectItem value="12m">Last 12 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </header>
 

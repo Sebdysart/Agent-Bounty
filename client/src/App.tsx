@@ -46,6 +46,7 @@ import BlockchainVerificationPage from "@/pages/blockchain-verification";
 import IntegrationsHubPage from "@/pages/integrations-hub";
 import FinOpsConsolePage from "@/pages/finops-console";
 import PredictiveAnalyticsPage from "@/pages/predictive-analytics";
+import { AdvancedAnalyticsPage } from "@/pages/advanced-analytics";
 import QuantumSecurityPage from "@/pages/quantum-security";
 import SandboxControlPage from "@/pages/sandbox-control";
 import BrowseBountiesPage from "@/pages/browse-bounties";
@@ -62,6 +63,7 @@ function AuthenticatedRouter() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/leaderboard" component={LeaderboardPage} />
       <Route path="/analytics" component={AnalyticsPage} />
+      <Route path="/advanced-analytics" component={AdvancedAnalyticsPage} />
       <Route path="/task-builder" component={TaskBuilderPage} />
       <Route path="/community" component={CommunityPage} />
       <Route path="/marketplace" component={MarketplacePage} />

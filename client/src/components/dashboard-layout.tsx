@@ -261,6 +261,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Analytics
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/advanced-analytics")} className="cursor-pointer">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Advanced Analytics
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/integrations")} className="cursor-pointer">
                   <Plug className="w-4 h-4 mr-2" />
                   Integration Hub

@@ -494,7 +494,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Valid status required (passed, failed, needs_review)" });
       }
 
-      const result = await verificationService.submitHumanReview(auditId, userId, status, notes);
+      const result = await verificationService.addHumanReview(auditId, userId, notes || "", status);
       res.json(result);
     } catch (error) {
       console.error("Error submitting review:", error);
@@ -786,6 +786,46 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching analytics:", error);
       res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.get("/api/analytics/advanced", hybridAuth, async (req: any, res) => {
+    try {
+      const advancedAnalytics = await storage.getAdvancedAnalytics();
+      res.json(advancedAnalytics);
+    } catch (error) {
+      console.error("Error fetching advanced analytics:", error);
+      res.status(500).json({ message: "Failed to fetch advanced analytics" });
+    }
+  });
+
+  app.get("/api/analytics/agent-performance", hybridAuth, async (req: any, res) => {
+    try {
+      const performance = await storage.getAgentPerformanceAnalytics();
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching agent performance:", error);
+      res.status(500).json({ message: "Failed to fetch agent performance" });
+    }
+  });
+
+  app.get("/api/analytics/roi", hybridAuth, async (req: any, res) => {
+    try {
+      const roi = await storage.getROIAnalytics();
+      res.json(roi);
+    } catch (error) {
+      console.error("Error fetching ROI analytics:", error);
+      res.status(500).json({ message: "Failed to fetch ROI analytics" });
+    }
+  });
+
+  app.get("/api/analytics/benchmarks", hybridAuth, async (req: any, res) => {
+    try {
+      const benchmarks = await storage.getBenchmarkAnalytics();
+      res.json(benchmarks);
+    } catch (error) {
+      console.error("Error fetching benchmarks:", error);
+      res.status(500).json({ message: "Failed to fetch benchmarks" });
     }
   });
 

@@ -113,6 +113,11 @@ export interface IStorage {
 
   createAgentReview(review: InsertAgentReview): Promise<AgentReview>;
   getAgentReviews(agentUploadId: number): Promise<AgentReview[]>;
+  
+  getAdvancedAnalytics(): Promise<any>;
+  getAgentPerformanceAnalytics(): Promise<any>;
+  getROIAnalytics(): Promise<any>;
+  getBenchmarkAnalytics(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -748,6 +753,246 @@ export class DatabaseStorage implements IStorage {
           : 0,
         activeAgents: formatValue(activeAgents[0]?.count),
       }
+    };
+  }
+
+  async getAdvancedAnalytics() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const currentPeriodBounties = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(bounties).where(gte(bounties.createdAt, thirtyDaysAgo));
+    const previousPeriodBounties = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(bounties).where(and(gte(bounties.createdAt, sixtyDaysAgo), sql`${bounties.createdAt} < ${thirtyDaysAgo}`));
+    
+    const currentAgents = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(agents).where(gte(agents.createdAt, thirtyDaysAgo));
+    const previousAgents = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(agents).where(and(gte(agents.createdAt, sixtyDaysAgo), sql`${agents.createdAt} < ${thirtyDaysAgo}`));
+
+    const currentSubmissions = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(submissions).where(gte(submissions.createdAt, thirtyDaysAgo));
+    const previousSubmissions = await db.select({ count: sql<number>`COUNT(*)::int` })
+      .from(submissions).where(and(gte(submissions.createdAt, sixtyDaysAgo), sql`${submissions.createdAt} < ${thirtyDaysAgo}`));
+
+    const dailyActivity = await db.select({
+      date: sql<string>`TO_CHAR(${bounties.createdAt}, 'YYYY-MM-DD')`,
+      bounties: sql<number>`COUNT(*)::int`,
+      value: sql<number>`COALESCE(SUM(${bounties.reward}::numeric), 0)::numeric`,
+    }).from(bounties)
+      .where(gte(bounties.createdAt, thirtyDaysAgo))
+      .groupBy(sql`TO_CHAR(${bounties.createdAt}, 'YYYY-MM-DD')`)
+      .orderBy(sql`TO_CHAR(${bounties.createdAt}, 'YYYY-MM-DD')`);
+
+    const formatVal = (v: any) => { const p = parseFloat(String(v)); return isNaN(p) ? 0 : p; };
+    const calcGrowth = (curr: number, prev: number) => prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100);
+
+    return {
+      periodComparison: {
+        bounties: { current: formatVal(currentPeriodBounties[0]?.count), previous: formatVal(previousPeriodBounties[0]?.count), growth: calcGrowth(formatVal(currentPeriodBounties[0]?.count), formatVal(previousPeriodBounties[0]?.count)) },
+        agents: { current: formatVal(currentAgents[0]?.count), previous: formatVal(previousAgents[0]?.count), growth: calcGrowth(formatVal(currentAgents[0]?.count), formatVal(previousAgents[0]?.count)) },
+        submissions: { current: formatVal(currentSubmissions[0]?.count), previous: formatVal(previousSubmissions[0]?.count), growth: calcGrowth(formatVal(currentSubmissions[0]?.count), formatVal(previousSubmissions[0]?.count)) },
+      },
+      dailyActivity: dailyActivity.map(d => ({ date: d.date, bounties: formatVal(d.bounties), value: formatVal(d.value) })),
+    };
+  }
+
+  async getAgentPerformanceAnalytics() {
+    const allAgents = await db.select({
+      id: agents.id,
+      name: agents.name,
+      completionRate: agents.completionRate,
+      avgRating: agents.avgRating,
+      totalBounties: agents.totalBounties,
+      totalEarnings: agents.totalEarnings,
+      capabilities: agents.capabilities,
+      avatarColor: agents.avatarColor,
+    }).from(agents).orderBy(desc(agents.totalEarnings)).limit(20);
+
+    const formatVal = (v: any) => { const p = parseFloat(String(v)); return isNaN(p) ? 0 : p; };
+
+    const topPerformers = allAgents.slice(0, 5).map(a => ({
+      id: a.id,
+      name: a.name,
+      completionRate: formatVal(a.completionRate),
+      avgRating: formatVal(a.avgRating),
+      totalBounties: formatVal(a.totalBounties),
+      totalEarnings: formatVal(a.totalEarnings),
+      capabilities: a.capabilities || [],
+      avatarColor: a.avatarColor,
+    }));
+
+    const performanceDistribution = [
+      { range: "90-100%", count: allAgents.filter(a => formatVal(a.completionRate) >= 90).length },
+      { range: "80-89%", count: allAgents.filter(a => formatVal(a.completionRate) >= 80 && formatVal(a.completionRate) < 90).length },
+      { range: "70-79%", count: allAgents.filter(a => formatVal(a.completionRate) >= 70 && formatVal(a.completionRate) < 80).length },
+      { range: "60-69%", count: allAgents.filter(a => formatVal(a.completionRate) >= 60 && formatVal(a.completionRate) < 70).length },
+      { range: "<60%", count: allAgents.filter(a => formatVal(a.completionRate) < 60).length },
+    ];
+
+    const avgCompletionRate = allAgents.length > 0 
+      ? allAgents.reduce((sum, a) => sum + formatVal(a.completionRate), 0) / allAgents.length 
+      : 0;
+    const avgRating = allAgents.length > 0 
+      ? allAgents.reduce((sum, a) => sum + formatVal(a.avgRating), 0) / allAgents.length 
+      : 0;
+
+    return {
+      topPerformers,
+      performanceDistribution,
+      averages: { completionRate: Math.round(avgCompletionRate), rating: avgRating.toFixed(1) },
+      totalAgents: allAgents.length,
+    };
+  }
+
+  async getROIAnalytics() {
+    const completedBounties = await db.select({
+      id: bounties.id,
+      reward: bounties.reward,
+      category: bounties.category,
+      createdAt: bounties.createdAt,
+    }).from(bounties).where(eq(bounties.status, "completed"));
+
+    const formatVal = (v: any) => { const p = parseFloat(String(v)); return isNaN(p) ? 0 : p; };
+    
+    const totalInvested = completedBounties.reduce((sum, b) => sum + formatVal(b.reward), 0);
+    const roiMultiplier = 2.3;
+    const estimatedValue = totalInvested * roiMultiplier;
+    const roi = totalInvested > 0 ? ((estimatedValue - totalInvested) / totalInvested) * 100 : 0;
+
+    const categoryMultipliers: Record<string, number> = {
+      marketing: 2.5, sales: 2.8, research: 2.1, data_analysis: 2.4,
+      development: 2.2, content: 2.3, design: 2.0, other: 2.0
+    };
+
+    const categoryROI = Object.entries(
+      completedBounties.reduce((acc, b) => {
+        const cat = b.category || "other";
+        if (!acc[cat]) acc[cat] = { invested: 0, count: 0 };
+        acc[cat].invested += formatVal(b.reward);
+        acc[cat].count += 1;
+        return acc;
+      }, {} as Record<string, { invested: number; count: number }>)
+    ).map(([category, data]) => {
+      const multiplier = categoryMultipliers[category] || 2.0;
+      const estimatedReturn = data.invested * multiplier;
+      const catRoi = data.invested > 0 ? Math.round(((estimatedReturn - data.invested) / data.invested) * 100) : 0;
+      return {
+        category,
+        invested: data.invested,
+        estimatedReturn,
+        roi: catRoi,
+        count: data.count,
+      };
+    });
+
+    const monthlyData = completedBounties.reduce((acc, b) => {
+      const date = new Date(b.createdAt);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!acc[key]) acc[key] = { invested: 0, count: 0, monthName: date.toLocaleString('default', { month: 'short' }) };
+      acc[key].invested += formatVal(b.reward);
+      acc[key].count += 1;
+      return acc;
+    }, {} as Record<string, { invested: number; count: number; monthName: string }>);
+
+    const sortedMonths = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b)).slice(-6);
+    const monthlyROI = sortedMonths.map(([_, data]) => ({
+      month: data.monthName,
+      invested: Math.round(data.invested),
+      returned: Math.round(data.invested * roiMultiplier),
+    }));
+
+    if (monthlyROI.length === 0) {
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - i);
+        monthlyROI.push({ month: d.toLocaleString('default', { month: 'short' }), invested: 0, returned: 0 });
+      }
+    }
+
+    return {
+      summary: {
+        totalInvested,
+        estimatedValue,
+        roi: Math.round(roi),
+        completedBounties: completedBounties.length,
+      },
+      categoryROI,
+      monthlyROI,
+    };
+  }
+
+  async getBenchmarkAnalytics() {
+    const allAgents = await db.select({
+      id: agents.id,
+      name: agents.name,
+      completionRate: agents.completionRate,
+      avgRating: agents.avgRating,
+      totalBounties: agents.totalBounties,
+      capabilities: agents.capabilities,
+    }).from(agents);
+
+    const formatVal = (v: any) => { const p = parseFloat(String(v)); return isNaN(p) ? 0 : p; };
+
+    const avgCompletionRate = allAgents.length > 0 
+      ? allAgents.reduce((s, a) => s + formatVal(a.completionRate), 0) / allAgents.length 
+      : 0;
+    const avgRating = allAgents.length > 0 
+      ? allAgents.reduce((s, a) => s + formatVal(a.avgRating), 0) / allAgents.length 
+      : 0;
+    const avgBountiesPerAgent = allAgents.length > 0 
+      ? allAgents.reduce((s, a) => s + formatVal(a.totalBounties), 0) / allAgents.length 
+      : 0;
+    const topPercentileRate = allAgents.length > 0 
+      ? Math.max(...allAgents.map(a => formatVal(a.completionRate))) 
+      : 0;
+
+    const platformBenchmarks = { avgCompletionRate, avgRating, avgBountiesPerAgent, topPercentileRate };
+
+    const capabilityKeywords = [
+      { capability: "Marketing", keywords: ["market", "advertising", "campaign", "seo"] },
+      { capability: "Research", keywords: ["research", "analysis", "study"] },
+      { capability: "Development", keywords: ["dev", "code", "programming", "software"] },
+      { capability: "Data Analysis", keywords: ["data", "analytics", "statistics"] },
+      { capability: "Content", keywords: ["content", "writing", "blog", "article"] },
+      { capability: "Lead Generation", keywords: ["lead", "prospect", "outreach"] },
+    ];
+
+    const capabilityBenchmarks = capabilityKeywords.map(({ capability, keywords }) => {
+      const matchingAgents = allAgents.filter(a => 
+        (a.capabilities || []).some((c: string) => 
+          keywords.some(kw => c.toLowerCase().includes(kw))
+        )
+      );
+      const agentCount = matchingAgents.length;
+      const avgRate = agentCount > 0 
+        ? Math.round(matchingAgents.reduce((s, a) => s + formatVal(a.completionRate), 0) / agentCount) 
+        : 0;
+      const topRate = agentCount > 0 
+        ? Math.round(Math.max(...matchingAgents.map(a => formatVal(a.completionRate)))) 
+        : 0;
+      return { capability, avgRate, topRate, agentCount };
+    }).filter(c => c.agentCount > 0 || c.capability === "Marketing");
+
+    const agentRankings = allAgents
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        completionRate: formatVal(a.completionRate),
+        rating: formatVal(a.avgRating),
+        bounties: formatVal(a.totalBounties),
+        score: formatVal(a.completionRate) * 0.4 + formatVal(a.avgRating) * 20 + formatVal(a.totalBounties) * 2,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+      .map((a, i) => ({ ...a, rank: i + 1 }));
+
+    return {
+      platformBenchmarks,
+      capabilityBenchmarks,
+      agentRankings,
     };
   }
 

@@ -1237,14 +1237,18 @@ Only ask questions about genuinely missing or unclear information. If the bounty
       }
 
       const generated = JSON.parse(content);
-      const metricsArray = Array.isArray(generated.successMetrics) 
+      // Ensure successMetrics is an array of strings (AI may return objects)
+      const rawMetrics = Array.isArray(generated.successMetrics) 
         ? generated.successMetrics 
         : ["Deliverable meets requirements", "Quality verified by reviewer"];
+      const metricsArray = rawMetrics.map((m: any) => 
+        typeof m === 'string' ? m : (m?.text || m?.metric || m?.description || JSON.stringify(m))
+      );
       res.json({
         title: generated.title || prompt.slice(0, 50),
         description: generated.description || prompt,
         category: generated.category || "other",
-        reward: generated.reward || 2000,
+        reward: String(generated.reward || 2000),
         deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         successMetrics: metricsArray.join("\n"),
         verificationCriteria: generated.verificationCriteria || "Output must meet all success metrics. Reviewer will verify completion against stated requirements.",

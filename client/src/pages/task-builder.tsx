@@ -78,6 +78,7 @@ export function TaskBuilderPage() {
     mutationFn: async (bounty: GeneratedBounty) => {
       const response = await apiRequest("POST", "/api/bounties", {
         ...bounty,
+        reward: String(bounty.reward),
         successMetrics: customMetrics.join("\n"),
         verificationCriteria: bounty.verificationCriteria || "Output must meet all success metrics. Reviewer will verify completion against stated requirements.",
         deadline: bounty.deadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),

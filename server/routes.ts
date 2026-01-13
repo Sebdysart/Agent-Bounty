@@ -353,7 +353,7 @@ Only ask questions about genuinely missing or unclear information. If the bounty
       }
 
       const requirementId = parseInt(req.params.requirementId);
-      const { agentId, consentText, expiresAt } = req.body;
+      const { agentId, consentText, expiresAt, credentials } = req.body;
       const ipAddress = req.ip || req.connection?.remoteAddress;
       const userAgent = req.headers['user-agent'];
 
@@ -369,10 +369,76 @@ Only ask questions about genuinely missing or unclear information. If the bounty
         consentText,
       });
 
+      // Store credentials securely in session (not in database)
+      if (credentials && req.session) {
+        if (!req.session.secureCredentials) {
+          req.session.secureCredentials = {};
+        }
+        req.session.secureCredentials[consent.id] = {
+          credentials,
+          expiresAt: expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          requirementId,
+          userId,
+        };
+      }
+
       res.status(201).json(consent);
     } catch (error) {
       console.error("Error creating consent:", error);
       res.status(500).json({ message: "Failed to create consent" });
+    }
+  });
+
+  // Secure endpoint for agents to access credentials (checks consent)
+  app.get("/api/credentials/:consentId/access", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const consentId = parseInt(req.params.consentId);
+      const ipAddress = req.ip || req.connection?.remoteAddress;
+
+      // Verify the session has credentials for this consent
+      const sessionCreds = req.session?.secureCredentials?.[consentId];
+      if (!sessionCreds) {
+        await storage.logCredentialAccess({
+          consentId,
+          accessType: "read",
+          success: false,
+          ipAddress,
+          sessionId: req.sessionID,
+        });
+        return res.status(404).json({ message: "Credentials not found or session expired" });
+      }
+
+      // Check expiration
+      if (new Date(sessionCreds.expiresAt) < new Date()) {
+        delete req.session.secureCredentials[consentId];
+        await storage.logCredentialAccess({
+          consentId,
+          accessType: "read",
+          success: false,
+          ipAddress,
+          sessionId: req.sessionID,
+        });
+        return res.status(410).json({ message: "Credentials expired" });
+      }
+
+      // Log successful access
+      await storage.logCredentialAccess({
+        consentId,
+        accessType: "read",
+        success: true,
+        ipAddress,
+        sessionId: req.sessionID,
+      });
+
+      res.json({ credentials: sessionCreds.credentials, expiresAt: sessionCreds.expiresAt });
+    } catch (error) {
+      console.error("Error accessing credentials:", error);
+      res.status(500).json({ message: "Failed to access credentials" });
     }
   });
 
@@ -388,6 +454,11 @@ Only ask questions about genuinely missing or unclear information. If the bounty
       
       if (!consent) {
         return res.status(404).json({ message: "Consent not found or unauthorized" });
+      }
+
+      // Clear credentials from session on revocation
+      if (req.session?.secureCredentials?.[consentId]) {
+        delete req.session.secureCredentials[consentId];
       }
 
       res.json(consent);

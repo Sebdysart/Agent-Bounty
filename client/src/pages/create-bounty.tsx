@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, CalendarIcon, Target, DollarSign, CheckCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Target, DollarSign, CheckCircle, Sparkles, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedStepper } from "@/components/ui/animated-stepper";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TextShimmer } from "@/components/ui/text-shimmer";
+import { BountyClarifyingQuestions } from "@/components/bounty-clarifying-questions";
 
 const formSchema = z.object({
   title: z.string().min(10, "Title must be at least 10 characters").max(100, "Title must be less than 100 characters"),
@@ -42,6 +43,8 @@ export function CreateBountyPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
+  const [clarifyingAnswers, setClarifyingAnswers] = useState<Record<string, string>>({});
+  const [showAiAnalysis, setShowAiAnalysis] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -88,9 +91,30 @@ export function CreateBountyPage() {
 
   const steps = [
     { number: 1, title: "Basic Info" },
-    { number: 2, title: "Requirements" },
-    { number: 3, title: "Review" },
+    { number: 2, title: "AI Assist" },
+    { number: 3, title: "Requirements" },
+    { number: 4, title: "Review" },
   ];
+
+  const handleNextStep = () => {
+    if (step === 1) {
+      setShowAiAnalysis(true);
+      setStep(2);
+    } else {
+      setStep(step + 1);
+    }
+  };
+
+  const handleAiComplete = (answers: Record<string, string>) => {
+    setClarifyingAnswers(answers);
+    setShowAiAnalysis(false);
+    setStep(3);
+  };
+
+  const handleAiSkip = () => {
+    setShowAiAnalysis(false);
+    setStep(3);
+  };
 
   const watchedValues = form.watch();
 
@@ -100,6 +124,9 @@ export function CreateBountyPage() {
       return (title?.length || 0) >= 10 && (description?.length || 0) >= 50 && category && parseFloat(reward || "0") >= 100;
     }
     if (step === 2) {
+      return true;
+    }
+    if (step === 3) {
       const { successMetrics, verificationCriteria, deadline } = watchedValues;
       return (successMetrics?.length || 0) >= 20 && (verificationCriteria?.length || 0) >= 20 && deadline;
     }
@@ -251,6 +278,30 @@ export function CreateBountyPage() {
                 className="relative rounded-[1.25rem] border-[0.75px] border-border p-2"
               >
                 <GlowingEffect spread={40} glow={true} proximity={64} borderWidth={2} />
+                <BountyClarifyingQuestions
+                  bountyData={{
+                    title: watchedValues.title,
+                    description: watchedValues.description,
+                    requirements: watchedValues.successMetrics,
+                    reward: watchedValues.reward,
+                    category: watchedValues.category,
+                  }}
+                  onComplete={handleAiComplete}
+                  onSkip={handleAiSkip}
+                />
+              </motion.div>
+            )}
+
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="relative rounded-[1.25rem] border-[0.75px] border-border p-2"
+              >
+                <GlowingEffect spread={40} glow={true} proximity={64} borderWidth={2} />
                 <Card className="relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-blue-500/5" />
                   <CardHeader className="relative">
@@ -343,9 +394,9 @@ export function CreateBountyPage() {
               </motion.div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <motion.div
-                key="step3"
+                key="step4"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -423,47 +474,59 @@ export function CreateBountyPage() {
             )}
             </AnimatePresence>
 
-            <motion.div 
-              className="flex items-center justify-between gap-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              {step > 1 ? (
-                <Button type="button" variant="outline" onClick={() => setStep(step - 1)} data-testid="button-prev">
-                  Previous
-                </Button>
-              ) : (
-                <div />
-              )}
-
-              <div className="flex items-center gap-4">
-                {step === 1 && !canProceed() && (
-                  <span className="text-sm text-muted-foreground">
-                    {(watchedValues.title?.length || 0) < 10 ? "Title needs 10+ chars" :
-                     (watchedValues.description?.length || 0) < 50 ? "Description needs 50+ chars" :
-                     !watchedValues.category ? "Select a category" :
-                     parseFloat(watchedValues.reward || "0") < 100 ? "Reward must be $100+" : ""}
-                  </span>
-                )}
-                {step === 2 && !canProceed() && (
-                  <span className="text-sm text-muted-foreground">
-                    {(watchedValues.successMetrics?.length || 0) < 20 ? "Success metrics needs 20+ chars" :
-                     (watchedValues.verificationCriteria?.length || 0) < 20 ? "Verification needs 20+ chars" :
-                     !watchedValues.deadline ? "Pick a deadline" : ""}
-                  </span>
-                )}
-                {step < 3 ? (
-                  <Button type="button" onClick={() => setStep(step + 1)} disabled={!canProceed()} data-testid="button-next">
-                    Continue
+            {step !== 2 && (
+              <motion.div 
+                className="flex items-center justify-between gap-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                {step > 1 && step !== 2 ? (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setStep(step === 3 ? 1 : step - 1)} 
+                    data-testid="button-prev"
+                  >
+                    Previous
                   </Button>
                 ) : (
-                  <Button type="submit" disabled={createBounty.isPending} data-testid="button-submit">
-                    {createBounty.isPending ? "Posting..." : "Post Bounty"}
-                  </Button>
+                  <div />
                 )}
-              </div>
-            </motion.div>
+
+                <div className="flex items-center gap-4">
+                  {step === 1 && !canProceed() && (
+                    <span className="text-sm text-muted-foreground">
+                      {(watchedValues.title?.length || 0) < 10 ? "Title needs 10+ chars" :
+                       (watchedValues.description?.length || 0) < 50 ? "Description needs 50+ chars" :
+                       !watchedValues.category ? "Select a category" :
+                       parseFloat(watchedValues.reward || "0") < 100 ? "Reward must be $100+" : ""}
+                    </span>
+                  )}
+                  {step === 3 && !canProceed() && (
+                    <span className="text-sm text-muted-foreground">
+                      {(watchedValues.successMetrics?.length || 0) < 20 ? "Success metrics needs 20+ chars" :
+                       (watchedValues.verificationCriteria?.length || 0) < 20 ? "Verification needs 20+ chars" :
+                       !watchedValues.deadline ? "Pick a deadline" : ""}
+                    </span>
+                  )}
+                  {step < 4 ? (
+                    <Button 
+                      type="button" 
+                      onClick={handleNextStep} 
+                      disabled={!canProceed()} 
+                      data-testid="button-next"
+                    >
+                      Continue
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={createBounty.isPending} data-testid="button-submit">
+                      {createBounty.isPending ? "Posting..." : "Post Bounty"}
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </form>
         </Form>
       </main>

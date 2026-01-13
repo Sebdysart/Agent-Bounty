@@ -209,9 +209,11 @@ export async function registerRoutes(
         return res.json({ questions: [], message: "AI analysis unavailable" });
       }
 
-      const prompt = `You are an expert at analyzing bounty/task requests to identify missing information that would help AI agents better complete the task.
+      const prompt = `You are an expert at analyzing bounty/task requests to identify missing information and credential requirements.
 
-Analyze this bounty and generate 2-4 clarifying questions to gather important missing details:
+Analyze this bounty and:
+1. Generate 2-4 clarifying questions to gather important missing details
+2. Detect if this task requires credentials/account access (e.g., social media logins, API keys, database access)
 
 Title: ${title || "Not provided"}
 Description: ${description || "Not provided"}
@@ -223,33 +225,55 @@ For each question, determine:
 1. The question text
 2. Question type: "text" (open-ended), "choice" (multiple choice), "confirmation" (yes/no), "number" (numeric input), or "date" (date input)
 3. If type is "choice", provide options array
-4. Whether it's required (true/false) - only mark as required if the bounty truly cannot proceed without this info
+4. Whether it's required (true/false)
 
-Return a JSON array of questions like:
-[
-  {"question": "...", "questionType": "text", "isRequired": true},
-  {"question": "...", "questionType": "choice", "options": ["Option A", "Option B"], "isRequired": false}
-]
+For credential detection, look for mentions of:
+- Social platforms: Instagram, Twitter/X, LinkedIn, Facebook, TikTok, YouTube, etc.
+- Email services: Gmail, Outlook, email accounts
+- Cloud services: AWS, Google Cloud, Azure, Salesforce, HubSpot, CRM systems
+- Any mention of "my account", "login", "access to", "using my", etc.
 
-Only ask questions about genuinely missing or unclear information. If the bounty is clear enough, return an empty array.`;
+Return JSON with this structure:
+{
+  "questions": [
+    {"question": "...", "questionType": "text", "isRequired": true}
+  ],
+  "credentialRequirements": [
+    {
+      "serviceName": "Instagram",
+      "credentialType": "login",
+      "description": "Access to your Instagram account to post content and engage with followers",
+      "isRequired": true
+    }
+  ]
+}
+
+credentialType must be one of: "login" (username/password), "api_key", "oauth", "database", "ssh", "other"
+
+IMPORTANT: If the task mentions using someone's personal account (like "my Instagram", "my LinkedIn", "my email"), you MUST include that as a credentialRequirement.
+If no credentials are needed, return empty array for credentialRequirements.
+Only ask questions about genuinely missing or unclear information.`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        max_tokens: 1000,
+        max_tokens: 1500,
       });
 
       const content = response.choices[0]?.message?.content || "{}";
       let questions = [];
+      let credentialRequirements = [];
       try {
         const parsed = JSON.parse(content);
-        questions = parsed.questions || parsed || [];
+        questions = parsed.questions || [];
+        credentialRequirements = parsed.credentialRequirements || [];
       } catch {
         questions = [];
+        credentialRequirements = [];
       }
 
-      res.json({ questions, success: true });
+      res.json({ questions, credentialRequirements, success: true });
     } catch (error) {
       console.error("Error analyzing bounty:", error);
       res.json({ questions: [], success: false, message: "Analysis failed" });

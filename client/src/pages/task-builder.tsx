@@ -209,11 +209,17 @@ export function TaskBuilderPage() {
             reward: pendingBountyForClarification?.reward?.toString(),
             category: pendingBountyForClarification?.category,
           }}
-          onComplete={(answers) => {
+          onComplete={(answers, credentialRequirements) => {
             if (pendingBountyForClarification) {
-              const enhancedDescription = Object.entries(answers).length > 0
-                ? `${pendingBountyForClarification.description}\n\nAdditional Details:\n${Object.entries(answers).map(([q, a]) => `- ${q}: ${a}`).join('\n')}`
-                : pendingBountyForClarification.description;
+              let enhancedDescription = pendingBountyForClarification.description;
+              
+              if (Object.entries(answers).length > 0) {
+                enhancedDescription += `\n\nAdditional Details:\n${Object.entries(answers).map(([q, a]) => `- ${q}: ${a}`).join('\n')}`;
+              }
+              
+              if (credentialRequirements && credentialRequirements.length > 0) {
+                enhancedDescription += `\n\nCredential Requirements:\n${credentialRequirements.map(r => `- ${r.serviceName} (${r.credentialType}): ${r.description}`).join('\n')}`;
+              }
               
               createBounty.mutate({
                 ...pendingBountyForClarification,

@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Sparkles, MessageCircle, SkipForward, Check, AlertCircle, Brain, Target } from "lucide-react";
+import { Loader2, Sparkles, MessageCircle, SkipForward, Check, AlertCircle, Brain, Target, Shield, Key, Lock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -22,6 +22,13 @@ interface ClarifyingQuestion {
   questionType: "text" | "choice" | "confirmation" | "number" | "date";
   options?: string[];
   isRequired?: boolean;
+}
+
+interface CredentialRequirement {
+  serviceName: string;
+  credentialType: "login" | "api_key" | "oauth" | "database" | "ssh" | "other";
+  description: string;
+  isRequired: boolean;
 }
 
 interface Props {
@@ -34,15 +41,16 @@ interface Props {
     reward?: string;
     category?: string;
   };
-  onComplete: (answers: Record<string, string>) => void;
+  onComplete: (answers: Record<string, string>, credentialRequirements?: CredentialRequirement[]) => void;
   onSkip: () => void;
 }
 
 export function ClarifyingQuestionsModal({ isOpen, onOpenChange, bountyData, onComplete, onSkip }: Props) {
   const [questions, setQuestions] = useState<ClarifyingQuestion[]>([]);
+  const [credentialRequirements, setCredentialRequirements] = useState<CredentialRequirement[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [phase, setPhase] = useState<"intro" | "analyzing" | "questions" | "complete">("intro");
+  const [phase, setPhase] = useState<"intro" | "analyzing" | "credentials_notice" | "questions" | "complete">("intro");
 
   const analyzeMutation = useMutation({
     mutationFn: async () => {
@@ -50,7 +58,14 @@ export function ClarifyingQuestionsModal({ isOpen, onOpenChange, bountyData, onC
       return response.json();
     },
     onSuccess: (data) => {
-      if (data.questions && data.questions.length > 0) {
+      const hasCredentials = data.credentialRequirements && data.credentialRequirements.length > 0;
+      const hasQuestions = data.questions && data.questions.length > 0;
+      
+      if (hasCredentials) {
+        setCredentialRequirements(data.credentialRequirements);
+        setQuestions(data.questions || []);
+        setPhase("credentials_notice");
+      } else if (hasQuestions) {
         setQuestions(data.questions);
         setPhase("questions");
       } else {
@@ -75,6 +90,15 @@ export function ClarifyingQuestionsModal({ isOpen, onOpenChange, bountyData, onC
     analyzeMutation.mutate();
   };
 
+  const handleCredentialsAcknowledged = () => {
+    if (questions.length > 0) {
+      setPhase("questions");
+    } else {
+      onComplete(answers, credentialRequirements);
+      onOpenChange(false);
+    }
+  };
+
   const handleAnswer = (answer: string) => {
     const question = questions[currentIndex];
     const newAnswers = { ...answers, [question.question]: answer };
@@ -83,7 +107,7 @@ export function ClarifyingQuestionsModal({ isOpen, onOpenChange, bountyData, onC
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      onComplete(newAnswers);
+      onComplete(newAnswers, credentialRequirements);
       onOpenChange(false);
     }
   };
@@ -92,7 +116,7 @@ export function ClarifyingQuestionsModal({ isOpen, onOpenChange, bountyData, onC
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      onComplete(answers);
+      onComplete(answers, credentialRequirements);
       onOpenChange(false);
     }
   };
@@ -200,6 +224,89 @@ export function ClarifyingQuestionsModal({ isOpen, onOpenChange, bountyData, onC
                     transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
                   />
                 ))}
+              </div>
+            </motion.div>
+          )}
+
+          {phase === "credentials_notice" && (
+            <motion.div
+              key="credentials"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="relative"
+            >
+              <DialogHeader className="text-center pb-2">
+                <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <DialogTitle className="text-xl" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                  Credentials Required
+                </DialogTitle>
+                <DialogDescription className="text-base">
+                  This bounty requires access to your accounts
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium mb-1">Security Notice</p>
+                      <p className="text-muted-foreground">
+                        Credentials are stored securely and only shared with agents you authorize.
+                        You'll provide credentials after funding your bounty.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {credentialRequirements.map((req, i) => {
+                    const Icon = req.credentialType === "login" ? Lock : Key;
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border/50"
+                      >
+                        <div className="p-2 rounded-lg bg-amber-500/20">
+                          <Icon className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{req.serviceName}</span>
+                            {req.isRequired && (
+                              <Badge variant="secondary" className="text-xs">Required</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{req.description}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <Button
+                  onClick={handleCredentialsAcknowledged}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                  data-testid="button-acknowledge-credentials"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  I Understand, Continue
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleSkipAll}
+                  className="w-full text-muted-foreground"
+                >
+                  Cancel
+                </Button>
               </div>
             </motion.div>
           )}

@@ -2169,6 +2169,68 @@ export const anomalyDetections = pgTable("anomaly_detections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Bounty clarifying questions - AI asks questions to clarify bounty requirements
+export const bountyQuestionStatuses = ["pending", "answered", "skipped"] as const;
+export const questionTypes = ["text", "choice", "confirmation", "number", "date"] as const;
+
+export const bountyClarifyingQuestions = pgTable("bounty_clarifying_questions", {
+  id: serial("id").primaryKey(),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  questionType: text("question_type").notNull().$type<typeof questionTypes[number]>(),
+  options: text("options").array(), // For choice-type questions
+  answer: text("answer"),
+  status: text("status").notNull().$type<typeof bountyQuestionStatuses[number]>().default("pending"),
+  isRequired: boolean("is_required").default(false),
+  aiGenerated: boolean("ai_generated").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  answeredAt: timestamp("answered_at"),
+});
+
+// Credential consent - tracks user consent for agents to access sensitive data
+export const credentialTypes = ["login", "api_key", "oauth", "database", "ssh", "other"] as const;
+export const consentStatuses = ["pending", "granted", "denied", "revoked", "expired"] as const;
+
+export const bountyCredentialRequirements = pgTable("bounty_credential_requirements", {
+  id: serial("id").primaryKey(),
+  bountyId: integer("bounty_id").notNull().references(() => bounties.id, { onDelete: "cascade" }),
+  credentialType: text("credential_type").notNull().$type<typeof credentialTypes[number]>(),
+  serviceName: text("service_name").notNull(), // e.g., "LinkedIn", "Gmail", "Salesforce"
+  description: text("description").notNull(), // What the agent needs access for
+  isRequired: boolean("is_required").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const credentialConsents = pgTable("credential_consents", {
+  id: serial("id").primaryKey(),
+  requirementId: integer("requirement_id").notNull().references(() => bountyCredentialRequirements.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  agentId: integer("agent_id").references(() => agents.id),
+  status: text("status").notNull().$type<typeof consentStatuses[number]>().default("pending"),
+  consentedAt: timestamp("consented_at"),
+  revokedAt: timestamp("revoked_at"),
+  expiresAt: timestamp("expires_at"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  consentText: text("consent_text"), // Record of what user consented to
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Credential access log - tracks when agents access credentials (credentials stored in session only)
+export const credentialAccessTypes = ["read", "use", "verify", "refresh"] as const;
+
+export const credentialAccessLogs = pgTable("credential_access_logs", {
+  id: serial("id").primaryKey(),
+  consentId: integer("consent_id").notNull().references(() => credentialConsents.id, { onDelete: "cascade" }),
+  agentId: integer("agent_id").references(() => agents.id),
+  bountyId: integer("bounty_id").references(() => bounties.id),
+  accessedAt: timestamp("accessed_at").defaultNow().notNull(),
+  accessType: text("access_type").notNull().$type<typeof credentialAccessTypes[number]>(),
+  success: boolean("success").default(true),
+  ipAddress: text("ip_address"),
+  sessionId: text("session_id"), // Links to session where credentials are stored temporarily
+});
+
 // Insert schemas
 export const insertSandboxConfigurationSchema = createInsertSchema(sandboxConfigurations).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSandboxSessionSchema = createInsertSchema(sandboxSessions).omit({ id: true, createdAt: true });
@@ -2177,6 +2239,10 @@ export const insertSecurityViolationSchema = createInsertSchema(securityViolatio
 export const insertBlockchainProofSchema = createInsertSchema(blockchainProofs).omit({ id: true, createdAt: true });
 export const insertResourceQuotaSchema = createInsertSchema(resourceQuotas).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAnomalyDetectionSchema = createInsertSchema(anomalyDetections).omit({ id: true, createdAt: true });
+export const insertBountyClarifyingQuestionSchema = createInsertSchema(bountyClarifyingQuestions).omit({ id: true, createdAt: true });
+export const insertBountyCredentialRequirementSchema = createInsertSchema(bountyCredentialRequirements).omit({ id: true, createdAt: true });
+export const insertCredentialConsentSchema = createInsertSchema(credentialConsents).omit({ id: true, createdAt: true });
+export const insertCredentialAccessLogSchema = createInsertSchema(credentialAccessLogs).omit({ id: true });
 
 // Types
 export type SandboxConfiguration = typeof sandboxConfigurations.$inferSelect;
@@ -2193,3 +2259,11 @@ export type ResourceQuota = typeof resourceQuotas.$inferSelect;
 export type InsertResourceQuota = z.infer<typeof insertResourceQuotaSchema>;
 export type AnomalyDetection = typeof anomalyDetections.$inferSelect;
 export type InsertAnomalyDetection = z.infer<typeof insertAnomalyDetectionSchema>;
+export type BountyClarifyingQuestion = typeof bountyClarifyingQuestions.$inferSelect;
+export type InsertBountyClarifyingQuestion = z.infer<typeof insertBountyClarifyingQuestionSchema>;
+export type BountyCredentialRequirement = typeof bountyCredentialRequirements.$inferSelect;
+export type InsertBountyCredentialRequirement = z.infer<typeof insertBountyCredentialRequirementSchema>;
+export type CredentialConsent = typeof credentialConsents.$inferSelect;
+export type InsertCredentialConsent = z.infer<typeof insertCredentialConsentSchema>;
+export type CredentialAccessLog = typeof credentialAccessLogs.$inferSelect;
+export type InsertCredentialAccessLog = z.infer<typeof insertCredentialAccessLogSchema>;

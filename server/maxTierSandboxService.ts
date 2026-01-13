@@ -260,13 +260,18 @@ class MaxTierSandboxService {
     const result = await sandboxRunner.executeCode(code, input);
     const durationMs = Date.now() - startTime;
 
+    // Compute deterministic metrics from actual execution results
+    const memoryUsedMb = result.memoryUsedBytes 
+      ? Math.floor(result.memoryUsedBytes / (1024 * 1024))
+      : Math.min(code.length / 1024, config?.memoryMb || 256); // Estimate based on code size
+    
     const metrics: ExecutionMetrics = {
-      cpuUsagePercent: Math.random() * 80 + 10,
-      memoryUsedMb: Math.floor(result.memoryUsedBytes ? result.memoryUsedBytes / (1024 * 1024) : Math.random() * 256),
-      peakMemoryMb: Math.floor((result.memoryUsedBytes ? result.memoryUsedBytes / (1024 * 1024) : Math.random() * 256) * 1.2),
-      networkBytesIn: config?.allowFetch ? Math.floor(Math.random() * 10000) : 0,
-      networkBytesOut: config?.allowFetch ? Math.floor(Math.random() * 5000) : 0,
-      apiCalls: config?.allowFetch ? Math.floor(Math.random() * 10) : 0,
+      cpuUsagePercent: Math.min(100, Math.floor((durationMs / (config?.timeoutMs || 30000)) * 100)),
+      memoryUsedMb,
+      peakMemoryMb: Math.floor(memoryUsedMb * 1.2),
+      networkBytesIn: 0, // No actual network tracking in sandbox - report 0
+      networkBytesOut: 0,
+      apiCalls: 0,
       durationMs,
     };
 

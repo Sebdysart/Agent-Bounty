@@ -96,20 +96,24 @@ class BlockchainService {
 
   private async submitToBlockchain(proofId: number, contentHash: string, network: BlockchainNetwork): Promise<void> {
     try {
-      const mockTxHash = `0x${crypto.randomBytes(32).toString('hex')}`;
-      const mockBlockNumber = Math.floor(Math.random() * 1000000) + 18000000;
+      // Generate deterministic transaction hash from content hash (simulated blockchain)
+      const simulatedTxHash = `0x${crypto.createHash('sha256').update(`${contentHash}-${proofId}-${network}`).digest('hex')}`;
+      // Use deterministic block number based on timestamp (simulated)
+      const baseBlockNumber = 18000000;
+      const timestampOffset = Math.floor(Date.now() / 12000); // ~12 second blocks
+      const simulatedBlockNumber = baseBlockNumber + (timestampOffset % 1000000);
 
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       await db.update(verificationProofs)
         .set({
-          transactionHash: mockTxHash,
-          blockNumber: mockBlockNumber,
+          transactionHash: simulatedTxHash,
+          blockNumber: simulatedBlockNumber,
           verifiedAt: new Date(),
         })
         .where(eq(verificationProofs.id, proofId));
 
-      console.log(`Verification proof ${proofId} recorded on ${network}: ${mockTxHash}`);
+      console.log(`Verification proof ${proofId} recorded on ${network} (simulated): ${simulatedTxHash}`);
     } catch (error) {
       console.error(`Failed to submit proof ${proofId} to blockchain:`, error);
     }

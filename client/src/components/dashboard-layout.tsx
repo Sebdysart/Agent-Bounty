@@ -1,14 +1,17 @@
+import { useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useCommandPalette } from "@/hooks/use-command-palette";
 import { Button } from "@/components/ui/button";
 import { GlowButton } from "@/components/ui/glow-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CommandPalette, type CommandItem } from "@/components/ui/command-palette";
 import { 
   Target, Plus, Trophy, CreditCard, BarChart3, Wand2, Users, 
   LogOut, User, Settings, Bot, Upload, Store, Plug, Shield,
-  Network, DollarSign, TrendingUp, Lock, Coins, Globe
+  Network, DollarSign, TrendingUp, Lock, Coins, Globe, Command, Home, Mail, BookOpen, Scale, Activity
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -19,6 +22,119 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const [location, navigate] = useLocation();
+  const { isOpen: isCommandPaletteOpen, open: openCommandPalette, close: closeCommandPalette } = useCommandPalette();
+
+  const commands: CommandItem[] = useMemo(() => [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: <Home className="h-4 w-4" />,
+      shortcut: '⌘1',
+      group: 'Navigation',
+      keywords: ['home', 'overview'],
+      action: () => navigate('/'),
+    },
+    {
+      id: 'bounties',
+      label: 'Browse Bounties',
+      icon: <Target className="h-4 w-4" />,
+      shortcut: '⌘2',
+      group: 'Navigation',
+      keywords: ['tasks', 'rewards', 'challenges'],
+      action: () => navigate('/browse-bounties'),
+    },
+    {
+      id: 'agents',
+      label: 'Agents',
+      icon: <Bot className="h-4 w-4" />,
+      shortcut: '⌘3',
+      group: 'Navigation',
+      keywords: ['bots', 'ai'],
+      action: () => navigate('/my-agents'),
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: <BarChart3 className="h-4 w-4" />,
+      shortcut: '⌘4',
+      group: 'Navigation',
+      keywords: ['stats', 'metrics', 'data'],
+      action: () => navigate('/analytics'),
+    },
+    {
+      id: 'leaderboard',
+      label: 'Leaderboard',
+      icon: <Trophy className="h-4 w-4" />,
+      group: 'Navigation',
+      keywords: ['ranking', 'top', 'best'],
+      action: () => navigate('/leaderboard'),
+    },
+    {
+      id: 'community',
+      label: 'Community',
+      icon: <Users className="h-4 w-4" />,
+      group: 'Navigation',
+      keywords: ['discussions', 'forum'],
+      action: () => navigate('/community'),
+    },
+    {
+      id: 'compare-agents',
+      label: 'Compare Agents',
+      icon: <Scale className="h-4 w-4" />,
+      group: 'Navigation',
+      keywords: ['compare', 'versus'],
+      action: () => navigate('/compare-agents'),
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: <Settings className="h-4 w-4" />,
+      shortcut: '⌘,',
+      group: 'Navigation',
+      keywords: ['preferences', 'config'],
+      action: () => navigate('/settings'),
+    },
+    {
+      id: 'register-agent',
+      label: 'Register Agent',
+      icon: <Bot className="h-4 w-4" />,
+      group: 'Actions',
+      keywords: ['create', 'new', 'agent'],
+      action: () => navigate('/agents/create'),
+    },
+    {
+      id: 'support',
+      label: 'Contact Support',
+      icon: <Mail className="h-4 w-4" />,
+      group: 'Help',
+      keywords: ['help', 'contact'],
+      action: () => navigate('/support'),
+    },
+    {
+      id: 'documentation',
+      label: 'Documentation',
+      icon: <BookOpen className="h-4 w-4" />,
+      group: 'Help',
+      keywords: ['docs', 'help', 'guide'],
+      action: () => { window.open('/docs', '_blank'); },
+    },
+    {
+      id: 'integrations-hub',
+      label: 'Integrations Hub',
+      icon: <Plug className="h-4 w-4" />,
+      group: 'Enterprise',
+      keywords: ['connectors', 'apis'],
+      action: () => navigate('/integrations-hub'),
+    },
+    {
+      id: 'finops',
+      label: 'FinOps Console',
+      icon: <DollarSign className="h-4 w-4" />,
+      group: 'Enterprise',
+      keywords: ['costs', 'budget', 'spending'],
+      action: () => navigate('/finops'),
+    },
+  ], [navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,6 +178,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Store className="w-5 h-5" />
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openCommandPalette}
+              className="hidden md:flex items-center gap-2"
+              data-testid="button-command-palette"
+            >
+              <Command className="w-3 h-3" />
+              <span className="text-xs text-muted-foreground">⌘K</span>
+            </Button>
             <Link href="/task-builder">
               <Button variant="outline" className="gap-2 hidden md:flex" data-testid="button-task-builder">
                 <Wand2 className="w-4 h-4" />
@@ -175,6 +301,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <main className="max-w-7xl mx-auto">
         {children}
       </main>
+
+      <CommandPalette
+        commands={commands}
+        isOpen={isCommandPaletteOpen}
+        onOpenChange={closeCommandPalette}
+        placeholder="Type a command or search..."
+        recentLimit={5}
+      />
     </div>
   );
 }

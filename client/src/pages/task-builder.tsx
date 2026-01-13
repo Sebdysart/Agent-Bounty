@@ -15,6 +15,7 @@ import { BackgroundGradientAnimation } from "@/components/ui/background-gradient
 import { Spotlight } from "@/components/ui/spotlight";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TextShimmer } from "@/components/ui/text-shimmer";
+import { AIFeaturesSection } from "@/components/ui/ai-feature-showcase";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Template {
@@ -195,6 +196,10 @@ export function TaskBuilderPage() {
             isGenerating={generateBounty.isPending}
           />
         </section>
+
+        {!generatedBounty && (
+          <AIFeaturesSection />
+        )}
 
         <AnimatePresence>
           {generatedBounty && (

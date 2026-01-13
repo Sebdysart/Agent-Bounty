@@ -46,11 +46,11 @@ const credentialVault = new Map<number, StoredCredentials>();
 // Clean up expired credentials periodically (every 5 minutes)
 setInterval(() => {
   const now = new Date();
-  for (const [consentId, data] of credentialVault.entries()) {
+  credentialVault.forEach((data, consentId) => {
     if (data.expiresAt < now) {
       credentialVault.delete(consentId);
     }
-  }
+  });
 }, 5 * 60 * 1000);
 
 function getOpenAIClient() {

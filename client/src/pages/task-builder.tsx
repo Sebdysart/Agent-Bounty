@@ -15,7 +15,7 @@ import { BackgroundGradientAnimation } from "@/components/ui/background-gradient
 import { Spotlight } from "@/components/ui/spotlight";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TextShimmer } from "@/components/ui/text-shimmer";
-import { AIFeaturesSection } from "@/components/ui/ai-feature-showcase";
+import { ClarifyingQuestionsModal } from "@/components/clarifying-questions-modal";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Template {
@@ -45,6 +45,8 @@ export function TaskBuilderPage() {
   const [customMetrics, setCustomMetrics] = useState<string[]>([]);
   const [newMetric, setNewMetric] = useState("");
   const [hoveredTemplate, setHoveredTemplate] = useState<string | null>(null);
+  const [isClarifyingModalOpen, setIsClarifyingModalOpen] = useState(false);
+  const [pendingBountyForClarification, setPendingBountyForClarification] = useState<GeneratedBounty | null>(null);
 
   const { data: templates, isLoading: templatesLoading } = useQuery<Template[]>({
     queryKey: ["/api/bounty-templates"],
@@ -197,9 +199,36 @@ export function TaskBuilderPage() {
           />
         </section>
 
-        {!generatedBounty && (
-          <AIFeaturesSection />
-        )}
+        <ClarifyingQuestionsModal
+          isOpen={isClarifyingModalOpen}
+          onOpenChange={setIsClarifyingModalOpen}
+          bountyData={{
+            title: pendingBountyForClarification?.title,
+            description: pendingBountyForClarification?.description,
+            requirements: pendingBountyForClarification?.successMetrics,
+            reward: pendingBountyForClarification?.reward?.toString(),
+            category: pendingBountyForClarification?.category,
+          }}
+          onComplete={(answers) => {
+            if (pendingBountyForClarification) {
+              const enhancedDescription = Object.entries(answers).length > 0
+                ? `${pendingBountyForClarification.description}\n\nAdditional Details:\n${Object.entries(answers).map(([q, a]) => `- ${q}: ${a}`).join('\n')}`
+                : pendingBountyForClarification.description;
+              
+              createBounty.mutate({
+                ...pendingBountyForClarification,
+                description: enhancedDescription,
+              });
+              setPendingBountyForClarification(null);
+            }
+          }}
+          onSkip={() => {
+            if (pendingBountyForClarification) {
+              createBounty.mutate(pendingBountyForClarification);
+              setPendingBountyForClarification(null);
+            }
+          }}
+        />
 
         <AnimatePresence>
           {generatedBounty && (
@@ -344,7 +373,10 @@ export function TaskBuilderPage() {
                   <CardFooter className="gap-3 border-t border-border/30 pt-6">
                     <Button 
                       className="flex-1 h-12 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-violet-500 hover:from-violet-600 hover:via-fuchsia-600 hover:to-violet-600 text-white shadow-lg shadow-violet-500/30 font-semibold" 
-                      onClick={() => createBounty.mutate(generatedBounty)}
+                      onClick={() => {
+                        setPendingBountyForClarification(generatedBounty);
+                        setIsClarifyingModalOpen(true);
+                      }}
                       disabled={createBounty.isPending}
                       data-testid="button-create-bounty"
                     >

@@ -21,7 +21,7 @@ import {
   bountyStatuses, submissionStatuses, agentUploadStatuses, agentTestStatuses, badgeTypes,
   bountyCategories, orchestrationModes, userRoles, agentUploadTypes, agentToolCategories,
   integrationCategories, discussionTypes, voteTypes, securityEventTypes, ticketCategories,
-  ticketPriorities, disputeCategories
+  ticketPriorities, disputeCategories, subscriptionTiers
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
@@ -435,10 +435,11 @@ export class DatabaseStorage implements IStorage {
     const profileData = {
       ...profile,
       role: (profile.role || "business") as typeof userRoles[number],
+      subscriptionTier: (profile.subscriptionTier || "free") as typeof subscriptionTiers[number],
     };
     const [upserted] = await db
       .insert(userProfiles)
-      .values(profileData)
+      .values([profileData])
       .onConflictDoUpdate({
         target: userProfiles.id,
         set: { 
@@ -1170,6 +1171,7 @@ export class DatabaseStorage implements IStorage {
     const disputeData = {
       ...dispute,
       category: dispute.category as typeof disputeCategories[number],
+      priority: (dispute.priority || "medium") as typeof ticketPriorities[number],
     };
     const [created] = await db.insert(disputes).values([disputeData]).returning();
     return created;
@@ -1193,7 +1195,7 @@ export class DatabaseStorage implements IStorage {
     const [bountyCount] = await db.select({ count: sql<number>`count(*)::int` }).from(bounties);
     const [agentCount] = await db.select({ count: sql<number>`count(*)::int` }).from(agents);
     const [pendingCount] = await db.select({ count: sql<number>`count(*)::int` })
-      .from(agentUploads).where(eq(agentUploads.status, "under_review"));
+      .from(agentUploads).where(eq(agentUploads.status, "pending_review" as typeof agentUploadStatuses[number]));
     const [disputeCount] = await db.select({ count: sql<number>`count(*)::int` })
       .from(disputes).where(eq(disputes.status, "open"));
     const [ticketCount] = await db.select({ count: sql<number>`count(*)::int` })
@@ -1211,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPendingAgents(): Promise<AgentUpload[]> {
     return db.select().from(agentUploads)
-      .where(eq(agentUploads.status, "under_review"))
+      .where(eq(agentUploads.status, "pending_review" as typeof agentUploadStatuses[number]))
       .orderBy(desc(agentUploads.createdAt));
   }
 

@@ -106,7 +106,7 @@ export async function registerRoutes(
 
   await seedDefaultPermissions();
 
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", hybridAuth, async (req: any, res) => {
     try {
       const stats = await storage.getStats();
       res.json(stats);
@@ -116,7 +116,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/activity", async (req, res) => {
+  app.get("/api/activity", hybridAuth, async (req: any, res) => {
     try {
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
       const activities = await storage.getRecentActivity(limit);
@@ -420,6 +420,88 @@ export async function registerRoutes(
     }
   });
 
+  // === VERIFICATION ROUTES ===
+  app.post("/api/submissions/:id/verify", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const submissionId = parseInt(req.params.id);
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      const bounty = await storage.getBounty(submission.bountyId);
+      if (!bounty || bounty.posterId !== userId) {
+        return res.status(403).json({ message: "Only the bounty poster can verify submissions" });
+      }
+
+      const audit = await verificationService.createAudit(submissionId, bounty.id, "ai");
+      const result = await verificationService.runAiVerification(audit.id);
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error verifying submission:", error);
+      res.status(500).json({ message: "Failed to verify submission" });
+    }
+  });
+
+  app.get("/api/submissions/:id/audits", hybridAuth, async (req: any, res) => {
+    try {
+      const submissionId = parseInt(req.params.id);
+      const audits = await verificationService.getSubmissionAudits(submissionId);
+      res.json(audits);
+    } catch (error) {
+      console.error("Error fetching audits:", error);
+      res.status(500).json({ message: "Failed to fetch audits" });
+    }
+  });
+
+  app.get("/api/verification/stats", hybridAuth, async (req: any, res) => {
+    try {
+      const stats = await verificationService.getVerificationStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching verification stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.get("/api/verification/pending", hybridAuth, async (req: any, res) => {
+    try {
+      const pending = await verificationService.getPendingReviews();
+      res.json(pending);
+    } catch (error) {
+      console.error("Error fetching pending reviews:", error);
+      res.status(500).json({ message: "Failed to fetch pending reviews" });
+    }
+  });
+
+  app.post("/api/verification/:id/review", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const auditId = parseInt(req.params.id);
+      const { status, notes } = req.body;
+      
+      if (!status || !["passed", "failed", "needs_review"].includes(status)) {
+        return res.status(400).json({ message: "Valid status required (passed, failed, needs_review)" });
+      }
+
+      const result = await verificationService.submitHumanReview(auditId, userId, status, notes);
+      res.json(result);
+    } catch (error) {
+      console.error("Error submitting review:", error);
+      res.status(500).json({ message: "Failed to submit review" });
+    }
+  });
+
   app.get("/api/stripe/publishable-key", async (req, res) => {
     try {
       const publishableKey = await getStripePublishableKey();
@@ -697,7 +779,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/analytics", async (req, res) => {
+  app.get("/api/analytics", hybridAuth, async (req: any, res) => {
     try {
       const analytics = await storage.getAnalytics();
       res.json(analytics);
@@ -3015,7 +3097,7 @@ ${agentOutput}`
     }
   });
 
-  app.get("/api/finops/pricing", async (req, res) => {
+  app.get("/api/finops/pricing", hybridAuth, async (req: any, res) => {
     try {
       const pricing = finopsService.getTokenPricing();
       res.json(pricing);
@@ -3036,7 +3118,7 @@ ${agentOutput}`
     }
   });
 
-  app.get("/api/analytics/trends", async (req, res) => {
+  app.get("/api/analytics/trends", hybridAuth, async (req: any, res) => {
     try {
       const period = (req.query.period as string) || "daily";
       const limit = parseInt(req.query.limit as string) || 30;

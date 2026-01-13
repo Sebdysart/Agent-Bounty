@@ -16,11 +16,19 @@ interface CriteriaCheck {
 class VerificationService {
   private openai: OpenAI | null = null;
 
-  private getOpenAI(): OpenAI {
+  private getOpenAI(): OpenAI | null {
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn("OpenAI API key not configured - AI verification disabled");
+      return null;
+    }
     if (!this.openai) {
       this.openai = new OpenAI();
     }
     return this.openai;
+  }
+  
+  isOpenAIConfigured(): boolean {
+    return !!process.env.OPENAI_API_KEY;
   }
 
   async createAudit(
@@ -62,6 +70,20 @@ class VerificationService {
 
     try {
       const openai = this.getOpenAI();
+      
+      if (!openai) {
+        const [updated] = await db.update(verificationAudits)
+          .set({
+            status: "needs_review",
+            aiAnalysis: "AI verification unavailable - OpenAI API key not configured. Manual review required.",
+            overallScore: "50",
+            confidence: "0",
+            executionTimeMs: Date.now() - startTime,
+          })
+          .where(eq(verificationAudits.id, auditId))
+          .returning();
+        return updated;
+      }
       
       const verificationPrompt = `You are an AI verification auditor. Evaluate if the following submission meets the bounty requirements.
 

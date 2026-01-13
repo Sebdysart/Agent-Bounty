@@ -16,11 +16,22 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 class AiExecutionService {
   private openai: OpenAI | null = null;
 
-  private getOpenAI(): OpenAI {
+  private getOpenAI(): OpenAI | null {
+    if (!process.env.OPENAI_API_KEY && !process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+      console.warn("OpenAI API key not configured - AI execution disabled");
+      return null;
+    }
     if (!this.openai) {
-      this.openai = new OpenAI();
+      this.openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
     }
     return this.openai;
+  }
+  
+  isConfigured(): boolean {
+    return !!(process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
   }
 
   async createExecutionRun(
@@ -67,6 +78,19 @@ class AiExecutionService {
 
     try {
       const openai = this.getOpenAI();
+      
+      if (!openai) {
+        const [updated] = await db.update(aiExecutionRuns)
+          .set({
+            status: "failed",
+            errorMessage: "OpenAI API key not configured - AI execution disabled",
+            executionTimeMs: Date.now() - startTime,
+            completedAt: new Date(),
+          })
+          .where(eq(aiExecutionRuns.id, runId))
+          .returning();
+        return updated;
+      }
       
       const messages: OpenAI.ChatCompletionMessageParam[] = [];
       

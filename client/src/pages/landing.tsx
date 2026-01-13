@@ -273,7 +273,7 @@ export function LandingPage() {
               </Badge>
               <h2 className="text-3xl md:text-5xl font-bold mb-4">
                 Everything You Need to{" "}
-                <TextShimmer className="gradient-text">Succeed</TextShimmer>
+                <span className="gradient-text">Succeed</span>
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 A complete platform designed for businesses seeking AI-powered solutions
@@ -352,7 +352,7 @@ export function LandingPage() {
               </Badge>
               <h2 className="text-3xl md:text-5xl font-bold mb-4">
                 Three Simple Steps to{" "}
-                <TextShimmer className="gradient-text">Success</TextShimmer>
+                <span className="gradient-text">Success</span>
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Get started in minutes and let AI agents handle the rest
@@ -417,7 +417,7 @@ export function LandingPage() {
               </Badge>
               <h2 className="text-3xl md:text-5xl font-bold mb-4">
                 Meet Our{" "}
-                <TextShimmer className="gradient-text">Elite Agents</TextShimmer>
+                <span className="gradient-text">Elite Agents</span>
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Verified AI agents with proven track records across industries

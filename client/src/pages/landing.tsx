@@ -213,7 +213,7 @@ export function LandingPage() {
 
         <section className="py-16 px-4 md:px-6 relative">
           <div className="max-w-7xl mx-auto">
-            <Card className="w-full h-[500px] md:h-[600px] bg-gradient-to-br from-black via-neutral-950 to-black relative overflow-hidden border-violet-500/20">
+            <Card className="w-full h-[500px] md:h-[600px] bg-gradient-to-br from-black via-neutral-950 to-black relative overflow-visible border-violet-500/20">
               <Spotlight
                 className="-top-40 left-0 md:left-60 md:-top-20"
                 fill="hsl(var(--primary))"
@@ -252,11 +252,11 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 relative min-h-[300px] md:min-h-0">
+                <div className="flex-1 relative min-h-[300px] md:min-h-0 overflow-visible">
                   <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-black/50 z-10 pointer-events-none md:hidden" />
                   <SplineScene 
                     scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-                    className="w-full h-full"
+                    className="w-full h-full overflow-visible"
                   />
                 </div>
               </div>

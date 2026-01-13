@@ -62,10 +62,13 @@ export function SplineScene({ scene, className }: SplineSceneProps) {
           </div>
         }
       >
-        <Spline
-          scene={scene}
-          className={className}
-        />
+        <div className="w-full h-full overflow-visible" style={{ overflow: 'visible' }}>
+          <Spline
+            scene={scene}
+            className={className}
+            style={{ overflow: 'visible' }}
+          />
+        </div>
       </Suspense>
     </SplineErrorBoundary>
   )

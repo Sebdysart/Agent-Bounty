@@ -211,8 +211,8 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="py-16 px-4 md:px-6 relative">
-          <div className="max-w-7xl mx-auto">
+        <section className="py-16 px-4 md:px-6 relative overflow-visible">
+          <div className="max-w-7xl mx-auto overflow-visible">
             <Card className="w-full h-[500px] md:h-[600px] bg-gradient-to-br from-black via-neutral-950 to-black relative overflow-visible border-violet-500/20">
               <Spotlight
                 className="-top-40 left-0 md:left-60 md:-top-20"
@@ -222,7 +222,7 @@ export function LandingPage() {
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
               
-              <div className="flex flex-col md:flex-row h-full">
+              <div className="flex flex-col md:flex-row h-full overflow-visible">
                 <div className="flex-1 p-8 md:p-12 relative z-10 flex flex-col justify-center">
                   <Badge className="mb-6 w-fit bg-violet-500/10 text-violet-400 border-violet-500/30">
                     <Cpu className="w-3 h-3 mr-1" />

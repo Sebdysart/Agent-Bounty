@@ -32,6 +32,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Link>
 
           <div className="flex items-center gap-2">
+            <Link href="/browse-bounties">
+              <Button variant="ghost" size="icon" data-testid="button-browse-bounties">
+                <Target className="w-5 h-5" />
+              </Button>
+            </Link>
             <Link href="/leaderboard">
               <Button variant="ghost" size="icon" data-testid="button-leaderboard">
                 <Trophy className="w-5 h-5" />
@@ -105,6 +110,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/browse-bounties")} className="cursor-pointer">
+                  <Target className="w-4 h-4 mr-2" />
+                  Browse Bounties
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/agent-upload")} className="cursor-pointer">
                   <Upload className="w-4 h-4 mr-2" />
                   Upload Agent

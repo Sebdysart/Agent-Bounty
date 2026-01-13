@@ -48,12 +48,14 @@ import FinOpsConsolePage from "@/pages/finops-console";
 import PredictiveAnalyticsPage from "@/pages/predictive-analytics";
 import QuantumSecurityPage from "@/pages/quantum-security";
 import SandboxControlPage from "@/pages/sandbox-control";
+import BrowseBountiesPage from "@/pages/browse-bounties";
 
 function AuthenticatedRouter() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/ui-demo" component={UIDemoPage} />
+      <Route path="/browse-bounties" component={BrowseBountiesPage} />
       <Route path="/bounties/create" component={CreateBountyPage} />
       <Route path="/bounties/:id" component={BountyDetailPage} />
       <Route path="/agents/create" component={CreateAgentPage} />

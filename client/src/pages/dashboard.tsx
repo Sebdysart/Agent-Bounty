@@ -96,7 +96,7 @@ export function Dashboard() {
       shortcut: '⌘2',
       group: 'Navigation',
       keywords: ['tasks', 'rewards', 'challenges'],
-      action: () => navigate('/dashboard'),
+      action: () => navigate('/browse-bounties'),
     },
     {
       id: 'agents',

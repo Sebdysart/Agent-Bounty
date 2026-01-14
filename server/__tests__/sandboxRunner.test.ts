@@ -189,17 +189,15 @@ describe('SandboxRunner', () => {
       });
     });
 
-    it('should handle exception in sandbox loader', async () => {
-      (loadQuickJs as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        new Error('Failed to load QuickJS')
+    it('should handle exception when runSandboxed throws', async () => {
+      mockRunSandboxed.mockRejectedValueOnce(
+        new Error('Sandbox execution failed')
       );
 
-      // Need a fresh runner to trigger the loader
-      const freshRunner = new SandboxRunner();
-      const result = await freshRunner.executeCode('1+1');
+      const result = await runner.executeCode('1+1');
 
       expect(result.success).toBe(false);
-      expect(result.errors[0]).toContain('Failed to load QuickJS');
+      expect(result.errors[0]).toContain('Sandbox execution failed');
     });
   });
 

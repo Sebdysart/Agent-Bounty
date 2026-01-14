@@ -121,15 +121,15 @@
 - [x] Test: getAgentRuns returns runs for agent
 - [x] Test: getExecutionStats returns correct aggregates
 - [x] Test: cancelRun updates status to cancelled
-- [ ] Create `server/__tests__/sandboxRunner.test.ts`
-- [ ] Test: executeCode runs simple JavaScript
-- [ ] Test: executeCode captures console.log output
-- [ ] Test: executeCode captures errors
-- [ ] Test: executeCode enforces timeout
-- [ ] Test: executeCode rejects oversized code
-- [ ] Test: executeLowCode processes step config
-- [ ] Test: executeLowCode executes AI steps when configured
-- [ ] Test: testSandbox returns passing result
+- [x] Create `server/__tests__/sandboxRunner.test.ts`
+- [x] Test: executeCode runs simple JavaScript
+- [x] Test: executeCode captures console.log output
+- [x] Test: executeCode captures errors
+- [x] Test: executeCode enforces timeout
+- [x] Test: executeCode rejects oversized code
+- [x] Test: executeLowCode processes step config
+- [x] Test: executeLowCode executes AI steps when configured
+- [x] Test: testSandbox returns passing result
 
 ## PHASE 8: Verification & Reputation Tests
 - [ ] Create `server/__tests__/verificationService.test.ts`

@@ -31,21 +31,21 @@
 
 ## PHASE 3: Upstash Kafka Queue Migration
 - [x] Install `@upstash/kafka` package
-- [ ] Create `server/upstashKafka.ts` producer/consumer
-- [ ] Define topics:
-  - [ ] `agent-execution-queue` - sandbox job requests
-  - [ ] `agent-results-queue` - completed executions
-  - [ ] `notifications-queue` - emails, webhooks, alerts
-  - [ ] `agent-execution-dlq` - dead letter queue for failures
-- [ ] Create producer wrapper with retry logic
-- [ ] Create consumer with batch processing
+- [x] Create `server/upstashKafka.ts` producer/consumer
+- [x] Define topics:
+  - [x] `agent-execution-queue` - sandbox job requests
+  - [x] `agent-results-queue` - completed executions
+  - [x] `notifications-queue` - emails, webhooks, alerts
+  - [x] `agent-execution-dlq` - dead letter queue for failures
+- [x] Create producer wrapper with retry logic
+- [x] Create consumer with batch processing
 - [ ] Migrate from pg-boss:
-  - [ ] Map existing job types to Kafka topics
-  - [ ] Implement message serialization (JSON)
-  - [ ] Add idempotency keys to prevent duplicates
-- [ ] Implement dead-letter queue handling
-- [ ] Add exponential backoff for retries (1s, 2s, 4s, 8s, max 5 retries)
-- [ ] Write tests for `upstashKafka.test.ts`
+  - [x] Map existing job types to Kafka topics
+  - [x] Implement message serialization (JSON)
+  - [x] Add idempotency keys to prevent duplicates
+- [x] Implement dead-letter queue handling
+- [x] Add exponential backoff for retries (1s, 2s, 4s, 8s, max 5 retries)
+- [x] Write tests for `upstashKafka.test.ts`
 - [ ] Add Kafka consumer lag to `/api/health`
 
 ## PHASE 4: Cloudflare R2 Storage

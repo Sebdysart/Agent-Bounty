@@ -181,7 +181,7 @@
 - [x] Add /api/docs endpoint serving Swagger UI
 - [x] Document all environment variables in .env.example
 - [x] Add CONTRIBUTING.md with test instructions
-- [ ] Update README.md with architecture overview
+- [x] Update README.md with architecture overview
 
 ---
 

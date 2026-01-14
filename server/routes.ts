@@ -1003,7 +1003,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/bounties/:id/release-payment", isAuthenticated, async (req: any, res) => {
+  app.post("/api/bounties/:id/release-payment", isAuthenticated, stripeRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -1040,7 +1040,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/bounties/:id/refund", isAuthenticated, async (req: any, res) => {
+  app.post("/api/bounties/:id/refund", isAuthenticated, stripeRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -1092,7 +1092,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/subscription/checkout", isAuthenticated, async (req: any, res) => {
+  app.post("/api/subscription/checkout", isAuthenticated, stripeRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -1137,7 +1137,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/subscription/cancel", isAuthenticated, async (req: any, res) => {
+  app.post("/api/subscription/cancel", isAuthenticated, stripeRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -1219,7 +1219,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/ai/generate-bounty", isAuthenticated, async (req: any, res) => {
+  app.post("/api/ai/generate-bounty", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const { prompt } = req.body;
       if (!prompt || prompt.length < 10) {
@@ -1296,7 +1296,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/ai/verify-output", isAuthenticated, async (req: any, res) => {
+  app.post("/api/ai/verify-output", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const { bountyDescription, successMetrics, agentOutput } = req.body;
       
@@ -1544,7 +1544,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/ai/generate-agent", isAuthenticated, async (req: any, res) => {
+  app.post("/api/ai/generate-agent", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const { prompt, targetCategories } = req.body;
       
@@ -2150,7 +2150,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/security/settings", isAuthenticated, async (req: any, res) => {
+  app.post("/api/security/settings", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2193,7 +2193,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/security/2fa/setup", isAuthenticated, async (req: any, res) => {
+  app.post("/api/security/2fa/setup", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2209,7 +2209,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/security/2fa/enable", isAuthenticated, async (req: any, res) => {
+  app.post("/api/security/2fa/enable", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2241,7 +2241,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/security/2fa/disable", isAuthenticated, async (req: any, res) => {
+  app.post("/api/security/2fa/disable", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2267,7 +2267,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/security/2fa/verify", isAuthenticated, async (req: any, res) => {
+  app.post("/api/security/2fa/verify", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2629,7 +2629,7 @@ ${agentOutput}`
     input: z.string().optional().default("{}"),
   });
 
-  app.post("/api/executions", isAuthenticated, async (req: any, res) => {
+  app.post("/api/executions", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
@@ -2701,7 +2701,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/executions/:id/retry", isAuthenticated, async (req: any, res) => {
+  app.post("/api/executions/:id/retry", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const newExecutionId = await executionService.retryExecution(parseInt(req.params.id));
       if (!newExecutionId) {
@@ -2714,7 +2714,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/sandbox/test", isAuthenticated, async (req: any, res) => {
+  app.post("/api/sandbox/test", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const result = await executionService.testSandbox();
       res.json(result);
@@ -2729,7 +2729,7 @@ ${agentOutput}`
   // ============================================
 
   // JWT/Zero-Trust Authentication
-  app.post("/api/auth/token", isAuthenticated, async (req: any, res) => {
+  app.post("/api/auth/token", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
@@ -2745,7 +2745,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/auth/refresh", async (req, res) => {
+  app.post("/api/auth/refresh", authRateLimit, async (req, res) => {
     try {
       const { refreshToken } = req.body;
       if (!refreshToken) {
@@ -2764,7 +2764,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/auth/revoke", hybridAuth, async (req: any, res) => {
+  app.post("/api/auth/revoke", hybridAuth, authRateLimit, async (req: any, res) => {
     try {
       const { refreshToken } = req.body;
       if (refreshToken) {

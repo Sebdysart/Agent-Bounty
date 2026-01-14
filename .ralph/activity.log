@@ -200,3 +200,12 @@ Done. Summary of changes:
 5. **7 new tests added** for instruction counting verification
 
 All wasmtimeSandbox tests pass (34 total). Task marked complete in RALPH_TASK.md. Commit: `a9a84bf`.
+Done. The warm pool manager was already implemented in `server/wasmtimeSandbox.ts` (lines 80-185). The task is now marked complete in RALPH_TASK.md and committed.
+
+Summary:
+- **WarmPoolManager** class manages pre-initialized Wasmtime instances
+- Pre-warms 3 instances on startup, max 10
+- `acquire()`/`release()` pattern for instance checkout
+- TTL-based cleanup (60s default)
+- All 34 wasmtime sandbox tests pass
+[2026-01-14 14:26:23] ✅ Task DONE!

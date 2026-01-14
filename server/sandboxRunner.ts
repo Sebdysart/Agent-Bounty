@@ -1,7 +1,17 @@
 import variant from '@jitl/quickjs-ng-wasmfile-release-sync';
 import { type SandboxOptions, loadQuickJs } from '@sebastianwessel/quickjs';
+import OpenAI from "openai";
 
 const MAX_CODE_SIZE = 512 * 1024;
+
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({
+    apiKey,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+}
 const MAX_INPUT_SIZE = 1024 * 1024;
 
 export interface SandboxConfig {
@@ -208,7 +218,35 @@ export class SandboxRunner {
             break;
           case 'ai':
             this.logs.push(`AI step: ${params?.prompt || 'No prompt'}`);
-            currentData = { ...currentData, aiResponse: 'AI processing placeholder' };
+            // Actually execute AI call if OpenAI is configured
+            const openai = getOpenAIClient();
+            if (openai && params?.prompt) {
+              try {
+                const aiResponse = await openai.chat.completions.create({
+                  model: params?.model || "gpt-4o-mini",
+                  messages: [
+                    { role: "system", content: params?.systemPrompt || "You are a helpful assistant." },
+                    { role: "user", content: typeof params.prompt === 'string' 
+                      ? params.prompt.replace(/\{\{(\w+)\}\}/g, (_, key) => currentData[key] || '')
+                      : JSON.stringify(params.prompt) 
+                    }
+                  ],
+                  max_tokens: params?.maxTokens || 1024,
+                });
+                currentData = { 
+                  ...currentData, 
+                  aiResponse: aiResponse.choices[0]?.message?.content || '',
+                  aiUsage: aiResponse.usage
+                };
+                this.logs.push(`AI response received (${aiResponse.usage?.total_tokens || 0} tokens)`);
+              } catch (aiError: any) {
+                this.errors.push(`AI execution failed: ${aiError.message}`);
+                currentData = { ...currentData, aiResponse: null, aiError: aiError.message };
+              }
+            } else {
+              this.logs.push('AI step skipped: OpenAI not configured or no prompt provided');
+              currentData = { ...currentData, aiResponse: null };
+            }
             break;
           default:
             this.logs.push(`Unknown step type: ${type}`);

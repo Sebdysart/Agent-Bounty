@@ -31,27 +31,10 @@ import { onboardingService } from "./onboardingService";
 import { customDashboardService } from "./customDashboardService";
 import { enterpriseTierService } from "./enterpriseTierService";
 import { maxTierSandboxService } from "./maxTierSandboxService";
+import { apiRateLimit, authRateLimit, credentialRateLimit, aiRateLimit, stripeRateLimit } from "./rateLimitMiddleware";
+import { encryptedVault, type StoredCredentials } from "./encryptedVault";
 
-// Secure in-memory credential vault (not persisted to database)
-// Keyed by consentId for cross-session access by authorized agents
-interface StoredCredentials {
-  credentials: Record<string, string>;
-  expiresAt: Date;
-  userId: string;
-  agentId: number;
-  requirementId: number;
-}
-const credentialVault = new Map<number, StoredCredentials>();
-
-// Clean up expired credentials periodically (every 5 minutes)
-setInterval(() => {
-  const now = new Date();
-  credentialVault.forEach((data, consentId) => {
-    if (data.expiresAt < now) {
-      credentialVault.delete(consentId);
-    }
-  });
-}, 5 * 60 * 1000);
+// Encrypted vault handles credential storage - see encryptedVault.ts
 
 function getOpenAIClient() {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -126,6 +109,9 @@ export async function registerRoutes(
   app.use(validateJWT);
 
   await seedDefaultPermissions();
+  
+  // Warm credential cache from database on startup
+  await encryptedVault.warmCache();
 
   app.get("/api/stats", hybridAuth, async (req: any, res) => {
     try {
@@ -390,7 +376,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/credentials/:requirementId/consent", isAuthenticated, async (req: any, res) => {
+  app.post("/api/credentials/:requirementId/consent", isAuthenticated, credentialRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -414,16 +400,17 @@ Only ask questions about genuinely missing or unclear information.`;
         consentText,
       });
 
-      // Store credentials in secure in-memory vault (not in database, not in session)
-      // This allows cross-session access by authorized agents
+      // Store credentials in encrypted vault (not in database, not in session)
+      // This allows cross-session access by authorized agents with encryption at rest
       if (credentials) {
         const expiry = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-        credentialVault.set(consent.id, {
+        encryptedVault.set(consent.id, {
           credentials,
           expiresAt: expiry,
           userId,
           agentId,
           requirementId,
+          encryptedAt: new Date(),
         });
       }
 
@@ -435,7 +422,7 @@ Only ask questions about genuinely missing or unclear information.`;
   });
 
   // Secure endpoint for agents to access credentials (checks consent and agent authorization)
-  app.get("/api/credentials/:consentId/access", isAuthenticated, async (req: any, res) => {
+  app.get("/api/credentials/:consentId/access", isAuthenticated, credentialRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -445,8 +432,8 @@ Only ask questions about genuinely missing or unclear information.`;
       const consentId = parseInt(req.params.consentId);
       const ipAddress = req.ip || req.connection?.remoteAddress;
 
-      // Retrieve from in-memory vault
-      const vaultData = credentialVault.get(consentId);
+      // Retrieve from encrypted vault
+      const vaultData = encryptedVault.get(consentId);
       if (!vaultData) {
         await storage.logCredentialAccess({
           consentId,
@@ -458,18 +445,8 @@ Only ask questions about genuinely missing or unclear information.`;
         return res.status(404).json({ message: "Credentials not found or expired" });
       }
 
-      // Check expiration
-      if (vaultData.expiresAt < new Date()) {
-        credentialVault.delete(consentId);
-        await storage.logCredentialAccess({
-          consentId,
-          accessType: "read",
-          success: false,
-          ipAddress,
-          sessionId: req.sessionID,
-        });
-        return res.status(410).json({ message: "Credentials expired" });
-      }
+      // Encrypted vault already handles expiration check in get()
+      // so we don't need a separate expiration check here
 
       // Verify the requesting user is authorized (either the consent owner or an agent developer)
       // For now, allow the consent owner and check if user owns the authorized agent
@@ -518,8 +495,8 @@ Only ask questions about genuinely missing or unclear information.`;
         return res.status(404).json({ message: "Consent not found or unauthorized" });
       }
 
-      // Clear credentials from in-memory vault on revocation
-      credentialVault.delete(consentId);
+      // Clear credentials from encrypted vault on revocation
+      encryptedVault.delete(consentId);
 
       res.json(consent);
     } catch (error) {
@@ -891,7 +868,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/bounties/:id/fund", isAuthenticated, async (req: any, res) => {
+  app.post("/api/bounties/:id/fund", isAuthenticated, stripeRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -955,7 +932,7 @@ Only ask questions about genuinely missing or unclear information.`;
       }
 
       const bountyId = parseInt(req.params.id);
-      const { submissionId } = req.body;
+      const { submissionId, autoRelease } = req.body;
 
       if (!submissionId || typeof submissionId !== "number") {
         return res.status(400).json({ message: "Valid submissionId is required" });
@@ -985,7 +962,29 @@ Only ask questions about genuinely missing or unclear information.`;
         return res.status(500).json({ message: "Failed to select winner" });
       }
 
-      res.json({ success: true, bounty: updated, message: "Winner selected successfully" });
+      // Auto-release payment if requested and bounty is funded
+      let paymentReleased = false;
+      if (autoRelease && bounty.paymentStatus === "funded" && bounty.stripePaymentIntentId) {
+        try {
+          await stripeService.capturePayment(bounty.stripePaymentIntentId);
+          await storage.updateBountyPaymentStatus(bountyId, "released");
+          await storage.addTimelineEvent(bountyId, "payment_released", "Winner selected and payment auto-released");
+          paymentReleased = true;
+        } catch (paymentError) {
+          console.error("Auto-release payment failed:", paymentError);
+          // Don't fail the whole request, just note the payment wasn't released
+          await storage.addTimelineEvent(bountyId, "payment_release_failed", "Auto-release failed - manual release required");
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        bounty: updated, 
+        paymentReleased,
+        message: paymentReleased 
+          ? "Winner selected and payment released successfully" 
+          : "Winner selected successfully. Payment release pending."
+      });
     } catch (error) {
       console.error("Error selecting winner:", error);
       res.status(500).json({ message: "Failed to select winner" });
@@ -4824,6 +4823,204 @@ ${agentOutput}`
       res.json(proofs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch proofs" });
+    }
+  });
+
+  // ==========================================
+  // Profile Endpoints (Missing - Added)
+  // ==========================================
+  
+  app.get("/api/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      let profile = await storage.getUserProfile(userId);
+      
+      // Create profile if it doesn't exist
+      if (!profile) {
+        profile = await storage.upsertUserProfile({
+          id: userId,
+          role: "business",
+        });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { role, companyName, bio } = req.body;
+      const profile = await storage.upsertUserProfile({
+        id: userId,
+        role,
+        companyName,
+        bio,
+      });
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.get("/api/profile/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get bounties posted by user
+      const allBounties = await storage.getAllBounties();
+      const userBounties = allBounties.filter(b => b.posterId === userId);
+      const bountiesPosted = userBounties.length;
+      const bountiesCompleted = userBounties.filter(b => b.status === "completed").length;
+      
+      // Get agents registered by user
+      const userAgents = await storage.getAgentsByDeveloper(userId);
+      const agentsRegistered = userAgents.length;
+      
+      // Get profile for earnings/spending
+      const profile = await storage.getUserProfile(userId);
+      
+      res.json({
+        bountiesPosted,
+        bountiesCompleted,
+        agentsRegistered,
+        totalEarned: profile?.totalEarned || "0",
+        totalSpent: profile?.totalSpent || "0",
+      });
+    } catch (error) {
+      console.error("Error fetching profile stats:", error);
+      res.status(500).json({ message: "Failed to fetch profile stats" });
+    }
+  });
+
+  // ==========================================
+  // Achievements Endpoint (Missing - Added)
+  // ==========================================
+  
+  app.get("/api/achievements", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get user stats for achievement calculation
+      const allBounties = await storage.getAllBounties();
+      const userBounties = allBounties.filter(b => b.posterId === userId);
+      const completedBounties = userBounties.filter(b => b.status === "completed").length;
+      
+      const userAgents = await storage.getAgentsByDeveloper(userId);
+      const profile = await storage.getUserProfile(userId);
+      
+      const achievements = [];
+      
+      // First Bounty achievement
+      if (userBounties.length >= 1) {
+        achievements.push({
+          id: "first_bounty",
+          name: "First Steps",
+          description: "Posted your first bounty",
+          icon: "target",
+          unlockedAt: userBounties[0]?.createdAt,
+          tier: "bronze",
+        });
+      }
+      
+      // First Agent achievement
+      if (userAgents.length >= 1) {
+        achievements.push({
+          id: "first_agent",
+          name: "Agent Creator",
+          description: "Registered your first AI agent",
+          icon: "bot",
+          unlockedAt: userAgents[0]?.createdAt,
+          tier: "bronze",
+        });
+      }
+      
+      // Bounty Master achievement
+      if (completedBounties >= 5) {
+        achievements.push({
+          id: "bounty_master",
+          name: "Bounty Master",
+          description: "Successfully completed 5 bounties",
+          icon: "trophy",
+          unlockedAt: new Date(),
+          tier: "silver",
+        });
+      }
+      
+      // Big Spender achievement
+      if (parseFloat(profile?.totalSpent || "0") >= 1000) {
+        achievements.push({
+          id: "big_spender",
+          name: "Big Spender",
+          description: "Spent over $1,000 on bounties",
+          icon: "dollar-sign",
+          unlockedAt: new Date(),
+          tier: "gold",
+        });
+      }
+      
+      // Top Earner achievement
+      if (parseFloat(profile?.totalEarned || "0") >= 500) {
+        achievements.push({
+          id: "top_earner",
+          name: "Top Earner",
+          description: "Earned over $500 from bounties",
+          icon: "trending-up",
+          unlockedAt: new Date(),
+          tier: "silver",
+        });
+      }
+      
+      // Agent Fleet achievement
+      if (userAgents.length >= 5) {
+        achievements.push({
+          id: "agent_fleet",
+          name: "Agent Fleet",
+          description: "Registered 5 or more AI agents",
+          icon: "users",
+          unlockedAt: new Date(),
+          tier: "gold",
+        });
+      }
+      
+      res.json(achievements);
+    } catch (error) {
+      console.error("Error fetching achievements:", error);
+      res.status(500).json({ message: "Failed to fetch achievements" });
+    }
+  });
+
+  // ==========================================
+  // Privacy Deletions Endpoint (Missing - Added)
+  // ==========================================
+  
+  app.get("/api/privacy/deletions", hybridAuth, async (req: any, res) => {
+    try {
+      const userId = req.authUserId;
+      const deletions = await gdprService.getDeletionRequests(userId);
+      res.json(deletions);
+    } catch (error) {
+      console.error("Error fetching deletion requests:", error);
+      res.status(500).json({ message: "Failed to fetch deletion requests" });
     }
   });
 

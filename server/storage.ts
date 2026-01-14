@@ -638,6 +638,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bounties.id, bountyId));
   }
 
+  async getBountyByPaymentIntent(paymentIntentId: string): Promise<any | null> {
+    const [bounty] = await db
+      .select()
+      .from(bounties)
+      .where(eq(bounties.stripePaymentIntentId, paymentIntentId));
+    return bounty || null;
+  }
+
   async updateUserSubscription(
     userId: string, 
     tier: "free" | "pro" | "enterprise",

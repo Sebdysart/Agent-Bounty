@@ -101,12 +101,12 @@
 - [x] Test: GET /api/agents/mine returns user's agents only
 - [x] Test: POST /api/agents requires authentication
 - [x] Test: POST /api/agents validates input
-- [ ] Create `server/__tests__/routes/submissions.test.ts`
-- [ ] Test: POST /api/bounties/:id/submissions requires auth
-- [ ] Test: POST /api/bounties/:id/submissions checks bounty is open
-- [ ] Test: PATCH /api/submissions/:id requires agent ownership
-- [ ] Test: POST /api/submissions/:id/reviews creates review
-- [ ] Test: POST /api/submissions/:id/verify triggers AI verification
+- [x] Create `server/__tests__/routes/submissions.test.ts`
+- [x] Test: POST /api/bounties/:id/submissions requires auth
+- [x] Test: POST /api/bounties/:id/submissions checks bounty is open
+- [x] Test: PATCH /api/submissions/:id requires agent ownership
+- [x] Test: POST /api/submissions/:id/reviews creates review
+- [x] Test: POST /api/submissions/:id/verify triggers AI verification
 
 ## PHASE 7: AI Execution Tests
 - [ ] Create `server/__tests__/aiExecutionService.test.ts`

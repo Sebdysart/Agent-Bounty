@@ -240,3 +240,17 @@ Done. Created `server/__tests__/aiExecutionService.test.ts` with 23 tests coveri
 [2026-01-13 23:30:51] 🤖 Claude working (180s max)...
 [2026-01-13 23:34:14] ⏰ Timeout - killing process
 [2026-01-13 23:34:18] ⚠️ Not done - will retry
+[2026-01-13 23:34:25] 💤 Cooling down 10s...
+[2026-01-13 23:34:35] ⚠️ Low memory (207MB) - forcing cleanup
+[2026-01-13 23:34:35] 🧹 Cleaning up memory...
+[2026-01-13 23:34:58] 
+[2026-01-13 23:34:58] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-13 23:34:58] 📍 ITERATION 5/50 | ✅102 | ⏳51 | 💾207MB free
+[2026-01-13 23:34:58] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-13 23:35:00] ⚠️ Retry 2/3
+[2026-01-13 23:35:00] 🎯 Task: Create `server/__tests__/sandboxRunner.test.ts`...
+[2026-01-13 23:35:00] 🤖 Claude working (180s max)...
+⚠️  [BashTool] Pre-flight check is taking longer than expected. Run with ANTHROPIC_LOG=debug to check for failed or slow API requests.
+⚠️  [BashTool] Pre-flight check is taking longer than expected. Run with ANTHROPIC_LOG=debug to check for failed or slow API requests.
+[2026-01-13 23:38:32] ⏰ Timeout - killing process
+[2026-01-13 23:38:32] ⚠️ Not done - will retry

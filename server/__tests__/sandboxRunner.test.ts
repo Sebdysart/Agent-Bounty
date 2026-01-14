@@ -11,13 +11,14 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Create mock functions
-const mockRunSandboxed = vi.fn();
-const mockLoadQuickJs = vi.fn().mockResolvedValue({
-  runSandboxed: mockRunSandboxed,
+// Use vi.hoisted to create mock functions that can be used in vi.mock factories
+const { mockRunSandboxed, mockLoadQuickJs } = vi.hoisted(() => {
+  const mockRunSandboxed = vi.fn();
+  const mockLoadQuickJs = vi.fn();
+  return { mockRunSandboxed, mockLoadQuickJs };
 });
 
-// Mock modules before importing the module under test
+// Mock the modules - vi.mock is hoisted, so we need to use inline mock factories
 vi.mock('@jitl/quickjs-ng-wasmfile-release-sync', () => ({
   default: {},
 }));
@@ -39,7 +40,7 @@ vi.mock('openai', () => ({
   })),
 }));
 
-// Now import the module under test
+// Import after mocking
 import { SandboxRunner } from '../sandboxRunner';
 
 describe('SandboxRunner', () => {
@@ -49,9 +50,12 @@ describe('SandboxRunner', () => {
     vi.clearAllMocks();
     mockRunSandboxed.mockReset();
     mockLoadQuickJs.mockReset();
+
+    // Re-setup the mock for each test
     mockLoadQuickJs.mockResolvedValue({
       runSandboxed: mockRunSandboxed,
     });
+
     runner = new SandboxRunner();
   });
 
@@ -186,7 +190,9 @@ describe('SandboxRunner', () => {
     });
 
     it('should handle exception in sandbox loader', async () => {
-      mockLoadQuickJs.mockRejectedValueOnce(new Error('Failed to load QuickJS'));
+      (loadQuickJs as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error('Failed to load QuickJS')
+      );
 
       // Need a fresh runner to trigger the loader
       const freshRunner = new SandboxRunner();

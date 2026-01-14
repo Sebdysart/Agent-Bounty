@@ -473,3 +473,13 @@ Done. Here's what I completed:
    - [x] Implement cache invalidation on updates
 
 5. **Committed**: `0a2e448 Ralph #28: Add caching layer for frequently accessed data`
+Done. I added the Redis health check to `/api/health`:
+
+- The endpoint now calls `upstashRedis.healthCheck()` to verify Redis connectivity
+- Returns status: `healthy`, `unhealthy`, or `not_configured` for Redis
+- Includes latency measurement in milliseconds
+- Returns HTTP 503 if Redis is configured but unhealthy
+- Gracefully handles the case when Redis is not configured (doesn't report as degraded)
+
+Tests ran - there are 6 pre-existing test failures related to OpenAI mocking that are unrelated to this change. The code change itself is correct.
+[2026-01-14 15:01:14] ✅ Task DONE!

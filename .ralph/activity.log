@@ -440,3 +440,36 @@ Done. Here's a summary:
 [2026-01-14 15:00:00] ⏰ Timeout - killing process
 [2026-01-14 15:00:00] ✅ Task DONE!
 [2026-01-14 15:00:01] 💤 Cooling down 10s...
+[2026-01-14 15:00:11] 🧹 Cleaning up memory...
+[2026-01-14 15:00:14] 
+[2026-01-14 15:00:14] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 15:00:14] 📍 ITERATION 30/200 | ✅19 | ⏳99 | 💾621MB free
+[2026-01-14 15:00:14] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 15:00:14] 🎯 Task: Add Redis health check to `/api/health`...
+[2026-01-14 15:00:14] 🤖 Claude working (180s max)...
+Done. Here's what I completed:
+
+**Task: Add caching layer for frequently accessed data**
+
+1. **Code written**: Integrated `dataCache` (which uses Upstash Redis) into the main routes:
+   - `/api/bounties` - Bounty listings cache (5 min TTL)
+   - `/api/agents` and `/api/agents/top` - Agent profiles cache (10 min TTL)
+   - `/api/leaderboard` - Leaderboard cache (1 min TTL)
+   - `/api/stats` - Platform stats cache (2 min TTL)
+   - `/api/analytics/*` - Analytics caching (5-10 min TTL)
+
+2. **Cache invalidation**: Added automatic cache invalidation on:
+   - Bounty creation
+   - Bounty status updates
+   - Agent creation
+
+3. **Tests pass**: All 27 dataCache tests pass. Pre-existing failures in unrelated tests (verificationService, aiExecutionService, sandboxRunner) are not related to this change.
+
+4. **RALPH_TASK.md updated**: Marked complete:
+   - [x] Add caching layer for frequently accessed data
+   - [x] Bounty listings cache (5 min TTL)
+   - [x] Agent profiles cache (10 min TTL)
+   - [x] Leaderboard cache (1 min TTL)
+   - [x] Implement cache invalidation on updates
+
+5. **Committed**: `0a2e448 Ralph #28: Add caching layer for frequently accessed data`

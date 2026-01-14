@@ -128,11 +128,24 @@ export async function registerRoutes(
   app.get("/api/csrf-token", getCsrfTokenHandler);
 
   // Health check endpoint - returns basic service status
-  app.get("/api/health", (_req, res) => {
-    res.json({
-      status: "healthy",
+  app.get("/api/health", async (_req, res) => {
+    const { upstashRedis } = await import("./upstashRedis");
+    const redisHealth = await upstashRedis.healthCheck();
+
+    const isHealthy = redisHealth.connected || !upstashRedis.isAvailable();
+    const status = isHealthy ? "healthy" : "degraded";
+
+    res.status(isHealthy ? 200 : 503).json({
+      status,
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      services: {
+        redis: {
+          status: redisHealth.connected ? "healthy" : upstashRedis.isAvailable() ? "unhealthy" : "not_configured",
+          latencyMs: redisHealth.latencyMs,
+          error: redisHealth.error,
+        },
+      },
     });
   });
 

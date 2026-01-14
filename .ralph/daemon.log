@@ -183,3 +183,12 @@
 ./.cursor/ralph-scripts/ralph-loop.sh: line 192: [: 0
 0: integer expression expected
 [2026-01-14 14:23:40] ⚠️ Not done - will retry
+[main a9a84bf] Ralph #13: Add fuel metering for instruction counting
+ 4 files changed, 20 insertions(+), 1 deletion(-)
+[2026-01-14 14:23:42] 💤 Cooling down 10s...
+[2026-01-14 14:23:52] 
+[2026-01-14 14:23:52] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 14:23:52] 📍 ITERATION 14/200 | ✅3 | ⏳115 | 💾555MB free
+[2026-01-14 14:23:52] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 14:23:52] 🎯 Task: Create warm pool manager for pre-initialized instances...
+[2026-01-14 14:23:52] 🤖 Claude working (180s max)...

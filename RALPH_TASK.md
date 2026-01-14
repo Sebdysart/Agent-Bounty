@@ -4,7 +4,7 @@
 ---
 
 ## PHASE 1: Wasmtime Sandbox Upgrade
-- [ ] Install wasmtime npm package (`@aspect-sh/wasmtime` or `wasmtime` bindings)
+- [x] Install wasmtime npm package (`@aspect-sh/wasmtime` or `wasmtime` bindings)
 - [ ] Create `server/wasmtimeSandbox.ts` with new sandbox implementation
 - [ ] Implement memory limits (configurable per bounty tier: 128MB-512MB)
 - [x] Implement CPU time limits (5s-60s based on bounty)

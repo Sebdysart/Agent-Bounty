@@ -158,10 +158,10 @@ describe('WasmtimeSandbox', () => {
     it('should fail execution when fuel limit is exceeded', async () => {
       const sandbox = new WasmtimeSandbox({
         tier: 'basic',
-        fuelLimit: 100, // Very low limit
+        fuelLimit: 10, // Very low limit
       });
 
-      // Code with loops that would consume more than 100 fuel
+      // Code with loops and function calls that will exceed limit
       const code = `
         for (let i = 0; i < 100; i++) {
           for (let j = 0; j < 100; j++) {
@@ -174,6 +174,83 @@ describe('WasmtimeSandbox', () => {
 
       expect(result.success).toBe(false);
       expect(result.errors[0]).toContain('Fuel limit exceeded');
+    });
+
+    it('should count instructions by category', async () => {
+      const sandbox = new WasmtimeSandbox({ tier: 'standard' });
+      const code = `
+        const x = 1 + 2;
+        const y = x * 3;
+        if (y > 0) {
+          console.log(y);
+        }
+      `;
+
+      await sandbox.executeCode(code);
+      const metering = sandbox.getLastFuelMetering();
+
+      expect(metering).not.toBeNull();
+      expect(metering!.instructionsExecuted).toBeGreaterThan(0);
+      expect(metering!.instructionBreakdown.arithmetic).toBeGreaterThan(0);
+      expect(metering!.instructionBreakdown.control).toBeGreaterThan(0);
+    });
+
+    it('should track fuel remaining after execution', async () => {
+      const sandbox = new WasmtimeSandbox({ tier: 'standard' });
+      const code = 'const x = 1;';
+
+      await sandbox.executeCode(code);
+      const metering = sandbox.getLastFuelMetering();
+
+      expect(metering).not.toBeNull();
+      expect(metering!.fuelRemaining).toBeGreaterThan(0);
+      expect(metering!.fuelLimitExceeded).toBe(false);
+    });
+
+    it('should log instruction breakdown in execution logs', async () => {
+      const sandbox = new WasmtimeSandbox({ tier: 'standard' });
+      const code = 'const x = 1 + 2;';
+
+      const result = await sandbox.executeCode(code);
+
+      expect(result.logs.some((log: string) => log.includes('Instructions executed'))).toBe(true);
+      expect(result.logs.some((log: string) => log.includes('Fuel consumed'))).toBe(true);
+      expect(result.logs.some((log: string) => log.includes('Instruction breakdown'))).toBe(true);
+    });
+
+    it('should count function definitions and calls', async () => {
+      const sandbox = new WasmtimeSandbox({ tier: 'standard' });
+      const code = `
+        function add(a, b) { return a + b; }
+        const sum = add(1, 2);
+        const arrow = (x) => x * 2;
+      `;
+
+      await sandbox.executeCode(code);
+      const metering = sandbox.getLastFuelMetering();
+
+      expect(metering).not.toBeNull();
+      expect(metering!.instructionBreakdown.function).toBeGreaterThanOrEqual(3); // function def + 2 calls
+    });
+
+    it('should weight control flow operations higher than arithmetic', async () => {
+      const sandbox = new WasmtimeSandbox({ tier: 'standard' });
+
+      // Code with control flow
+      const controlCode = 'if (true) { for (let i = 0; i < 1; i++) { while(false) {} } }';
+      await sandbox.executeCode(controlCode);
+      const controlMetering = sandbox.getLastFuelMetering();
+
+      // Code with only arithmetic
+      const arithCode = 'const x = 1 + 2 + 3 + 4 + 5;';
+      await sandbox.executeCode(arithCode);
+      const arithMetering = sandbox.getLastFuelMetering();
+
+      // Control flow should consume more fuel per instruction
+      const controlFuelPerInstr = controlMetering!.fuelConsumed / Math.max(1, controlMetering!.instructionsExecuted);
+      const arithFuelPerInstr = arithMetering!.fuelConsumed / Math.max(1, arithMetering!.instructionsExecuted);
+
+      expect(controlFuelPerInstr).toBeGreaterThan(arithFuelPerInstr);
     });
   });
 

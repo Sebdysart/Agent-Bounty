@@ -70,16 +70,16 @@
 - [x] Test: size returns correct count
 
 ## PHASE 5: Rate Limiting Tests
-- [ ] Create `server/__tests__/rateLimitMiddleware.test.ts`
-- [ ] Test: apiRateLimit allows 100 requests per minute
-- [ ] Test: apiRateLimit blocks request 101 with 429
-- [ ] Test: apiRateLimit sets correct headers (X-RateLimit-*)
-- [ ] Test: authRateLimit allows 10 requests per 15 minutes
-- [ ] Test: credentialRateLimit allows 5 requests per minute
-- [ ] Test: aiRateLimit allows 20 requests per minute
-- [ ] Test: stripeRateLimit allows 10 requests per minute
-- [ ] Test: rate limits reset after window expires
-- [ ] Test: rate limits are per-user, not global
+- [x] Create `server/__tests__/rateLimitMiddleware.test.ts`
+- [x] Test: apiRateLimit allows 100 requests per minute
+- [x] Test: apiRateLimit blocks request 101 with 429
+- [x] Test: apiRateLimit sets correct headers (X-RateLimit-*)
+- [x] Test: authRateLimit allows 10 requests per 15 minutes
+- [x] Test: credentialRateLimit allows 5 requests per minute
+- [x] Test: aiRateLimit allows 20 requests per minute
+- [x] Test: stripeRateLimit allows 10 requests per minute
+- [x] Test: rate limits reset after window expires
+- [x] Test: rate limits are per-user, not global
 
 ## PHASE 6: Core API Routes Tests
 - [ ] Create `server/__tests__/routes/bounties.test.ts`

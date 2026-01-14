@@ -169,7 +169,7 @@
 - [x] Create `server/__tests__/security.test.ts` with penetration tests
 
 ## PHASE 11: Error Handling & Logging
-- [ ] Standardize error response format across all routes
+- [x] Standardize error response format across all routes
 - [ ] Add structured logging with request IDs
 - [ ] Add error tracking integration (Sentry-ready)
 - [ ] Ensure no sensitive data in error messages

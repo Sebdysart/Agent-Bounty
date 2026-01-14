@@ -9,12 +9,21 @@ import { wsService } from './websocket';
 import { sanitizeAllInput } from './sanitizationMiddleware';
 import { securityHeaders } from './securityHeaders';
 import { AppError, ErrorCode, sendError } from './errorResponse';
+import { logger, requestIdMiddleware, httpLoggerMiddleware, createLogger } from './logger';
 
 const app = express();
 
 // Apply security headers to all requests (before other middleware)
 app.use(securityHeaders);
+
+// Apply request ID middleware early for request tracking
+app.use(requestIdMiddleware);
+
+// Apply HTTP logging middleware
+app.use(httpLoggerMiddleware);
+
 const httpServer = createServer(app);
+const stripeLogger = createLogger('stripe');
 
 declare module "http" {
   interface IncomingMessage {
@@ -25,42 +34,42 @@ declare module "http" {
 async function initStripe() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    console.log('DATABASE_URL not set, skipping Stripe initialization');
+    stripeLogger.info('DATABASE_URL not set, skipping Stripe initialization');
     return;
   }
 
   try {
-    console.log('Initializing Stripe schema...');
+    stripeLogger.info('Initializing Stripe schema...');
     await runMigrations({ databaseUrl });
-    console.log('Stripe schema ready');
+    stripeLogger.info('Stripe schema ready');
 
     const stripeSync = await getStripeSync();
 
     const replitDomains = process.env.REPLIT_DOMAINS;
     if (replitDomains) {
-      console.log('Setting up managed webhook...');
+      stripeLogger.info('Setting up managed webhook...');
       const webhookBaseUrl = `https://${replitDomains.split(',')[0]}`;
       try {
         const result = await stripeSync.findOrCreateManagedWebhook(
           `${webhookBaseUrl}/api/stripe/webhook`
         );
         if (result?.webhook?.url) {
-          console.log(`Webhook configured: ${result.webhook.url}`);
+          stripeLogger.info('Webhook configured', { url: result.webhook.url });
         } else {
-          console.log('Webhook configured successfully');
+          stripeLogger.info('Webhook configured successfully');
         }
       } catch (webhookError) {
-        console.log('Webhook setup skipped (may already exist or not needed in dev)');
+        stripeLogger.info('Webhook setup skipped (may already exist or not needed in dev)');
       }
     } else {
-      console.log('REPLIT_DOMAINS not set, skipping webhook setup');
+      stripeLogger.info('REPLIT_DOMAINS not set, skipping webhook setup');
     }
 
     stripeSync.syncBackfill()
-      .then(() => console.log('Stripe data synced'))
-      .catch((err: Error) => console.error('Error syncing Stripe data:', err));
+      .then(() => stripeLogger.info('Stripe data synced'))
+      .catch((err: Error) => stripeLogger.error('Error syncing Stripe data', err));
   } catch (error) {
-    console.error('Failed to initialize Stripe:', error);
+    stripeLogger.error('Failed to initialize Stripe', error instanceof Error ? error : new Error(String(error)));
   }
 }
 
@@ -81,7 +90,7 @@ app.post(
       await WebhookHandlers.processWebhook(req.body as Buffer, sig);
       res.status(200).json({ received: true });
     } catch (error: any) {
-      console.error('Webhook error:', error.message);
+      stripeLogger.error('Webhook error', error instanceof Error ? error : new Error(error.message));
       sendError(res, 400, ErrorCode.WEBHOOK_ERROR, "Webhook processing error");
     }
   }
@@ -101,42 +110,10 @@ app.use(express.urlencoded({ extended: false }));
 // This sanitizes body, query params, and route params to prevent XSS
 app.use(sanitizeAllInput);
 
+// Legacy log function - use logger from './logger' for structured logging
 export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
+  logger.info(message, { legacySource: source });
 }
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
 
 (async () => {
   await initStripe();
@@ -176,7 +153,7 @@ app.use((req, res, next) => {
       reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      logger.info('Server started', { port, host: '0.0.0.0' });
     },
   );
 })();

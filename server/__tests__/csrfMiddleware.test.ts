@@ -122,7 +122,7 @@ describe('csrfMiddleware', () => {
       validateCsrfToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res._json.code).toBe('CSRF_NO_SESSION');
+      expect(res._json.error.code).toBe('CSRF_NO_SESSION');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -141,7 +141,7 @@ describe('csrfMiddleware', () => {
       validateCsrfToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res._json.code).toBe('CSRF_TOKEN_MISSING');
+      expect(res._json.error.code).toBe('CSRF_TOKEN_MISSING');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -160,7 +160,7 @@ describe('csrfMiddleware', () => {
       validateCsrfToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res._json.code).toBe('CSRF_TOKEN_INVALID');
+      expect(res._json.error.code).toBe('CSRF_TOKEN_INVALID');
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -303,7 +303,7 @@ describe('csrfMiddleware', () => {
 
       getCsrfTokenHandler(req, res);
 
-      expect(res.json).toHaveBeenCalledWith({ csrfToken: existingToken });
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: { csrfToken: existingToken } });
     });
 
     it('creates and returns new token if none exists', () => {
@@ -315,7 +315,7 @@ describe('csrfMiddleware', () => {
       getCsrfTokenHandler(req, res);
 
       expect(req.session.csrfToken).toBeDefined();
-      expect(res.json).toHaveBeenCalledWith({ csrfToken: req.session.csrfToken });
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: { csrfToken: req.session.csrfToken } });
     });
 
     it('returns 500 if session unavailable', () => {
@@ -325,7 +325,7 @@ describe('csrfMiddleware', () => {
       getCsrfTokenHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res._json.message).toBe('Session not available');
+      expect(res._json.error.message).toBe('Session not available');
     });
   });
 
@@ -347,7 +347,7 @@ describe('csrfMiddleware', () => {
 
       expect(req.session.csrfToken).toBeDefined();
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res._json.code).toBe('CSRF_TOKEN_MISSING');
+      expect(res._json.error.code).toBe('CSRF_TOKEN_MISSING');
     });
 
     it('passes with valid token after ensuring', () => {
@@ -385,7 +385,7 @@ describe('csrfMiddleware', () => {
       validateCsrfToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res._json.code).toBe('CSRF_TOKEN_INVALID');
+      expect(res._json.error.code).toBe('CSRF_TOKEN_INVALID');
     });
 
     it('rejects tokens with different lengths', () => {
@@ -404,7 +404,7 @@ describe('csrfMiddleware', () => {
       validateCsrfToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res._json.code).toBe('CSRF_TOKEN_INVALID');
+      expect(res._json.error.code).toBe('CSRF_TOKEN_INVALID');
     });
   });
 });

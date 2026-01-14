@@ -27,6 +27,23 @@ function getUniqueId() {
   return `test-${Date.now()}-${++testCounter}`;
 }
 
+// Helper to create expected rate limit error format
+function expectedRateLimitError(message: string, retryAfter?: number) {
+  const error: any = {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message,
+    },
+  };
+  if (retryAfter !== undefined) {
+    error.error.retryAfter = retryAfter;
+  } else {
+    error.error.retryAfter = expect.any(Number);
+  }
+  return error;
+}
+
 describe('RateLimitMiddleware', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -118,10 +135,7 @@ describe('RateLimitMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'Too many requests, please try again later',
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many requests, please try again later'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -137,10 +151,7 @@ describe('RateLimitMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJson).toHaveBeenCalledWith({
-        message: customMessage,
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError(customMessage));
     });
 
     it('should reset rate limit after window expires', () => {
@@ -279,10 +290,7 @@ describe('RateLimitMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'Too many requests, please try again later',
-        retryAfter: 60,
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many requests, please try again later', 60));
     });
 
     it('should calculate remaining time correctly mid-window', () => {
@@ -295,10 +303,7 @@ describe('RateLimitMiddleware', () => {
 
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'Too many requests, please try again later',
-        retryAfter: 30,
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many requests, please try again later', 30));
     });
   });
 
@@ -319,10 +324,7 @@ describe('RateLimitMiddleware', () => {
       // 101st request should be rate limited
       apiRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'API rate limit exceeded. Please wait before making more requests.',
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('API rate limit exceeded. Please wait before making more requests.'));
     });
 
     it('authRateLimit should allow 10 requests per 15 minutes', () => {
@@ -337,10 +339,7 @@ describe('RateLimitMiddleware', () => {
 
       authRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'Too many authentication attempts. Please try again later.',
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many authentication attempts. Please try again later.'));
     });
 
     it('credentialRateLimit should allow 5 requests per minute', () => {
@@ -355,10 +354,7 @@ describe('RateLimitMiddleware', () => {
 
       credentialRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'Too many credential access attempts. Please wait.',
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many credential access attempts. Please wait.'));
     });
 
     it('aiRateLimit should allow 20 requests per minute', () => {
@@ -373,10 +369,7 @@ describe('RateLimitMiddleware', () => {
 
       aiRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'AI execution rate limit exceeded. Please wait.',
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('AI execution rate limit exceeded. Please wait.'));
     });
 
     it('stripeRateLimit should allow 10 requests per minute', () => {
@@ -391,10 +384,7 @@ describe('RateLimitMiddleware', () => {
 
       stripeRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
-      expect(mockJson).toHaveBeenCalledWith({
-        message: 'Too many payment requests. Please wait.',
-        retryAfter: expect.any(Number),
-      });
+      expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many payment requests. Please wait.'));
     });
   });
 

@@ -299,7 +299,7 @@ describe("Security Penetration Tests", () => {
 
         expect(res.status).toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith(
-          expect.objectContaining({ code: "CSRF_TOKEN_MISSING" })
+          expect.objectContaining({ success: false, error: expect.objectContaining({ code: "CSRF_TOKEN_MISSING" }) })
         );
       });
 
@@ -317,7 +317,7 @@ describe("Security Penetration Tests", () => {
 
         expect(res.status).toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith(
-          expect.objectContaining({ code: "CSRF_TOKEN_INVALID" })
+          expect.objectContaining({ success: false, error: expect.objectContaining({ code: "CSRF_TOKEN_INVALID" }) })
         );
       });
 

@@ -238,3 +238,11 @@ Done. The migration is complete:
 [2026-01-14 14:28:19] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 14:28:19] 🎯 Task: Add feature flag to switch between QuickJS and Wasmtime...
 [2026-01-14 14:28:19] 🤖 Claude working (180s max)...
+Done. The feature flag to switch between QuickJS and Wasmtime was already implemented in `sandboxRunner.ts`:
+
+- **Environment variable**: `USE_WASMTIME_SANDBOX=true` enables Wasmtime globally
+- **Per-instance override**: `useWasmtime` in `SandboxConfig` overrides the global setting
+- **Routing logic**: `shouldUseWasmtime()` method at line 84-91 handles the decision
+
+Tests ran (6 pre-existing failures unrelated to this task), RALPH_TASK.md updated, and committed as `650e640`.
+[2026-01-14 14:29:54] ✅ Task DONE!

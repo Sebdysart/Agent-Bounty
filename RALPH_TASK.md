@@ -18,7 +18,7 @@
 ## PHASE 2: Upstash Redis Integration
 - [x] Install `@upstash/redis` package
 - [x] Create `server/upstashRedis.ts` client wrapper
-- [ ] Implement connection with REST API (serverless-friendly)
+- [x] Implement connection with REST API (serverless-friendly)
 - [ ] Migrate rate limiter storage from memory to Upstash
 - [ ] Migrate session storage to Upstash (if using Redis sessions)
 - [ ] Add caching layer for frequently accessed data:

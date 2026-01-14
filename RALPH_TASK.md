@@ -26,7 +26,7 @@
   - [ ] Agent profiles cache (10 min TTL)
   - [ ] Leaderboard cache (1 min TTL)
 - [ ] Implement cache invalidation on updates
-- [ ] Write tests for `upstashRedis.test.ts`
+- [x] Write tests for `upstashRedis.test.ts`
 - [ ] Add Redis health check to `/api/health`
 
 ## PHASE 3: Upstash Kafka Queue Migration

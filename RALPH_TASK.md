@@ -109,18 +109,18 @@
 - [x] Test: POST /api/submissions/:id/verify triggers AI verification
 
 ## PHASE 7: AI Execution Tests
-- [ ] Create `server/__tests__/aiExecutionService.test.ts`
-- [ ] Test: createExecutionRun creates queued run
-- [ ] Test: executeRun transitions to running state
-- [ ] Test: executeRun calls OpenAI with correct messages
-- [ ] Test: executeRun calculates cost correctly
-- [ ] Test: executeRun handles API errors gracefully
-- [ ] Test: executeRun increments retry count on failure
-- [ ] Test: executeAgent creates and executes in one call
-- [ ] Test: getRunStatus returns run by ID
-- [ ] Test: getAgentRuns returns runs for agent
-- [ ] Test: getExecutionStats returns correct aggregates
-- [ ] Test: cancelRun updates status to cancelled
+- [x] Create `server/__tests__/aiExecutionService.test.ts`
+- [x] Test: createExecutionRun creates queued run
+- [x] Test: executeRun transitions to running state
+- [x] Test: executeRun calls OpenAI with correct messages
+- [x] Test: executeRun calculates cost correctly
+- [x] Test: executeRun handles API errors gracefully
+- [x] Test: executeRun increments retry count on failure
+- [x] Test: executeAgent creates and executes in one call
+- [x] Test: getRunStatus returns run by ID
+- [x] Test: getAgentRuns returns runs for agent
+- [x] Test: getExecutionStats returns correct aggregates
+- [x] Test: cancelRun updates status to cancelled
 - [ ] Create `server/__tests__/sandboxRunner.test.ts`
 - [ ] Test: executeCode runs simple JavaScript
 - [ ] Test: executeCode captures console.log output

@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { testUtils } from './setup';
 import { factories } from './factories';
+import { specs, setupSwagger } from '../openapi';
 
 describe('Test Infrastructure', () => {
   describe('Setup', () => {
@@ -81,6 +82,52 @@ describe('Test Infrastructure', () => {
       factories.resetIdCounter();
       const bounty2 = factories.createBounty();
       expect(bounty1.id).toBe(bounty2.id);
+    });
+  });
+
+  describe('OpenAPI / Swagger', () => {
+    it('should have OpenAPI specs defined', () => {
+      expect(specs).toBeDefined();
+      expect(specs.openapi).toBe('3.0.0');
+    });
+
+    it('should have API info', () => {
+      expect(specs.info).toBeDefined();
+      expect(specs.info.title).toBe('Agent Bounty API');
+      expect(specs.info.version).toBe('1.0.0');
+    });
+
+    it('should have security schemes', () => {
+      expect(specs.components?.securitySchemes).toBeDefined();
+      expect(specs.components?.securitySchemes?.sessionAuth).toBeDefined();
+      expect(specs.components?.securitySchemes?.bearerAuth).toBeDefined();
+    });
+
+    it('should have paths defined', () => {
+      expect(specs.paths).toBeDefined();
+      expect(specs.paths['/health']).toBeDefined();
+      expect(specs.paths['/bounties']).toBeDefined();
+      expect(specs.paths['/agents']).toBeDefined();
+    });
+
+    it('should have setupSwagger function exported', () => {
+      expect(setupSwagger).toBeDefined();
+      expect(typeof setupSwagger).toBe('function');
+    });
+
+    it('should setup swagger UI endpoint on express app', () => {
+      const mockUse = vi.fn();
+      const mockGet = vi.fn();
+      const mockApp = { use: mockUse, get: mockGet } as any;
+
+      setupSwagger(mockApp);
+
+      expect(mockUse).toHaveBeenCalled();
+      expect(mockGet).toHaveBeenCalled();
+      // Verify /api/docs route is registered
+      expect(mockUse.mock.calls[0][0]).toBe('/api/docs');
+      // Verify /api/openapi.json route is registered
+      expect(mockGet.mock.calls[0][0]).toBe('/api/openapi.json');
     });
   });
 });

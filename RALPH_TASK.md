@@ -59,7 +59,7 @@
   - [x] `getPresignedUrl(key, expiresIn)` - secure download links
 - [x] Migrate agent code storage from DB blob to R2
 - [x] Add migration script for existing agents
-- [ ] Implement cleanup job for orphaned files
+- [x] Implement cleanup job for orphaned files
 - [x] Write tests for `r2Storage.test.ts`
 - [x] Add R2 connectivity to `/api/health`
 

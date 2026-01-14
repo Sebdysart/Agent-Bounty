@@ -38,6 +38,9 @@ describe('UpstashSessionStore', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-setup default return values after clearing mocks
+    mockUpstashRedis.isAvailable.mockReturnValue(true);
+    mockUpstashRedis.getClient.mockReturnValue(mockClient);
     store = new UpstashSessionStore({
       prefix: 'test-sess:',
       ttl: 3600,
@@ -135,14 +138,20 @@ describe('UpstashSessionStore', () => {
       });
     });
 
-    it('should handle missing client', (done) => {
+    it('should handle missing client', async () => {
       mockUpstashRedis.getClient.mockReturnValueOnce(null);
       const session = { cookie: {} } as Express.SessionData;
 
-      store.set('test-sid', session, (err) => {
-        expect(err).toBeInstanceOf(Error);
-        expect(err.message).toBe('Upstash Redis client not available');
-        done();
+      await new Promise<void>((resolve, reject) => {
+        store.set('test-sid', session, (err) => {
+          try {
+            expect(err).toBeInstanceOf(Error);
+            expect(err.message).toBe('Upstash Redis client not available');
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
       });
     });
   });
@@ -153,7 +162,7 @@ describe('UpstashSessionStore', () => {
 
       store.destroy('test-sid', (err) => {
         expect(err).toBeUndefined();
-        expect(upstashRedis.delete).toHaveBeenCalledWith('test-sess:test-sid');
+        expect(mockUpstashRedis.delete).toHaveBeenCalledWith('test-sess:test-sid');
         done();
       });
     });
@@ -176,7 +185,7 @@ describe('UpstashSessionStore', () => {
 
       store.touch('test-sid', session, (err) => {
         expect(err).toBeUndefined();
-        expect(upstashRedis.expire).toHaveBeenCalledWith('test-sess:test-sid', 3600);
+        expect(mockUpstashRedis.expire).toHaveBeenCalledWith('test-sess:test-sid', 3600);
         done();
       });
     });
@@ -230,13 +239,19 @@ describe('UpstashSessionStore', () => {
       });
     });
 
-    it('should return empty object when client not available', (done) => {
+    it('should return empty object when client not available', async () => {
       mockUpstashRedis.getClient.mockReturnValueOnce(null);
 
-      store.all((err, sessions) => {
-        expect(err).toBeNull();
-        expect(sessions).toEqual({});
-        done();
+      await new Promise<void>((resolve, reject) => {
+        store.all((err, sessions) => {
+          try {
+            expect(err).toBeNull();
+            expect(sessions).toEqual({});
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
       });
     });
   });
@@ -264,13 +279,19 @@ describe('UpstashSessionStore', () => {
       });
     });
 
-    it('should return 0 when client not available', (done) => {
+    it('should return 0 when client not available', async () => {
       mockUpstashRedis.getClient.mockReturnValueOnce(null);
 
-      store.length((err, length) => {
-        expect(err).toBeNull();
-        expect(length).toBe(0);
-        done();
+      await new Promise<void>((resolve, reject) => {
+        store.length((err, length) => {
+          try {
+            expect(err).toBeNull();
+            expect(length).toBe(0);
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
       });
     });
   });
@@ -281,7 +302,7 @@ describe('UpstashSessionStore', () => {
 
       store.clear((err) => {
         expect(err).toBeUndefined();
-        expect(upstashRedis.deleteByPattern).toHaveBeenCalledWith('test-sess:*');
+        expect(mockUpstashRedis.deleteByPattern).toHaveBeenCalledWith('test-sess:*');
         done();
       });
     });

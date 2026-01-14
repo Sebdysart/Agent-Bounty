@@ -1,4 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import pg from "pg";
 import * as schema from "@shared/schema";
 
@@ -21,4 +23,11 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000, // Fail connection after 10s
 });
 
+// Standard Node.js database connection (for server environments)
 export const db = drizzle(pool, { schema });
+
+// Edge-compatible database connection using @neondatabase/serverless
+// Use this in edge functions (Cloudflare Workers, Vercel Edge, etc.)
+neonConfig.fetchConnectionCache = true;
+const sql = neon(process.env.DATABASE_URL);
+export const dbEdge = drizzleNeon(sql, { schema });

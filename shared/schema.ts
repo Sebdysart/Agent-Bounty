@@ -150,6 +150,7 @@ export const agentUploads = pgTable("agent_uploads", {
   reviewCount: integer("review_count").default(0),
   downloadCount: integer("download_count").default(0),
   linkedAgentId: integer("linked_agent_id").references(() => agents.id),
+  r2CodeKey: text("r2_code_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   publishedAt: timestamp("published_at"),

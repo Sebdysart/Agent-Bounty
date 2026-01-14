@@ -3,6 +3,7 @@ import { agentExecutions, agents, agentUploads } from '@shared/schema';
 import { eq, desc } from 'drizzle-orm';
 import { SandboxRunner, SandboxResult } from './sandboxRunner';
 import { upstashKafka, KAFKA_TOPICS, KafkaMessage } from './upstashKafka';
+import { agentCodeService } from './agentCodeService';
 import OpenAI from 'openai';
 
 const EXECUTION_QUEUE = 'agent-execution';
@@ -15,6 +16,7 @@ interface ExecutionJob {
   input: string;
   agentType: 'no_code' | 'low_code' | 'full_code';
   agentConfig?: string | null;
+  agentUploadId?: number | null;
 }
 
 class ExecutionService {
@@ -98,6 +100,7 @@ class ExecutionService {
       input: params.input,
       agentType: agentType as 'no_code' | 'low_code' | 'full_code',
       agentConfig,
+      agentUploadId: agentUpload[0]?.id || null,
     };
 
     if (upstashKafka.isAvailable()) {
@@ -120,7 +123,7 @@ class ExecutionService {
   }
 
   private async processJob(job: ExecutionJob): Promise<void> {
-    const { executionId, agentType, agentConfig, input } = job;
+    const { executionId, agentType, agentConfig, agentUploadId, input } = job;
     const startTime = Date.now();
 
     try {
@@ -151,7 +154,14 @@ class ExecutionService {
           result = await sandbox.executeLowCode(config, parsedInput);
           break;
         case 'full_code':
-          const code = agentConfig || 'export default null;';
+          // Try to get code from R2 first, fall back to agentConfig
+          let code = agentConfig || 'export default null;';
+          if (agentUploadId) {
+            const codeResult = await agentCodeService.getCode(agentUploadId);
+            if (codeResult.success && codeResult.code) {
+              code = codeResult.code;
+            }
+          }
           result = await sandbox.executeCode(code, parsedInput);
           break;
         default:

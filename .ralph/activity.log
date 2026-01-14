@@ -712,3 +712,20 @@ In this session, I:
 - Added R2 cleanup job for orphaned files
 - Ran all tests - 1182 tests pass
 - Committed the fixes
+Done. The R2 cleanup job for orphaned files has been implemented:
+
+**Summary:**
+- Created `server/r2CleanupJob.ts` with:
+  - `runR2CleanupJob()` - Main entry point with dry-run support and configurable limits
+  - `findOrphanedAgentFiles()` - Identifies agent files in R2 without DB records  
+  - `findOrphanedSubmissionFiles()` - Identifies submission files in R2 without DB records
+  - Helper functions for extracting IDs from R2 keys
+
+- Fixed `server/__tests__/r2CleanupJob.test.ts` - 12 tests all passing
+
+- All npm tests pass (1182 tests)
+
+- Task already marked complete in RALPH_TASK.md line 62
+
+- Committed: `Ralph #46: Fix R2 cleanup job test mocks`
+[2026-01-14 15:42:30] ✅ Task DONE!

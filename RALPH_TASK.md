@@ -21,11 +21,11 @@
 - [x] Implement connection with REST API (serverless-friendly)
 - [x] Migrate rate limiter storage from memory to Upstash
 - [x] Migrate session storage to Upstash (if using Redis sessions)
-- [ ] Add caching layer for frequently accessed data:
-  - [ ] Bounty listings cache (5 min TTL)
-  - [ ] Agent profiles cache (10 min TTL)
-  - [ ] Leaderboard cache (1 min TTL)
-- [ ] Implement cache invalidation on updates
+- [x] Add caching layer for frequently accessed data:
+  - [x] Bounty listings cache (5 min TTL)
+  - [x] Agent profiles cache (10 min TTL)
+  - [x] Leaderboard cache (1 min TTL)
+- [x] Implement cache invalidation on updates
 - [x] Write tests for `upstashRedis.test.ts`
 - [ ] Add Redis health check to `/api/health`
 

@@ -22,6 +22,7 @@ import { multiLlmService } from "./multiLlmService";
 import { blockchainService } from "./blockchainService";
 import { validateJWT, requireJWT, requireAdmin, hybridAuth } from "./authMiddleware";
 import { cacheService } from "./cacheService";
+import { dataCache } from "./dataCache";
 import { collaborationService } from "./collaborationService";
 import { aiExecutionService } from "./aiExecutionService";
 import { verificationService } from "./verificationService";

@@ -1046,3 +1046,8 @@ All 970 tests pass. Task marked complete in RALPH_TASK.md and committed.
 [2026-01-14 12:53:07] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 12:53:08] 🎯 Task: Document all environment variables in .env.example...
 [2026-01-14 12:53:08] 🤖 Claude working (180s max)...
+Done. The `/api/docs` endpoint was already implemented in `server/openapi.ts`:
+- Swagger UI served at `/api/docs`
+- Raw OpenAPI spec at `/api/openapi.json`
+- Tests pass (976/976)
+- Task marked complete and committed

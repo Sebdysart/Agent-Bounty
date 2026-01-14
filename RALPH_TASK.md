@@ -179,7 +179,7 @@
 ## PHASE 12: Documentation & DevX
 - [ ] Generate OpenAPI spec from routes (swagger-jsdoc or similar)
 - [x] Add /api/docs endpoint serving Swagger UI
-- [ ] Document all environment variables in .env.example
+- [x] Document all environment variables in .env.example
 - [ ] Add CONTRIBUTING.md with test instructions
 - [ ] Update README.md with architecture overview
 

@@ -122,6 +122,15 @@ export async function registerRoutes(
   // Endpoint to get CSRF token for forms/requests
   app.get("/api/csrf-token", getCsrfTokenHandler);
 
+  // Health check endpoint - returns basic service status
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  });
+
   app.use(validateJWT);
 
   await seedDefaultPermissions();

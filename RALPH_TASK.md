@@ -173,7 +173,7 @@
 - [x] Add structured logging with request IDs
 - [x] Add error tracking integration (Sentry-ready)
 - [x] Ensure no sensitive data in error messages
-- [ ] Add health check endpoint /api/health
+- [x] Add health check endpoint /api/health
 - [ ] Add readiness check endpoint /api/ready
 
 ## PHASE 12: Documentation & DevX

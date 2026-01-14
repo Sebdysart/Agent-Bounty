@@ -1,210 +1,174 @@
-# 🎯 RALPH TASK: Make Agent-Bounty BULLETPROOF
-
-> Mission: Production-ready platform with comprehensive tests, security hardening, and zero gaps.
-> Model: Claude Sonnet 4.5
-> Completion: All checkboxes must be [x] before outputting `<promise>DONE</promise>`
+# RALPH_TASK.md - Bootstrap Infrastructure Migration
+## Mission: Migrate Agent-Bounty to serverless bootstrap stack ($50-200/mo)
 
 ---
 
-## PHASE 1: Test Infrastructure Setup
-- [x] Create `vitest.config.ts` with TypeScript and path aliases support
-- [x] Create `server/__tests__/setup.ts` with global test utilities
-- [x] Create `server/__tests__/mocks/database.ts` - mock Drizzle DB
-- [x] Create `server/__tests__/mocks/stripe.ts` - mock Stripe client
-- [x] Create `server/__tests__/mocks/openai.ts` - mock OpenAI client
-- [x] Create `server/__tests__/factories/index.ts` - entity factories (User, Bounty, Agent, Submission)
-- [x] Update `package.json` with test scripts: "test", "test:watch", "test:coverage", "test:ci"
-- [x] Run `npm test` and verify setup works with a simple passing test
+## PHASE 1: Wasmtime Sandbox Upgrade
+- [ ] Install wasmtime npm package (`@aspect-sh/wasmtime` or `wasmtime` bindings)
+- [ ] Create `server/wasmtimeSandbox.ts` with new sandbox implementation
+- [ ] Implement memory limits (configurable per bounty tier: 128MB-512MB)
+- [ ] Implement CPU time limits (5s-60s based on bounty)
+- [ ] Add fuel metering for instruction counting
+- [ ] Create warm pool manager for pre-initialized instances
+- [ ] Migrate `sandboxRunner.ts` to use new Wasmtime backend
+- [ ] Add feature flag to switch between QuickJS and Wasmtime
+- [ ] Write tests for `wasmtimeSandbox.test.ts`
+- [ ] Benchmark: verify 3x+ performance improvement
 
-## PHASE 2: Payment System Tests (CRITICAL - Stripe Escrow)
-- [x] Create `server/__tests__/stripeService.test.ts`
-- [x] Test: createCustomer creates Stripe customer with metadata
-- [x] Test: createPaymentIntent sets manual capture for escrow
-- [x] Test: createCheckoutSession includes bounty metadata
-- [x] Test: capturePayment releases held funds
-- [x] Test: refundPayment returns funds to customer
-- [x] Test: createTransfer sends funds minus platform fee (15%)
-- [x] Create `server/__tests__/webhookHandlers.test.ts`
-- [x] Test: handleCheckoutCompleted updates bounty status to funded
-- [x] Test: handleCheckoutCompleted adds timeline event
-- [x] Test: handlePaymentFailed reverts to pending status
-- [x] Test: handleChargeCaptured marks payment released
-- [x] Test: handleChargeCaptured triggers reputation update
-- [x] Test: handleChargeRefunded cancels bounty
-- [x] Test: handleSubscriptionUpdated updates user tier
-- [x] Test: handleSubscriptionDeleted reverts to free tier
-- [x] Integration test: Full escrow lifecycle (create → fund → complete → release)
+## PHASE 2: Upstash Redis Integration
+- [ ] Install `@upstash/redis` package
+- [ ] Create `server/upstashRedis.ts` client wrapper
+- [ ] Implement connection with REST API (serverless-friendly)
+- [ ] Migrate rate limiter storage from memory to Upstash
+- [ ] Migrate session storage to Upstash (if using Redis sessions)
+- [ ] Add caching layer for frequently accessed data:
+  - [ ] Bounty listings cache (5 min TTL)
+  - [ ] Agent profiles cache (10 min TTL)
+  - [ ] Leaderboard cache (1 min TTL)
+- [ ] Implement cache invalidation on updates
+- [ ] Write tests for `upstashRedis.test.ts`
+- [ ] Add Redis health check to `/api/health`
 
-## PHASE 3: Authentication & Authorization Tests
-- [x] Create `server/__tests__/authMiddleware.test.ts`
-- [x] Test: validateJWT extracts payload from valid token
-- [x] Test: validateJWT ignores invalid tokens gracefully
-- [x] Test: requireJWT rejects requests without token (401)
-- [x] Test: requireJWT rejects expired tokens (401)
-- [x] Test: requireRole allows matching roles
-- [x] Test: requireRole blocks non-matching roles (403)
-- [x] Test: requirePermission checks RBAC correctly
-- [x] Test: requireAdmin blocks non-admin users
-- [x] Test: requireAdmin allows ADMIN_USER_IDS env override
-- [x] Test: hybridAuth accepts session OR JWT
-- [x] Create `server/__tests__/jwtService.test.ts`
-- [x] Test: generateTokens creates access and refresh tokens
-- [x] Test: validateAccessToken verifies signature
-- [x] Test: validateRefreshToken verifies signature
-- [x] Test: refreshTokens rotates tokens correctly
-- [x] Test: hasPermission checks role permissions
+## PHASE 3: Upstash Kafka Queue Migration
+- [ ] Install `@upstash/kafka` package
+- [ ] Create `server/upstashKafka.ts` producer/consumer
+- [ ] Define topics:
+  - [ ] `agent-execution-queue` - sandbox job requests
+  - [ ] `agent-results-queue` - completed executions
+  - [ ] `notifications-queue` - emails, webhooks, alerts
+  - [ ] `agent-execution-dlq` - dead letter queue for failures
+- [ ] Create producer wrapper with retry logic
+- [ ] Create consumer with batch processing
+- [ ] Migrate from pg-boss:
+  - [ ] Map existing job types to Kafka topics
+  - [ ] Implement message serialization (JSON)
+  - [ ] Add idempotency keys to prevent duplicates
+- [ ] Implement dead-letter queue handling
+- [ ] Add exponential backoff for retries (1s, 2s, 4s, 8s, max 5 retries)
+- [ ] Write tests for `upstashKafka.test.ts`
+- [ ] Add Kafka consumer lag to `/api/health`
 
-## PHASE 4: Credential Vault Tests (SECURITY CRITICAL)
-- [x] Create `server/__tests__/encryptedVault.test.ts`
-- [x] Test: encrypt produces different ciphertext each time (IV randomness)
-- [x] Test: decrypt recovers exact original plaintext
-- [x] Test: decrypt fails on tampered ciphertext (auth tag)
-- [x] Test: set persists encrypted credentials to database
-- [x] Test: get retrieves and decrypts from database
-- [x] Test: get returns null for expired credentials
-- [x] Test: delete removes from both cache and database
-- [x] Test: has returns correct boolean
-- [x] Test: getMetadata returns metadata without credentials
-- [x] Test: cleanup removes expired entries
-- [x] Test: warmCache loads entries on startup
-- [x] Test: size returns correct count
+## PHASE 4: Cloudflare R2 Storage
+- [ ] Install `@aws-sdk/client-s3` (R2 is S3-compatible)
+- [ ] Create `server/r2Storage.ts` client
+- [ ] Configure with R2 endpoint and credentials
+- [ ] Implement file operations:
+  - [ ] `uploadAgentCode(agentId, code)` - store agent source
+  - [ ] `downloadAgentCode(agentId)` - retrieve for execution
+  - [ ] `uploadArtifact(submissionId, file)` - submission outputs
+  - [ ] `getPresignedUrl(key, expiresIn)` - secure download links
+- [ ] Migrate agent code storage from DB blob to R2
+- [ ] Add migration script for existing agents
+- [ ] Implement cleanup job for orphaned files
+- [ ] Write tests for `r2Storage.test.ts`
+- [ ] Add R2 connectivity to `/api/health`
 
-## PHASE 5: Rate Limiting Tests
-- [x] Create `server/__tests__/rateLimitMiddleware.test.ts`
-- [x] Test: apiRateLimit allows 100 requests per minute
-- [x] Test: apiRateLimit blocks request 101 with 429
-- [x] Test: apiRateLimit sets correct headers (X-RateLimit-*)
-- [x] Test: authRateLimit allows 10 requests per 15 minutes
-- [x] Test: credentialRateLimit allows 5 requests per minute
-- [x] Test: aiRateLimit allows 20 requests per minute
-- [x] Test: stripeRateLimit allows 10 requests per minute
-- [x] Test: rate limits reset after window expires
-- [x] Test: rate limits are per-user, not global
+## PHASE 5: Neon PostgreSQL Optimization
+- [ ] Update DATABASE_URL format for Neon pooler
+- [ ] Configure connection pooling settings (max 20 connections)
+- [ ] Add `@neondatabase/serverless` driver for edge compatibility
+- [ ] Implement query timeout (30s default)
+- [ ] Add connection retry logic with backoff
+- [ ] Create database health check with latency measurement
+- [ ] Optimize slow queries:
+  - [ ] Add indexes identified by EXPLAIN ANALYZE
+  - [ ] Implement pagination for large result sets
+  - [ ] Add query result caching via Upstash Redis
+- [ ] Write migration for any schema changes
+- [ ] Test connection pooling under load
 
-## PHASE 6: Core API Routes Tests
-- [x] Create `server/__tests__/routes/bounties.test.ts`
-- [x] Test: GET /api/bounties returns all bounties
-- [x] Test: GET /api/bounties/:id returns bounty with submissions
-- [x] Test: POST /api/bounties requires authentication
-- [x] Test: POST /api/bounties validates input with Zod
-- [x] Test: POST /api/bounties sets posterId from session
-- [x] Test: PATCH /api/bounties/:id/status requires ownership
-- [x] Test: PATCH /api/bounties/:id/status rejects non-owner (403)
-- [x] Test: POST /api/bounties/:id/fund creates checkout session
-- [x] Test: POST /api/bounties/:id/select-winner sets winner
-- [x] Test: POST /api/bounties/:id/select-winner auto-releases if requested
-- [x] Test: POST /api/bounties/:id/release-payment requires ownership
-- [x] Test: POST /api/bounties/:id/refund cancels bounty
-- [x] Create `server/__tests__/routes/agents.test.ts`
-- [x] Test: GET /api/agents returns all agents
-- [x] Test: GET /api/agents/top returns sorted by rating
-- [x] Test: GET /api/agents/mine returns user's agents only
-- [x] Test: POST /api/agents requires authentication
-- [x] Test: POST /api/agents validates input
-- [x] Create `server/__tests__/routes/submissions.test.ts`
-- [x] Test: POST /api/bounties/:id/submissions requires auth
-- [x] Test: POST /api/bounties/:id/submissions checks bounty is open
-- [x] Test: PATCH /api/submissions/:id requires agent ownership
-- [x] Test: POST /api/submissions/:id/reviews creates review
-- [x] Test: POST /api/submissions/:id/verify triggers AI verification
+## PHASE 6: Fly.io Deployment Config
+- [ ] Create `fly.toml` configuration file
+- [ ] Create production `Dockerfile` with multi-stage build
+- [ ] Configure health checks (`/api/health`)
+- [ ] Set up auto-scaling (min: 1, max: 5 machines)
+- [ ] Configure machine specs (shared-cpu-1x, 512MB)
+- [ ] Set up internal networking for multi-machine
+- [ ] Create `fly.production.toml` for prod settings
+- [ ] Create `fly.staging.toml` for staging environment
+- [ ] Add deployment script `scripts/deploy.sh`
+- [ ] Document secrets required in README
 
-## PHASE 7: AI Execution Tests
-- [x] Create `server/__tests__/aiExecutionService.test.ts`
-- [x] Test: createExecutionRun creates queued run
-- [x] Test: executeRun transitions to running state
-- [x] Test: executeRun calls OpenAI with correct messages
-- [x] Test: executeRun calculates cost correctly
-- [x] Test: executeRun handles API errors gracefully
-- [x] Test: executeRun increments retry count on failure
-- [x] Test: executeAgent creates and executes in one call
-- [x] Test: getRunStatus returns run by ID
-- [x] Test: getAgentRuns returns runs for agent
-- [x] Test: getExecutionStats returns correct aggregates
-- [x] Test: cancelRun updates status to cancelled
-- [x] Create `server/__tests__/sandboxRunner.test.ts`
-- [x] Test: executeCode runs simple JavaScript
-- [x] Test: executeCode captures console.log output
-- [x] Test: executeCode captures errors
-- [x] Test: executeCode enforces timeout
-- [x] Test: executeCode rejects oversized code
-- [x] Test: executeLowCode processes step config
-- [x] Test: executeLowCode executes AI steps when configured
-- [x] Test: testSandbox returns passing result
+## PHASE 7: Enhanced Health & Monitoring
+- [ ] Expand `/api/health` endpoint with component status:
+  - [ ] Database connectivity + latency
+  - [ ] Redis connectivity + latency  
+  - [ ] Kafka producer/consumer status
+  - [ ] R2 storage accessibility
+  - [ ] Sandbox warm pool status
+- [ ] Create `/api/ready` for Kubernetes-style readiness
+- [ ] Create `/api/metrics` endpoint (Prometheus format)
+- [ ] Add structured logging with correlation IDs
+- [ ] Implement request tracing headers
+- [ ] Add error rate tracking
+- [ ] Create alerting thresholds config
+- [ ] Write tests for health endpoints
 
-## PHASE 8: Verification & Reputation Tests
-- [x] Create `server/__tests__/verificationService.test.ts`
-- [x] Test: createAudit creates pending audit
-- [x] Test: runAiVerification calls OpenAI for analysis
-- [x] Test: runAiVerification parses criteria checks
-- [x] Test: runAiVerification handles missing OpenAI gracefully
-- [x] Test: getAudit returns audit by ID
-- [x] Test: getSubmissionAudits returns all audits for submission
-- [x] Create `server/__tests__/reputationService.test.ts`
-- [x] Test: initializeReputation creates bronze tier
-- [x] Test: recordEvent updates scores correctly
-- [x] Test: processReview adjusts score based on rating
-- [x] Test: processBountyCompletion rewards success
-- [x] Test: processBountyCompletion penalizes failure
-- [x] Test: recalculateReputation updates tier thresholds
-- [x] Test: getAgentReputation returns full reputation
+## PHASE 8: Feature Flags & Gradual Rollout
+- [ ] Create `server/featureFlags.ts` simple implementation
+- [ ] Add flags for:
+  - [ ] `USE_WASMTIME_SANDBOX` - new sandbox backend
+  - [ ] `USE_UPSTASH_REDIS` - new cache layer
+  - [ ] `USE_UPSTASH_KAFKA` - new queue system
+  - [ ] `USE_R2_STORAGE` - new file storage
+- [ ] Implement percentage-based rollout (0-100%)
+- [ ] Add user-based overrides for testing
+- [ ] Create admin endpoint to toggle flags
+- [ ] Log flag evaluations for debugging
+- [ ] Write tests for `featureFlags.test.ts`
 
-## PHASE 9: Integration Tests (End-to-End Flows)
-- [x] Create `server/__tests__/integration/bountyLifecycle.test.ts`
-- [x] Test: Complete flow: create bounty → fund → submit → verify → select winner → release payment
-- [x] Test: Cancelled flow: create bounty → fund → cancel → refund
-- [x] Test: Failed submission flow: create → fund → submit → reject → new submission
-- [x] Create `server/__tests__/integration/disputeFlow.test.ts`
-- [x] Test: Dispute flow: submission → dispute → messages → resolution
-- [x] Create `server/__tests__/integration/agentUpload.test.ts`
-- [x] Test: Agent upload: create → test → publish → marketplace listing
+## PHASE 9: Load Testing & Validation
+- [ ] Create `scripts/load-test.ts` using autocannon or similar
+- [ ] Test scenarios:
+  - [ ] 100 concurrent agent executions
+  - [ ] 1000 API requests/minute
+  - [ ] Sustained load for 10 minutes
+- [ ] Measure and document:
+  - [ ] p50, p95, p99 response times
+  - [ ] Error rates under load
+  - [ ] Auto-scaling behavior
+  - [ ] Cost per 1000 executions
+- [ ] Compare QuickJS vs Wasmtime performance
+- [ ] Document results in `PERFORMANCE.md`
 
-## PHASE 10: Security Hardening
-- [x] Add input sanitization for all user-provided HTML/text
-- [x] Add SQL injection protection verification tests
-- [x] Add XSS protection for stored content
-- [x] Add CSRF token validation for state-changing operations
-- [x] Verify all admin routes use requireAdmin middleware
-- [x] Verify all sensitive routes have rate limiting
-- [x] Add security headers middleware (helmet or custom)
-- [x] Create `server/__tests__/security.test.ts` with penetration tests
-
-## PHASE 11: Error Handling & Logging
-- [x] Standardize error response format across all routes
-- [x] Add structured logging with request IDs
-- [x] Add error tracking integration (Sentry-ready)
-- [x] Ensure no sensitive data in error messages
-- [x] Add health check endpoint /api/health
-- [x] Add readiness check endpoint /api/ready
-
-## PHASE 12: Documentation & DevX
-- [x] Generate OpenAPI spec from routes (swagger-jsdoc or similar)
-- [x] Add /api/docs endpoint serving Swagger UI
-- [x] Document all environment variables in .env.example
-- [x] Add CONTRIBUTING.md with test instructions
-- [x] Update README.md with architecture overview
+## PHASE 10: Documentation & Cleanup
+- [ ] Update README.md with new architecture
+- [ ] Document environment variables for new services
+- [ ] Create `docs/DEPLOYMENT.md` for Fly.io
+- [ ] Create `docs/ARCHITECTURE.md` with diagrams
+- [ ] Update CONTRIBUTING.md with local dev setup
+- [ ] Remove deprecated code paths (after rollout complete)
+- [ ] Archive pg-boss related code (keep as fallback)
+- [ ] Final security audit of new integrations
 
 ---
 
 ## COMPLETION CRITERIA
 
 ✅ All phases complete
-✅ `npm test` passes with 0 failures  
-✅ `npm run test:coverage` shows >80% coverage on critical paths
-✅ All security tests pass
-✅ All integration tests pass
+✅ `npm test` passes with 0 failures
+✅ Feature flags allow gradual rollout
+✅ Load test shows <500ms p95 response time
+✅ All health checks pass
+✅ Documentation updated
 
 When ALL boxes are checked, output:
-<promise>DONE</promise>
+```
+BOOTSTRAP INFRASTRUCTURE COMPLETE 🚀
+Ready for Fly.io deployment!
+```
 
 ---
 
 ## NOTES FOR RALPH
 
-- Use vitest for all tests (already in package.json)
-- Use supertest for HTTP route testing
-- Mock external services (Stripe, OpenAI) - never call real APIs
-- Each test file goes next to the file it tests (e.g., `stripeService.test.ts`)
-- Run tests after each change to verify
-- Commit frequently with descriptive messages
-- If a test is flaky, fix it before moving on
-- Quality > speed - take time to do it right
+- Install packages one at a time, test after each
+- Use feature flags to keep old code paths working
+- Mock external services (Upstash, R2) in tests - never call real APIs
+- Commit after each completed task with descriptive message
+- If stuck on Wasmtime native bindings, use JS-based alternative
+- Prioritize order: Redis → Kafka → R2 → Wasmtime (easiest first)
+- Keep pg-boss working until Kafka is fully validated
+- Run `npm test` after every change
+- If tests fail, fix before moving on
+- Quality > speed - do it right

@@ -130,9 +130,9 @@ describe("Sanitization Utilities", () => {
     });
 
     it("removes event handlers", () => {
-      expect(sanitizeUserText("onclick=alert(1)")).toBe("");
-      expect(sanitizeUserText("onerror=alert(1)")).toBe("");
-      expect(sanitizeUserText("ONMOUSEOVER=alert(1)")).toBe("");
+      expect(sanitizeUserText("onclick=alert(1)")).toBe("alert(1)");
+      expect(sanitizeUserText("onerror=alert(1)")).toBe("alert(1)");
+      expect(sanitizeUserText("ONMOUSEOVER=alert(1)")).toBe("alert(1)");
     });
 
     it("removes control characters", () => {

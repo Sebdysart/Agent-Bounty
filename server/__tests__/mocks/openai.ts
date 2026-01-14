@@ -80,8 +80,10 @@ export const mockOpenAI = {
   },
 };
 
-// Mock the OpenAI constructor
-export const MockOpenAI = vi.fn(() => mockOpenAI);
+// Mock the OpenAI constructor - must be a regular function to work with `new`
+export const MockOpenAI = vi.fn(function() {
+  return mockOpenAI;
+});
 
 // Mock the openai module
 vi.mock('openai', () => ({

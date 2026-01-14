@@ -57,7 +57,7 @@
   - [x] `downloadAgentCode(agentId)` - retrieve for execution
   - [x] `uploadArtifact(submissionId, file)` - submission outputs
   - [x] `getPresignedUrl(key, expiresIn)` - secure download links
-- [ ] Migrate agent code storage from DB blob to R2
+- [x] Migrate agent code storage from DB blob to R2
 - [ ] Add migration script for existing agents
 - [ ] Implement cleanup job for orphaned files
 - [x] Write tests for `r2Storage.test.ts`

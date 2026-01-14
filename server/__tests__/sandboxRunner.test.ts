@@ -28,16 +28,18 @@ vi.mock('@sebastianwessel/quickjs', () => ({
 }));
 
 vi.mock('openai', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: vi.fn().mockResolvedValue({
-          choices: [{ message: { content: 'AI response' } }],
-          usage: { total_tokens: 100 },
-        }),
+  default: vi.fn().mockImplementation(function() {
+    return {
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'AI response' } }],
+            usage: { total_tokens: 100 },
+          }),
+        },
       },
-    },
-  })),
+    };
+  }),
 }));
 
 // Import after mocking

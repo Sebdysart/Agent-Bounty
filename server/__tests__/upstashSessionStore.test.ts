@@ -4,27 +4,34 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { UpstashSessionStore } from '../upstashSessionStore';
 
-// Mock the upstashRedis module
-const mockClient = {
-  get: vi.fn(),
-  set: vi.fn(),
-  del: vi.fn(),
-  scan: vi.fn(),
-  mget: vi.fn(),
-  expire: vi.fn(),
-};
+// Use vi.hoisted to create mock client that can be used in vi.mock factory
+const { mockClient, mockUpstashRedis } = vi.hoisted(() => {
+  const mockClient = {
+    get: vi.fn(),
+    set: vi.fn(),
+    del: vi.fn(),
+    scan: vi.fn(),
+    mget: vi.fn(),
+    expire: vi.fn(),
+  };
+  return {
+    mockClient,
+    mockUpstashRedis: {
+      isAvailable: vi.fn().mockReturnValue(true),
+      getClient: vi.fn().mockReturnValue(mockClient),
+      delete: vi.fn(),
+      deleteByPattern: vi.fn(),
+      expire: vi.fn(),
+    },
+  };
+});
 
 vi.mock('../upstashRedis', () => ({
-  upstashRedis: {
-    isAvailable: vi.fn().mockReturnValue(true),
-    getClient: vi.fn().mockReturnValue(mockClient),
-    delete: vi.fn(),
-    deleteByPattern: vi.fn(),
-    expire: vi.fn(),
-  },
+  upstashRedis: mockUpstashRedis,
 }));
+
+import { UpstashSessionStore } from '../upstashSessionStore';
 
 import { upstashRedis } from '../upstashRedis';
 

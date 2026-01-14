@@ -132,9 +132,11 @@ export async function registerRoutes(
   app.get("/api/health", async (_req, res) => {
     const { upstashRedis } = await import("./upstashRedis");
     const { upstashKafka, KAFKA_TOPICS } = await import("./upstashKafka");
+    const { r2Storage } = await import("./r2Storage");
 
     const redisHealth = await upstashRedis.healthCheck();
     const kafkaHealth = await upstashKafka.healthCheck();
+    const r2Health = await r2Storage.healthCheck();
 
     // Get consumer lag for each topic (returns null if not available)
     const kafkaLag: Record<string, number | null> = {};
@@ -146,7 +148,8 @@ export async function registerRoutes(
 
     const redisHealthy = redisHealth.connected || !upstashRedis.isAvailable();
     const kafkaHealthy = kafkaHealth.connected || !upstashKafka.isAvailable();
-    const isHealthy = redisHealthy && kafkaHealthy;
+    const r2Healthy = r2Health.connected || !r2Storage.isAvailable();
+    const isHealthy = redisHealthy && kafkaHealthy && r2Healthy;
     const status = isHealthy ? "healthy" : "degraded";
 
     res.status(isHealthy ? 200 : 503).json({
@@ -164,6 +167,11 @@ export async function registerRoutes(
           latencyMs: kafkaHealth.latencyMs,
           error: kafkaHealth.error,
           consumerLag: kafkaLag,
+        },
+        r2: {
+          status: r2Health.connected ? "healthy" : r2Storage.isAvailable() ? "unhealthy" : "not_configured",
+          latencyMs: r2Health.latencyMs,
+          error: r2Health.error,
         },
       },
     });
@@ -1538,6 +1546,15 @@ ${agentOutput}`
         return sendValidationError(res, "Invalid request body", parsed.error.errors);
       }
       const upload = await storage.createAgentUpload(parsed.data);
+
+      // For full_code agents, store code in R2
+      if (upload.uploadType === 'full_code' && upload.configJson) {
+        const r2Result = await agentCodeService.storeCode(upload.id, upload.configJson);
+        if (!r2Result.success) {
+          console.warn(`Failed to store agent code in R2: ${r2Result.error}`);
+        }
+      }
+
       res.status(201).json(upload);
     } catch (error) {
       console.error("Error creating agent upload:", error);
@@ -1560,6 +1577,15 @@ ${agentOutput}`
         return sendForbidden(res, "Not authorized to update this agent");
       }
       const updated = await storage.updateAgentUpload(id, req.body);
+
+      // If code was updated for a full_code agent, store in R2
+      if (updated && updated.uploadType === 'full_code' && req.body.configJson) {
+        const r2Result = await agentCodeService.storeCode(id, req.body.configJson);
+        if (!r2Result.success) {
+          console.warn(`Failed to update agent code in R2: ${r2Result.error}`);
+        }
+      }
+
       res.json(updated);
     } catch (error) {
       console.error("Error updating agent upload:", error);
@@ -1581,6 +1607,12 @@ ${agentOutput}`
       if (existing.developerId !== userId) {
         return sendForbidden(res, "Not authorized to delete this agent");
       }
+
+      // Delete code from R2 if stored there
+      if (existing.r2CodeKey) {
+        await agentCodeService.deleteCode(id);
+      }
+
       await storage.deleteAgentUpload(id);
       res.status(204).send();
     } catch (error) {

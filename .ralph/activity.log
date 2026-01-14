@@ -523,3 +523,21 @@ Done. I've completed the task:
 [2026-01-14 00:42:35] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 00:42:35] 🎯 Task: Add CSRF token validation for state-changing operations...
 [2026-01-14 00:42:35] 🤖 Claude working (180s max)...
+Done. I've completed the CSRF token validation task:
+
+1. **Created `server/csrfMiddleware.ts`** with:
+   - `generateCsrfToken()` - generates cryptographically secure 64-char hex tokens
+   - `ensureCsrfToken` - middleware to create tokens in session
+   - `validateCsrfToken` - validates tokens on state-changing operations (POST/PUT/PATCH/DELETE)
+   - `getCsrfTokenHandler` - endpoint handler to retrieve tokens
+   - Timing-safe comparison to prevent timing attacks
+   - Skips validation for webhooks, OAuth, and JWT-authenticated requests
+
+2. **Created `server/__tests__/csrfMiddleware.test.ts`** with 26 comprehensive tests
+
+3. **Registered middleware in `server/routes.ts`** with `/api/csrf-token` endpoint
+
+4. **All 649 tests pass**
+
+5. **Marked task complete in RALPH_TASK.md** and committed
+[2026-01-14 00:45:20] ✅ Task DONE!

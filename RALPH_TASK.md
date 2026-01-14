@@ -174,7 +174,7 @@
 - [x] Add error tracking integration (Sentry-ready)
 - [x] Ensure no sensitive data in error messages
 - [x] Add health check endpoint /api/health
-- [ ] Add readiness check endpoint /api/ready
+- [x] Add readiness check endpoint /api/ready
 
 ## PHASE 12: Documentation & DevX
 - [ ] Generate OpenAPI spec from routes (swagger-jsdoc or similar)

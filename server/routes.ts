@@ -131,6 +131,48 @@ export async function registerRoutes(
     });
   });
 
+  // Readiness check endpoint - returns service readiness for traffic
+  app.get("/api/ready", async (_req, res) => {
+    try {
+      // Check database connectivity
+      const { pool } = await import("./db");
+      let dbReady = false;
+      try {
+        const result = await pool.query("SELECT 1");
+        dbReady = result.rows.length > 0;
+      } catch {
+        dbReady = false;
+      }
+
+      if (!dbReady) {
+        return res.status(503).json({
+          status: "not_ready",
+          timestamp: new Date().toISOString(),
+          checks: {
+            database: false,
+          },
+        });
+      }
+
+      res.json({
+        status: "ready",
+        timestamp: new Date().toISOString(),
+        checks: {
+          database: true,
+        },
+      });
+    } catch (error) {
+      res.status(503).json({
+        status: "not_ready",
+        timestamp: new Date().toISOString(),
+        checks: {
+          database: false,
+        },
+        error: "Readiness check failed",
+      });
+    }
+  });
+
   app.use(validateJWT);
 
   await seedDefaultPermissions();

@@ -82,25 +82,25 @@
 - [x] Test: rate limits are per-user, not global
 
 ## PHASE 6: Core API Routes Tests
-- [ ] Create `server/__tests__/routes/bounties.test.ts`
-- [ ] Test: GET /api/bounties returns all bounties
-- [ ] Test: GET /api/bounties/:id returns bounty with submissions
-- [ ] Test: POST /api/bounties requires authentication
-- [ ] Test: POST /api/bounties validates input with Zod
-- [ ] Test: POST /api/bounties sets posterId from session
-- [ ] Test: PATCH /api/bounties/:id/status requires ownership
-- [ ] Test: PATCH /api/bounties/:id/status rejects non-owner (403)
-- [ ] Test: POST /api/bounties/:id/fund creates checkout session
-- [ ] Test: POST /api/bounties/:id/select-winner sets winner
-- [ ] Test: POST /api/bounties/:id/select-winner auto-releases if requested
-- [ ] Test: POST /api/bounties/:id/release-payment requires ownership
-- [ ] Test: POST /api/bounties/:id/refund cancels bounty
-- [ ] Create `server/__tests__/routes/agents.test.ts`
-- [ ] Test: GET /api/agents returns all agents
-- [ ] Test: GET /api/agents/top returns sorted by rating
-- [ ] Test: GET /api/agents/mine returns user's agents only
-- [ ] Test: POST /api/agents requires authentication
-- [ ] Test: POST /api/agents validates input
+- [x] Create `server/__tests__/routes/bounties.test.ts`
+- [x] Test: GET /api/bounties returns all bounties
+- [x] Test: GET /api/bounties/:id returns bounty with submissions
+- [x] Test: POST /api/bounties requires authentication
+- [x] Test: POST /api/bounties validates input with Zod
+- [x] Test: POST /api/bounties sets posterId from session
+- [x] Test: PATCH /api/bounties/:id/status requires ownership
+- [x] Test: PATCH /api/bounties/:id/status rejects non-owner (403)
+- [x] Test: POST /api/bounties/:id/fund creates checkout session
+- [x] Test: POST /api/bounties/:id/select-winner sets winner
+- [x] Test: POST /api/bounties/:id/select-winner auto-releases if requested
+- [x] Test: POST /api/bounties/:id/release-payment requires ownership
+- [x] Test: POST /api/bounties/:id/refund cancels bounty
+- [x] Create `server/__tests__/routes/agents.test.ts`
+- [x] Test: GET /api/agents returns all agents
+- [x] Test: GET /api/agents/top returns sorted by rating
+- [x] Test: GET /api/agents/mine returns user's agents only
+- [x] Test: POST /api/agents requires authentication
+- [x] Test: POST /api/agents validates input
 - [ ] Create `server/__tests__/routes/submissions.test.ts`
 - [ ] Test: POST /api/bounties/:id/submissions requires auth
 - [ ] Test: POST /api/bounties/:id/submissions checks bounty is open

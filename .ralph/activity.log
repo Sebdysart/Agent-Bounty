@@ -25,3 +25,77 @@ Task complete. I created `server/__tests__/stripeService.test.ts` with 35 compre
 
 All 35 tests pass. The RALPH_TASK.md has been updated and changes committed.
 [2026-01-13 22:30:50] \033[0;32m✅ Iteration complete\033[0m
+[2026-01-13 22:30:50] \033[0;32m📝 Changes committed\033[0m
+[2026-01-13 22:30:52] 
+[2026-01-13 22:30:52] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:30:52] \033[1;33m📍 ITERATION 2/100 | ✅ 15 done | ⏳ 138 left\033[0m
+[2026-01-13 22:30:52] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:30:52] \033[1;33m🎯 Working on: Create `server/__tests__/webhookHandlers.test.ts`\033[0m
+[2026-01-13 22:30:52] \033[0;35m🤖 Claude working...\033[0m
+[2026-01-13 22:36:39] \033[0;35m═══════════════════════════════════════════════════════════════\033[0m
+[2026-01-13 22:36:39] \033[0;35m🐛 RALPH WIGGUM - BULLETPROOF v2 (Anti-Loop Protection)\033[0m
+[2026-01-13 22:36:39] \033[0;35m═══════════════════════════════════════════════════════════════\033[0m
+[2026-01-13 22:36:39] \033[0;34m   Max attempts per task: 3\033[0m
+[2026-01-13 22:36:39] \033[0;34m   Timeout per iteration: 300s\033[0m
+[2026-01-13 22:36:39] 
+[2026-01-13 22:36:39] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:36:39] \033[1;33m📍 ITERATION 1/100 | ✅ 15 | ⏳ 138 | ⏭️ 0 skipped\033[0m
+[2026-01-13 22:36:39] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:36:39] \033[1;33m🎯 Working on: Create `server/__tests__/webhookHandlers.test.ts`\033[0m
+[2026-01-13 22:36:39] \033[0;35m🤖 Claude working (300s max)...\033[0m
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+Task completed successfully. Here's a summary:
+
+## Completed: `server/__tests__/webhookHandlers.test.ts`
+
+Created a comprehensive test suite with **45 tests** covering all Stripe webhook handlers:
+
+### Tests Created:
+1. **handleEvent routing** - Routes all event types to correct handlers
+2. **handleCheckoutCompleted** - Updates bounty status to funded, adds timeline events, handles draft→open transition
+3. **handlePaymentFailed** - Reverts bounty to pending status with timeline event
+4. **handleChargeCaptured** - Marks payment released, bounty completed, triggers reputation updates
+5. **handleChargeRefunded** - Cancels bounty, updates payment status to refunded
+6. **handleSubscriptionUpdated** - Updates user tier (free/pro/enterprise) based on subscription status
+7. **handleSubscriptionDeleted** - Reverts user to free tier, clears subscription data
+8. **processWebhook** - Validates Buffer payload requirement
+9. **Full Escrow Lifecycle Integration Tests**:
+   - Complete lifecycle: fund → complete → release payment
+   - Cancelled lifecycle: fund → refund
+
+### Key Features:
+- Uses `vi.hoisted()` for proper mock hoisting with Vitest
+- Mocks storage, reputationService, and stripeClient
+- Tests edge cases (missing data, not found, graceful failures)
+- Integration tests for complete payment flows
+
+### Verification:
+- All **99 tests pass** (45 webhook + 35 stripeService + 11 infrastructure + 8 legacy)
+- Removed old incomplete test file in `server/test/`
+- Updated RALPH_TASK.md with all completed checkboxes
+- Committed with descriptive message
+[2026-01-13 22:41:46] \033[0;35m═══════════════════════════════════════════════════════════════\033[0m
+[2026-01-13 22:41:46] \033[0;35m🐛 RALPH WIGGUM - BULLETPROOF v2 (Anti-Loop Protection)\033[0m
+[2026-01-13 22:41:46] \033[0;35m═══════════════════════════════════════════════════════════════\033[0m
+[2026-01-13 22:41:46] \033[0;34m   Max attempts per task: 3\033[0m
+[2026-01-13 22:41:46] \033[0;34m   Timeout per iteration: 300s\033[0m
+[2026-01-13 22:41:46] 
+[2026-01-13 22:41:46] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:41:46] \033[1;33m📍 ITERATION 1/100 | ✅ 25 | ⏳ 128 | ⏭️ 0 skipped\033[0m
+[2026-01-13 22:41:46] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:41:46] \033[1;33m🎯 Working on: Create `server/__tests__/authMiddleware.test.ts`\033[0m
+[2026-01-13 22:41:46] \033[0;35m🤖 Claude working (300s max)...\033[0m
+Error: Input must be provided either through stdin or as a prompt argument when using --print
+[2026-01-13 22:47:24] 
+[2026-01-13 22:47:24] \033[0;35m═══════════════════════════════════════════════════════════════\033[0m
+[2026-01-13 22:47:24] \033[0;35m🐛 RALPH WIGGUM v3 - NEVER STOPS\033[0m
+[2026-01-13 22:47:24] \033[0;35m═══════════════════════════════════════════════════════════════\033[0m
+[2026-01-13 22:47:24]    Max iterations: 100
+[2026-01-13 22:47:24]    Max attempts/task: 3
+[2026-01-13 22:47:24]    Timeout: 300s
+[2026-01-13 22:47:24] 
+[2026-01-13 22:47:24] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:47:24] \033[1;33m📍 ITERATION 1/100 | ✅25 | ⏳128 | ⏭️0\033[0m
+[2026-01-13 22:47:24] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
+[2026-01-13 22:47:24] \033[1;33m🎯 Task: Create `server/__tests__/authMiddleware.test.ts`...\033[0m
+[2026-01-13 22:47:24] \033[0;35m🤖 Claude working...\033[0m

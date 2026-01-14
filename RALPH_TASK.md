@@ -36,17 +36,17 @@
 - [x] Integration test: Full escrow lifecycle (create → fund → complete → release)
 
 ## PHASE 3: Authentication & Authorization Tests
-- [ ] Create `server/__tests__/authMiddleware.test.ts`
-- [ ] Test: validateJWT extracts payload from valid token
-- [ ] Test: validateJWT ignores invalid tokens gracefully
-- [ ] Test: requireJWT rejects requests without token (401)
-- [ ] Test: requireJWT rejects expired tokens (401)
-- [ ] Test: requireRole allows matching roles
-- [ ] Test: requireRole blocks non-matching roles (403)
-- [ ] Test: requirePermission checks RBAC correctly
-- [ ] Test: requireAdmin blocks non-admin users
-- [ ] Test: requireAdmin allows ADMIN_USER_IDS env override
-- [ ] Test: hybridAuth accepts session OR JWT
+- [x] Create `server/__tests__/authMiddleware.test.ts`
+- [x] Test: validateJWT extracts payload from valid token
+- [x] Test: validateJWT ignores invalid tokens gracefully
+- [x] Test: requireJWT rejects requests without token (401)
+- [x] Test: requireJWT rejects expired tokens (401)
+- [x] Test: requireRole allows matching roles
+- [x] Test: requireRole blocks non-matching roles (403)
+- [x] Test: requirePermission checks RBAC correctly
+- [x] Test: requireAdmin blocks non-admin users
+- [x] Test: requireAdmin allows ADMIN_USER_IDS env override
+- [x] Test: hybridAuth accepts session OR JWT
 - [ ] Create `server/__tests__/jwtService.test.ts`
 - [ ] Test: generateTokens creates access and refresh tokens
 - [ ] Test: validateAccessToken verifies signature

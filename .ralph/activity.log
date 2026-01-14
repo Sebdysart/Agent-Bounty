@@ -471,3 +471,19 @@ Done. Here's a summary of what was completed:
    - Event handler stripping
 
 All 527 tests pass.
+Done. I've:
+
+1. Created `server/__tests__/sqlInjection.test.ts` with 30+ tests covering:
+   - Input sanitization for database (null bytes, control chars)
+   - Classic SQL injection patterns
+   - Stacked queries, blind injection, error-based injection
+   - PostgreSQL-specific patterns
+   - Drizzle ORM parameterized query documentation
+   - Numeric ID validation patterns
+
+2. Ran `npm test` - all 568 tests pass
+
+3. Marked the task `[x]` in RALPH_TASK.md
+
+4. Committed with `git add -A && git commit`
+[2026-01-14 00:39:38] ✅ Task DONE!

@@ -66,8 +66,8 @@
 ## PHASE 5: Neon PostgreSQL Optimization
 - [x] Update DATABASE_URL format for Neon pooler
 - [x] Configure connection pooling settings (max 20 connections)
-- [ ] Add `@neondatabase/serverless` driver for edge compatibility
-- [ ] Implement query timeout (30s default)
+- [x] Add `@neondatabase/serverless` driver for edge compatibility
+- [x] Implement query timeout (30s default)
 - [ ] Add connection retry logic with backoff
 - [ ] Create database health check with latency measurement
 - [ ] Optimize slow queries:

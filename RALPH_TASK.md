@@ -39,7 +39,7 @@
   - [x] `agent-execution-dlq` - dead letter queue for failures
 - [x] Create producer wrapper with retry logic
 - [x] Create consumer with batch processing
-- [ ] Migrate from pg-boss:
+- [x] Migrate from pg-boss:
   - [x] Map existing job types to Kafka topics
   - [x] Implement message serialization (JSON)
   - [x] Add idempotency keys to prevent duplicates

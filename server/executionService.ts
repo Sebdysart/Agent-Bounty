@@ -1,8 +1,8 @@
-import PgBoss from 'pg-boss';
 import { db } from './db';
 import { agentExecutions, agents, agentUploads } from '@shared/schema';
 import { eq, desc } from 'drizzle-orm';
 import { SandboxRunner, SandboxResult } from './sandboxRunner';
+import { upstashKafka, KAFKA_TOPICS, KafkaMessage } from './upstashKafka';
 import OpenAI from 'openai';
 
 const EXECUTION_QUEUE = 'agent-execution';
@@ -18,38 +18,50 @@ interface ExecutionJob {
 }
 
 class ExecutionService {
-  private boss: PgBoss | null = null;
   private isInitialized = false;
+  private processingInterval: ReturnType<typeof setInterval> | null = null;
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     try {
-      const connectionString = process.env.DATABASE_URL;
-      if (!connectionString) {
-        console.warn('DATABASE_URL not set, execution service disabled');
-        return;
+      if (upstashKafka.isAvailable()) {
+        // Start polling for messages
+        this.startKafkaConsumer();
+        this.isInitialized = true;
+        console.log('Execution service initialized with Upstash Kafka');
+      } else {
+        console.warn('Upstash Kafka not configured, execution service running in direct mode');
+        this.isInitialized = true;
       }
-
-      this.boss = new PgBoss(connectionString);
-      
-      this.boss.on('error', (error) => {
-        console.error('PgBoss error:', error);
-      });
-
-      await this.boss.start();
-      
-      await this.boss.work(EXECUTION_QUEUE, async (jobs) => {
-        for (const job of jobs) {
-          await this.processJob(job.data as ExecutionJob);
-        }
-      });
-
-      this.isInitialized = true;
-      console.log('Execution service initialized');
     } catch (error) {
       console.error('Failed to initialize execution service:', error);
     }
+  }
+
+  private startKafkaConsumer(): void {
+    // Poll Kafka every 5 seconds for new execution jobs
+    this.processingInterval = setInterval(async () => {
+      try {
+        await upstashKafka.processMessages<ExecutionJob>(
+          KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+          async (message: KafkaMessage<ExecutionJob>) => {
+            // Skip health check messages
+            if ((message.data as any).type === 'health-check') {
+              return;
+            }
+            await this.processJob(message.data);
+          },
+          {
+            groupId: 'execution-service',
+            instanceId: `execution-${process.pid}`,
+            maxMessages: 10,
+          }
+        );
+      } catch (error) {
+        console.error('Error processing Kafka messages:', error);
+      }
+    }, 5000);
   }
 
   async queueExecution(params: {
@@ -78,30 +90,30 @@ class ExecutionService {
       timeoutMs: 30000,
     }).returning();
 
-    if (this.boss) {
-      await this.boss.send(EXECUTION_QUEUE, {
-        executionId: execution.id,
-        agentId: params.agentId,
-        bountyId: params.bountyId,
-        submissionId: params.submissionId,
-        input: params.input,
-        agentType,
-        agentConfig,
-      } as ExecutionJob, {
-        priority: 5,
-        retryLimit: 3,
-        retryDelay: 1000,
+    const jobData: ExecutionJob = {
+      executionId: execution.id,
+      agentId: params.agentId,
+      bountyId: params.bountyId,
+      submissionId: params.submissionId,
+      input: params.input,
+      agentType: agentType as 'no_code' | 'low_code' | 'full_code',
+      agentConfig,
+    };
+
+    if (upstashKafka.isAvailable()) {
+      const idempotencyKey = `exec-${execution.id}-${Date.now()}`;
+      const result = await upstashKafka.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, jobData, {
+        idempotencyKey,
       });
+
+      if (!result.success) {
+        console.error('Failed to queue execution to Kafka:', result.error);
+        // Fallback to direct processing
+        setTimeout(() => this.processJob(jobData), 100);
+      }
     } else {
-      setTimeout(() => this.processJob({
-        executionId: execution.id,
-        agentId: params.agentId,
-        bountyId: params.bountyId,
-        submissionId: params.submissionId,
-        input: params.input,
-        agentType: agentType as 'no_code' | 'low_code' | 'full_code',
-        agentConfig,
-      }), 100);
+      // Direct processing when Kafka is not available
+      setTimeout(() => this.processJob(jobData), 100);
     }
 
     return execution.id;
@@ -160,9 +172,22 @@ class ExecutionService {
         })
         .where(eq(agentExecutions.id, executionId));
 
+      // Queue result to results topic
+      if (upstashKafka.isAvailable()) {
+        await upstashKafka.queueAgentResult({
+          executionId: executionId.toString(),
+          agentId: job.agentId.toString(),
+          bountyId: job.bountyId?.toString() || '',
+          success: result.success,
+          output: result.output,
+          error: result.errors.length > 0 ? result.errors.join('\n') : undefined,
+          executionTimeMs,
+        });
+      }
+
     } catch (error: any) {
       const executionTimeMs = Date.now() - startTime;
-      
+
       await db.update(agentExecutions)
         .set({
           status: 'failed',
@@ -176,10 +201,10 @@ class ExecutionService {
 
   private async executeNoCodeAgent(configStr: string | undefined, input: any): Promise<SandboxResult> {
     const startTime = Date.now();
-    
+
     try {
       let prompt = 'Process the following input:';
-      
+
       if (configStr) {
         try {
           const config = JSON.parse(configStr);
@@ -188,7 +213,7 @@ class ExecutionService {
           prompt = configStr;
         }
       }
-      
+
       if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
         return {
           success: true,
@@ -264,7 +289,7 @@ class ExecutionService {
   async cancelExecution(id: number): Promise<boolean> {
     const [execution] = await db.select().from(agentExecutions)
       .where(eq(agentExecutions.id, id));
-    
+
     if (!execution || !['queued', 'initializing', 'running'].includes(execution.status)) {
       return false;
     }
@@ -283,7 +308,7 @@ class ExecutionService {
   async retryExecution(id: number): Promise<number | null> {
     const [execution] = await db.select().from(agentExecutions)
       .where(eq(agentExecutions.id, id));
-    
+
     if (!execution || !['failed', 'cancelled', 'timeout'].includes(execution.status)) {
       return null;
     }
@@ -302,10 +327,12 @@ class ExecutionService {
   }
 
   async shutdown(): Promise<void> {
-    if (this.boss) {
-      await this.boss.stop();
-      this.isInitialized = false;
+    if (this.processingInterval) {
+      clearInterval(this.processingInterval);
+      this.processingInterval = null;
     }
+    this.isInitialized = false;
+    console.log('Execution service shut down');
   }
 }
 

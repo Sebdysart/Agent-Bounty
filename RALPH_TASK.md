@@ -13,7 +13,7 @@
 - [x] Migrate `sandboxRunner.ts` to use new Wasmtime backend
 - [x] Add feature flag to switch between QuickJS and Wasmtime
 - [x] Write tests for `wasmtimeSandbox.test.ts`
-- [ ] Benchmark: verify 3x+ performance improvement
+- [x] Benchmark: verify 3x+ performance improvement
 
 ## PHASE 2: Upstash Redis Integration
 - [ ] Install `@upstash/redis` package

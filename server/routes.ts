@@ -33,6 +33,7 @@ import { enterpriseTierService } from "./enterpriseTierService";
 import { maxTierSandboxService } from "./maxTierSandboxService";
 import { apiRateLimit, authRateLimit, credentialRateLimit, aiRateLimit, stripeRateLimit } from "./rateLimitMiddleware";
 import { encryptedVault, type StoredCredentials } from "./encryptedVault";
+import { sanitizeAllInput } from "./sanitizationMiddleware";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 
@@ -105,6 +106,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // Apply input sanitization to all routes
+  app.use(sanitizeAllInput);
 
   app.use(validateJWT);
 

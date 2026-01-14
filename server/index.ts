@@ -6,6 +6,7 @@ import { runMigrations } from 'stripe-replit-sync';
 import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 import { wsService } from './websocket';
+import { sanitizeAllInput } from './sanitizationMiddleware';
 
 const app = express();
 const httpServer = createServer(app);
@@ -90,6 +91,10 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// Apply input sanitization globally to all requests
+// This sanitizes body, query params, and route params to prevent XSS
+app.use(sanitizeAllInput);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

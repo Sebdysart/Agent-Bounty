@@ -159,7 +159,7 @@
 - [x] Test: Agent upload: create → test → publish → marketplace listing
 
 ## PHASE 10: Security Hardening
-- [ ] Add input sanitization for all user-provided HTML/text
+- [x] Add input sanitization for all user-provided HTML/text
 - [ ] Add SQL injection protection verification tests
 - [ ] Add XSS protection for stored content
 - [ ] Add CSRF token validation for state-changing operations

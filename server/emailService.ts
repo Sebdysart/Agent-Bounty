@@ -1,3 +1,5 @@
+import { sanitizeHtml, stripHtml } from "./validationSchemas";
+
 interface EmailTemplate {
   subject: string;
   html: string;
@@ -19,6 +21,20 @@ class EmailService {
       from: process.env.EMAIL_FROM || "noreply@bountyai.com",
     };
     this.enabled = !!this.config.apiKey;
+  }
+
+  /**
+   * Escapes user input for safe inclusion in HTML email templates
+   */
+  private escapeForHtml(input: string): string {
+    return sanitizeHtml(input);
+  }
+
+  /**
+   * Strips HTML for plain text email versions
+   */
+  private escapeForText(input: string): string {
+    return stripHtml(input);
   }
 
   private async send(to: string, template: EmailTemplate): Promise<boolean> {
@@ -65,12 +81,14 @@ class EmailService {
 
   async sendBountyFunded(email: string, bountyTitle: string, amount: string): Promise<boolean> {
     const baseUrl = this.getBaseUrl();
+    const safeBountyTitle = this.escapeForHtml(bountyTitle);
+    const safeAmount = this.escapeForHtml(amount);
     return this.send(email, {
-      subject: `Bounty Funded: ${bountyTitle}`,
+      subject: `Bounty Funded: ${this.escapeForText(bountyTitle)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #8B5CF6;">Bounty Successfully Funded!</h2>
-          <p>Your bounty "<strong>${bountyTitle}</strong>" has been funded with <strong>$${amount}</strong>.</p>
+          <p>Your bounty "<strong>${safeBountyTitle}</strong>" has been funded with <strong>$${safeAmount}</strong>.</p>
           <p>AI agents can now start competing to complete your task. You'll be notified when submissions are received.</p>
           <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-top: 16px;">
             <p style="margin: 0; color: #6b7280;">The funds are held in secure escrow and will only be released when you approve a winning submission.</p>
@@ -78,87 +96,97 @@ class EmailService {
           <a href="${baseUrl}/dashboard" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">View Your Bounty</a>
         </div>
       `,
-      text: `Bounty Funded: ${bountyTitle}\n\nYour bounty has been funded with $${amount}. AI agents can now start competing.`,
+      text: `Bounty Funded: ${this.escapeForText(bountyTitle)}\n\nYour bounty has been funded with $${this.escapeForText(amount)}. AI agents can now start competing.`,
     });
   }
 
   async sendSubmissionReceived(email: string, bountyTitle: string, agentName: string): Promise<boolean> {
     const baseUrl = this.getBaseUrl();
+    const safeBountyTitle = this.escapeForHtml(bountyTitle);
+    const safeAgentName = this.escapeForHtml(agentName);
     return this.send(email, {
-      subject: `New Submission: ${agentName} entered ${bountyTitle}`,
+      subject: `New Submission: ${this.escapeForText(agentName)} entered ${this.escapeForText(bountyTitle)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #8B5CF6;">New Agent Submission!</h2>
-          <p>Agent "<strong>${agentName}</strong>" has submitted an entry for your bounty "<strong>${bountyTitle}</strong>".</p>
+          <p>Agent "<strong>${safeAgentName}</strong>" has submitted an entry for your bounty "<strong>${safeBountyTitle}</strong>".</p>
           <p>You can track progress and review submissions from your dashboard.</p>
           <a href="${baseUrl}/dashboard" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">Review Submissions</a>
         </div>
       `,
-      text: `New Submission: ${agentName} entered ${bountyTitle}\n\nReview submissions from your dashboard.`,
+      text: `New Submission: ${this.escapeForText(agentName)} entered ${this.escapeForText(bountyTitle)}\n\nReview submissions from your dashboard.`,
     });
   }
 
   async sendSubmissionApproved(email: string, bountyTitle: string, agentName: string, reward: string): Promise<boolean> {
     const baseUrl = this.getBaseUrl();
+    const safeBountyTitle = this.escapeForHtml(bountyTitle);
+    const safeAgentName = this.escapeForHtml(agentName);
+    const safeReward = this.escapeForHtml(reward);
     return this.send(email, {
-      subject: `Congratulations! Your agent won ${bountyTitle}`,
+      subject: `Congratulations! Your agent won ${this.escapeForText(bountyTitle)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #10B981;">Your Agent Won!</h2>
-          <p>Your agent "<strong>${agentName}</strong>" has been selected as the winner for bounty "<strong>${bountyTitle}</strong>"!</p>
-          <p style="font-size: 24px; font-weight: bold; color: #10B981;">Reward: $${reward}</p>
+          <p>Your agent "<strong>${safeAgentName}</strong>" has been selected as the winner for bounty "<strong>${safeBountyTitle}</strong>"!</p>
+          <p style="font-size: 24px; font-weight: bold; color: #10B981;">Reward: $${safeReward}</p>
           <p>The payment will be processed and transferred to your account shortly.</p>
           <a href="${baseUrl}/dashboard" style="display: inline-block; background: #10B981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">View Details</a>
         </div>
       `,
-      text: `Congratulations! Your agent "${agentName}" won ${bountyTitle}!\n\nReward: $${reward}`,
+      text: `Congratulations! Your agent "${this.escapeForText(agentName)}" won ${this.escapeForText(bountyTitle)}!\n\nReward: $${this.escapeForText(reward)}`,
     });
   }
 
   async sendPaymentReleased(email: string, bountyTitle: string, amount: string): Promise<boolean> {
+    const safeBountyTitle = this.escapeForHtml(bountyTitle);
+    const safeAmount = this.escapeForHtml(amount);
     return this.send(email, {
-      subject: `Payment Released: ${bountyTitle}`,
+      subject: `Payment Released: ${this.escapeForText(bountyTitle)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #10B981;">Payment Released!</h2>
-          <p>You've released the payment for bounty "<strong>${bountyTitle}</strong>".</p>
-          <p><strong>Amount: $${amount}</strong></p>
+          <p>You've released the payment for bounty "<strong>${safeBountyTitle}</strong>".</p>
+          <p><strong>Amount: $${safeAmount}</strong></p>
           <p>Thank you for using BountyAI! The winning agent developer will receive their payment shortly.</p>
         </div>
       `,
-      text: `Payment Released: ${bountyTitle}\n\nAmount: $${amount}`,
+      text: `Payment Released: ${this.escapeForText(bountyTitle)}\n\nAmount: $${this.escapeForText(amount)}`,
     });
   }
 
   async sendAgentPublished(email: string, agentName: string): Promise<boolean> {
     const baseUrl = this.getBaseUrl();
+    const safeAgentName = this.escapeForHtml(agentName);
     return this.send(email, {
-      subject: `Your Agent is Live: ${agentName}`,
+      subject: `Your Agent is Live: ${this.escapeForText(agentName)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #8B5CF6;">Your Agent is Published!</h2>
-          <p>Congratulations! Your agent "<strong>${agentName}</strong>" is now live on the BountyAI marketplace.</p>
+          <p>Congratulations! Your agent "<strong>${safeAgentName}</strong>" is now live on the BountyAI marketplace.</p>
           <p>Other users can now discover, use, and fork your agent.</p>
           <a href="${baseUrl}/agent-marketplace" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">View in Marketplace</a>
         </div>
       `,
-      text: `Your Agent is Live: ${agentName}\n\nYour agent is now available in the marketplace.`,
+      text: `Your Agent is Live: ${this.escapeForText(agentName)}\n\nYour agent is now available in the marketplace.`,
     });
   }
 
   async sendAgentForked(email: string, agentName: string, forkerName: string): Promise<boolean> {
     const baseUrl = this.getBaseUrl();
+    const safeAgentName = this.escapeForHtml(agentName);
+    const safeForkerName = this.escapeForHtml(forkerName);
     return this.send(email, {
-      subject: `Your Agent Was Forked: ${agentName}`,
+      subject: `Your Agent Was Forked: ${this.escapeForText(agentName)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #8B5CF6;">Someone Forked Your Agent!</h2>
-          <p>Your agent "<strong>${agentName}</strong>" was forked by <strong>${forkerName}</strong>.</p>
+          <p>Your agent "<strong>${safeAgentName}</strong>" was forked by <strong>${safeForkerName}</strong>.</p>
           <p>This means your agent is being recognized and built upon by the community!</p>
           <a href="${baseUrl}/agent-upload" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">View Your Agents</a>
         </div>
       `,
-      text: `Your Agent Was Forked: ${agentName} by ${forkerName}`,
+      text: `Your Agent Was Forked: ${this.escapeForText(agentName)} by ${this.escapeForText(forkerName)}`,
     });
   }
 
@@ -180,21 +208,23 @@ class EmailService {
   }
 
   async sendSecurityAlert(email: string, eventType: string, ipAddress?: string): Promise<boolean> {
+    const safeEventType = this.escapeForHtml(eventType);
+    const safeIpAddress = ipAddress ? this.escapeForHtml(ipAddress) : null;
     return this.send(email, {
-      subject: `Security Alert: ${eventType}`,
+      subject: `Security Alert: ${this.escapeForText(eventType)}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #EF4444;">Security Alert</h2>
           <p>We detected a security event on your BountyAI account:</p>
           <div style="background: #fee2e2; padding: 16px; border-radius: 8px; margin-top: 16px;">
-            <p style="margin: 0;"><strong>Event:</strong> ${eventType}</p>
-            ${ipAddress ? `<p style="margin: 8px 0 0;"><strong>IP Address:</strong> ${ipAddress}</p>` : ''}
+            <p style="margin: 0;"><strong>Event:</strong> ${safeEventType}</p>
+            ${safeIpAddress ? `<p style="margin: 8px 0 0;"><strong>IP Address:</strong> ${safeIpAddress}</p>` : ''}
             <p style="margin: 8px 0 0;"><strong>Time:</strong> ${new Date().toISOString()}</p>
           </div>
           <p style="margin-top: 16px;">If this wasn't you, please secure your account immediately.</p>
         </div>
       `,
-      text: `Security Alert: ${eventType}\n\nIf this wasn't you, please secure your account.`,
+      text: `Security Alert: ${this.escapeForText(eventType)}\n\nIf this wasn't you, please secure your account.`,
     });
   }
 }

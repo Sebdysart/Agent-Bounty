@@ -38,6 +38,11 @@ const mockValidateAccessToken = jwtService.validateAccessToken as Mock;
 const mockHasPermission = jwtService.hasPermission as Mock;
 const mockGetUserRoles = jwtService.getUserRoles as Mock;
 
+// Helper to create expected standardized error format
+function expectedError(code: string, message: string) {
+  return { success: false, error: { code, message } };
+}
+
 describe('AuthMiddleware', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -125,7 +130,7 @@ describe('AuthMiddleware', () => {
       requireJWT(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Access token required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('TOKEN_REQUIRED', 'Access token required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -135,7 +140,7 @@ describe('AuthMiddleware', () => {
       requireJWT(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Access token required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('TOKEN_REQUIRED', 'Access token required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -147,7 +152,7 @@ describe('AuthMiddleware', () => {
 
       expect(mockValidateAccessToken).toHaveBeenCalledWith('expired-token');
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Invalid or expired access token' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('TOKEN_INVALID', 'Invalid or expired access token'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -178,7 +183,7 @@ describe('AuthMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Authentication required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('AUTH_REQUIRED', 'Authentication required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -196,7 +201,7 @@ describe('AuthMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Insufficient permissions' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('INSUFFICIENT_PERMISSIONS', 'Insufficient permissions'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -248,7 +253,7 @@ describe('AuthMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Insufficient permissions' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('INSUFFICIENT_PERMISSIONS', 'Insufficient permissions'));
     });
   });
 
@@ -259,7 +264,7 @@ describe('AuthMiddleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Authentication required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('AUTH_REQUIRED', 'Authentication required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -283,7 +288,7 @@ describe('AuthMiddleware', () => {
         'delete'
       );
       expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Insufficient permissions' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('INSUFFICIENT_PERMISSIONS', 'Insufficient permissions'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -316,7 +321,7 @@ describe('AuthMiddleware', () => {
       await requireAdmin(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Authentication required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('AUTH_REQUIRED', 'Authentication required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -356,7 +361,7 @@ describe('AuthMiddleware', () => {
       await requireAdmin(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Admin access required' });
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: expect.objectContaining({ message: 'Admin access required' }) }));
       expect(mockNext).not.toHaveBeenCalled();
 
       process.env.ADMIN_USER_IDS = originalEnv;
@@ -388,7 +393,7 @@ describe('AuthMiddleware', () => {
       hybridAuth(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Authentication required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('AUTH_REQUIRED', 'Authentication required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -434,7 +439,7 @@ describe('AuthMiddleware', () => {
       await hybridAuthWithRoles(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Authentication required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('AUTH_REQUIRED', 'Authentication required'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -497,7 +502,7 @@ describe('AuthMiddleware', () => {
       requireJWT(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Access token required' });
+      expect(mockJson).toHaveBeenCalledWith(expectedError('TOKEN_REQUIRED', 'Access token required'));
     });
 
     it('should handle Bearer with no token', () => {
@@ -546,7 +551,7 @@ describe('AuthMiddleware', () => {
       await requireAdmin(mockReq as any, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(403);
-      expect(mockJson).toHaveBeenCalledWith({ message: 'Admin access required' });
+      expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: expect.objectContaining({ message: 'Admin access required' }) }));
 
       process.env.ADMIN_USER_IDS = originalEnv;
     });

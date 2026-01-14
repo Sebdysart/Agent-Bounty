@@ -35,6 +35,10 @@ import { apiRateLimit, authRateLimit, credentialRateLimit, aiRateLimit, stripeRa
 import { encryptedVault, type StoredCredentials } from "./encryptedVault";
 import { sanitizeAllInput } from "./sanitizationMiddleware";
 import { ensureCsrfToken, validateCsrfToken, getCsrfTokenHandler } from "./csrfMiddleware";
+import {
+  sendError, sendUnauthorized, sendForbidden, sendNotFound, sendValidationError,
+  sendBadRequest, sendInternalError, ErrorCode
+} from "./errorResponse";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 
@@ -131,7 +135,7 @@ export async function registerRoutes(
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -142,7 +146,7 @@ export async function registerRoutes(
       res.json(activities);
     } catch (error) {
       console.error("Error fetching activity:", error);
-      res.status(500).json({ message: "Failed to fetch activity" });
+      sendInternalError(res, "Failed to fetch activity");
     }
   });
 
@@ -152,7 +156,7 @@ export async function registerRoutes(
       res.json(bounties);
     } catch (error) {
       console.error("Error fetching bounties:", error);
-      res.status(500).json({ message: "Failed to fetch bounties" });
+      sendInternalError(res, "Failed to fetch bounties");
     }
   });
 
@@ -161,14 +165,14 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const bounty = await storage.getBounty(id);
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
       const submissions = await storage.getSubmissionsByBounty(id);
       const timeline = await storage.getBountyTimeline(id);
       res.json({ ...bounty, submissions, timeline });
     } catch (error) {
       console.error("Error fetching bounty:", error);
-      res.status(500).json({ message: "Failed to fetch bounty" });
+      sendInternalError(res, "Failed to fetch bounty");
     }
   });
 
@@ -176,19 +180,19 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const parsed = insertBountySchema.safeParse({ ...req.body, posterId: userId });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid bounty data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid bounty data", parsed.error.errors);
       }
 
       const bounty = await storage.createBounty(parsed.data);
       res.status(201).json(bounty);
     } catch (error) {
       console.error("Error creating bounty:", error);
-      res.status(500).json({ message: "Failed to create bounty" });
+      sendInternalError(res, "Failed to create bounty");
     }
   });
 
@@ -197,7 +201,7 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const { title, description, requirements, reward, category } = req.body;
@@ -286,7 +290,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(questions);
     } catch (error) {
       console.error("Error fetching questions:", error);
-      res.status(500).json({ message: "Failed to fetch questions" });
+      sendInternalError(res, "Failed to fetch questions");
     }
   });
 
@@ -295,7 +299,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
@@ -304,14 +308,14 @@ Only ask questions about genuinely missing or unclear information.`;
 
       const bounty = await storage.getBounty(bountyId);
       if (!bounty || bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
+        return sendForbidden(res, "Access denied");
       }
 
       const updated = await storage.answerBountyClarifyingQuestion(questionId, answer, status || "answered");
       res.json(updated);
     } catch (error) {
       console.error("Error answering question:", error);
-      res.status(500).json({ message: "Failed to save answer" });
+      sendInternalError(res, "Failed to save answer");
     }
   });
 
@@ -320,7 +324,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
@@ -328,14 +332,14 @@ Only ask questions about genuinely missing or unclear information.`;
 
       const bounty = await storage.getBounty(bountyId);
       if (!bounty || bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
+        return sendForbidden(res, "Access denied");
       }
 
       const saved = await storage.saveBountyClarifyingQuestions(bountyId, questions);
       res.json(saved);
     } catch (error) {
       console.error("Error saving questions:", error);
-      res.status(500).json({ message: "Failed to save questions" });
+      sendInternalError(res, "Failed to save questions");
     }
   });
 
@@ -344,7 +348,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
@@ -354,7 +358,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ requirements, consents });
     } catch (error) {
       console.error("Error fetching credentials:", error);
-      res.status(500).json({ message: "Failed to fetch credentials" });
+      sendInternalError(res, "Failed to fetch credentials");
     }
   });
 
@@ -362,7 +366,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
@@ -370,7 +374,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
       const bounty = await storage.getBounty(bountyId);
       if (!bounty || bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
+        return sendForbidden(res, "Access denied");
       }
 
       const requirement = await storage.createCredentialRequirement({
@@ -384,7 +388,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.status(201).json(requirement);
     } catch (error) {
       console.error("Error creating credential requirement:", error);
-      res.status(500).json({ message: "Failed to create credential requirement" });
+      sendInternalError(res, "Failed to create credential requirement");
     }
   });
 
@@ -392,7 +396,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const requirementId = parseInt(req.params.requirementId);
@@ -429,7 +433,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.status(201).json(consent);
     } catch (error) {
       console.error("Error creating consent:", error);
-      res.status(500).json({ message: "Failed to create consent" });
+      sendInternalError(res, "Failed to create consent");
     }
   });
 
@@ -438,7 +442,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const consentId = parseInt(req.params.consentId);
@@ -454,7 +458,7 @@ Only ask questions about genuinely missing or unclear information.`;
           ipAddress,
           sessionId: req.sessionID,
         });
-        return res.status(404).json({ message: "Credentials not found or expired" });
+        return sendNotFound(res, "Credentials not found or expired");
       }
 
       // Encrypted vault already handles expiration check in get()
@@ -474,7 +478,7 @@ Only ask questions about genuinely missing or unclear information.`;
           ipAddress,
           sessionId: req.sessionID,
         });
-        return res.status(403).json({ message: "Not authorized to access these credentials" });
+        return sendForbidden(res, "Not authorized to access these credentials");
       }
 
       // Log successful access
@@ -489,7 +493,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ credentials: vaultData.credentials, expiresAt: vaultData.expiresAt.toISOString() });
     } catch (error) {
       console.error("Error accessing credentials:", error);
-      res.status(500).json({ message: "Failed to access credentials" });
+      sendInternalError(res, "Failed to access credentials");
     }
   });
 
@@ -497,14 +501,14 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const consentId = parseInt(req.params.consentId);
       const consent = await storage.revokeCredentialConsent(consentId, userId);
       
       if (!consent) {
-        return res.status(404).json({ message: "Consent not found or unauthorized" });
+        return sendNotFound(res, "Consent not found or unauthorized");
       }
 
       // Clear credentials from encrypted vault on revocation
@@ -513,7 +517,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(consent);
     } catch (error) {
       console.error("Error revoking consent:", error);
-      res.status(500).json({ message: "Failed to revoke consent" });
+      sendInternalError(res, "Failed to revoke consent");
     }
   });
 
@@ -537,7 +541,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.status(201).json(log);
     } catch (error) {
       console.error("Error logging credential access:", error);
-      res.status(500).json({ message: "Failed to log access" });
+      sendInternalError(res, "Failed to log access");
     }
   });
 
@@ -545,35 +549,35 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const id = parseInt(req.params.id);
       
       const existingBounty = await storage.getBounty(id);
       if (!existingBounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
       
       if (existingBounty.posterId !== userId) {
-        return res.status(403).json({ message: "You can only update your own bounties" });
+        return sendForbidden(res, "You can only update your own bounties");
       }
 
       const parsed = updateBountyStatusSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid status", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid status", parsed.error.errors);
       }
       
       const bounty = await storage.updateBountyStatus(id, parsed.data.status);
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
       
       await storage.addTimelineEvent(id, parsed.data.status, `Status changed to ${parsed.data.status}`);
       res.json(bounty);
     } catch (error) {
       console.error("Error updating bounty status:", error);
-      res.status(500).json({ message: "Failed to update bounty status" });
+      sendInternalError(res, "Failed to update bounty status");
     }
   });
 
@@ -583,7 +587,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(agents);
     } catch (error) {
       console.error("Error fetching agents:", error);
-      res.status(500).json({ message: "Failed to fetch agents" });
+      sendInternalError(res, "Failed to fetch agents");
     }
   });
 
@@ -594,7 +598,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(agents);
     } catch (error) {
       console.error("Error fetching top agents:", error);
-      res.status(500).json({ message: "Failed to fetch top agents" });
+      sendInternalError(res, "Failed to fetch top agents");
     }
   });
 
@@ -602,13 +606,13 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
       const agents = await storage.getAgentsByDeveloper(userId);
       res.json(agents);
     } catch (error) {
       console.error("Error fetching user agents:", error);
-      res.status(500).json({ message: "Failed to fetch user agents" });
+      sendInternalError(res, "Failed to fetch user agents");
     }
   });
 
@@ -617,12 +621,12 @@ Only ask questions about genuinely missing or unclear information.`;
       const id = parseInt(req.params.id);
       const agent = await storage.getAgent(id);
       if (!agent) {
-        return res.status(404).json({ message: "Agent not found" });
+        return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
       res.json(agent);
     } catch (error) {
       console.error("Error fetching agent:", error);
-      res.status(500).json({ message: "Failed to fetch agent" });
+      sendInternalError(res, "Failed to fetch agent");
     }
   });
 
@@ -630,7 +634,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ message: "Invalid agent ID" });
+        return sendBadRequest(res, "Invalid agent ID");
       }
       
       const validRanges = ["7d", "30d", "90d"];
@@ -640,14 +644,14 @@ Only ask questions about genuinely missing or unclear information.`;
       
       const agent = await storage.getAgent(id);
       if (!agent) {
-        return res.status(404).json({ message: "Agent not found" });
+        return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
       
       const stats = await storage.getAgentStats(id, range);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching agent stats:", error);
-      res.status(500).json({ message: "Failed to fetch agent stats" });
+      sendInternalError(res, "Failed to fetch agent stats");
     }
   });
 
@@ -655,19 +659,19 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const parsed = insertAgentSchema.safeParse({ ...req.body, developerId: userId });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid agent data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid agent data", parsed.error.errors);
       }
 
       const agent = await storage.createAgent(parsed.data);
       res.status(201).json(agent);
     } catch (error) {
       console.error("Error creating agent:", error);
-      res.status(500).json({ message: "Failed to create agent" });
+      sendInternalError(res, "Failed to create agent");
     }
   });
 
@@ -675,7 +679,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
@@ -683,25 +687,25 @@ Only ask questions about genuinely missing or unclear information.`;
 
       const bounty = await storage.getBounty(bountyId);
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
 
       if (bounty.status !== "open") {
-        return res.status(400).json({ message: "Bounty is not open for submissions" });
+        return sendBadRequest(res, "Bounty is not open for submissions");
       }
 
       const agent = await storage.getAgent(agentId);
       if (!agent) {
-        return res.status(404).json({ message: "Agent not found" });
+        return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
       
       if (agent.developerId !== userId) {
-        return res.status(403).json({ message: "You can only submit your own agents" });
+        return sendForbidden(res, "You can only submit your own agents");
       }
 
       const parsed = insertSubmissionSchema.safeParse({ bountyId, agentId });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid submission data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid submission data", parsed.error.errors);
       }
 
       const submission = await storage.createSubmission(parsed.data);
@@ -715,7 +719,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.status(201).json(submission);
     } catch (error) {
       console.error("Error creating submission:", error);
-      res.status(500).json({ message: "Failed to create submission" });
+      sendInternalError(res, "Failed to create submission");
     }
   });
 
@@ -723,35 +727,35 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const id = parseInt(req.params.id);
       
       const existingSubmission = await storage.getSubmission(id);
       if (!existingSubmission) {
-        return res.status(404).json({ message: "Submission not found" });
+        return sendNotFound(res, "Submission not found", ErrorCode.SUBMISSION_NOT_FOUND);
       }
       
       const agent = await storage.getAgent(existingSubmission.agentId);
       if (!agent || agent.developerId !== userId) {
-        return res.status(403).json({ message: "You can only update submissions for your own agents" });
+        return sendForbidden(res, "You can only update submissions for your own agents");
       }
 
       const parsed = updateSubmissionStatusSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid status", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid status", parsed.error.errors);
       }
       
       const submission = await storage.updateSubmissionStatus(id, parsed.data.status, parsed.data.progress);
       if (!submission) {
-        return res.status(404).json({ message: "Submission not found" });
+        return sendNotFound(res, "Submission not found", ErrorCode.SUBMISSION_NOT_FOUND);
       }
       
       res.json(submission);
     } catch (error) {
       console.error("Error updating submission:", error);
-      res.status(500).json({ message: "Failed to update submission" });
+      sendInternalError(res, "Failed to update submission");
     }
   });
 
@@ -759,7 +763,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const submissionId = parseInt(req.params.id);
@@ -767,24 +771,24 @@ Only ask questions about genuinely missing or unclear information.`;
 
       const submission = await storage.getSubmission(submissionId);
       if (!submission) {
-        return res.status(404).json({ message: "Submission not found" });
+        return sendNotFound(res, "Submission not found", ErrorCode.SUBMISSION_NOT_FOUND);
       }
 
       const bounty = await storage.getBounty(submission.bountyId);
       if (!bounty || bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Only the bounty poster can review submissions" });
+        return sendForbidden(res, "Only the bounty poster can review submissions");
       }
 
       const parsed = insertReviewSchema.safeParse({ submissionId, reviewerId: userId, rating, comment });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid review data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid review data", parsed.error.errors);
       }
 
       const review = await storage.createReview(parsed.data);
       res.status(201).json(review);
     } catch (error) {
       console.error("Error creating review:", error);
-      res.status(500).json({ message: "Failed to create review" });
+      sendInternalError(res, "Failed to create review");
     }
   });
 
@@ -793,18 +797,18 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const submissionId = parseInt(req.params.id);
       const submission = await storage.getSubmission(submissionId);
       if (!submission) {
-        return res.status(404).json({ message: "Submission not found" });
+        return sendNotFound(res, "Submission not found", ErrorCode.SUBMISSION_NOT_FOUND);
       }
 
       const bounty = await storage.getBounty(submission.bountyId);
       if (!bounty || bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Only the bounty poster can verify submissions" });
+        return sendForbidden(res, "Only the bounty poster can verify submissions");
       }
 
       const audit = await verificationService.createAudit(submissionId, bounty.id, "ai");
@@ -813,7 +817,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(result);
     } catch (error) {
       console.error("Error verifying submission:", error);
-      res.status(500).json({ message: "Failed to verify submission" });
+      sendInternalError(res, "Failed to verify submission");
     }
   });
 
@@ -824,7 +828,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(audits);
     } catch (error) {
       console.error("Error fetching audits:", error);
-      res.status(500).json({ message: "Failed to fetch audits" });
+      sendInternalError(res, "Failed to fetch audits");
     }
   });
 
@@ -834,7 +838,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(stats);
     } catch (error) {
       console.error("Error fetching verification stats:", error);
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -844,7 +848,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(pending);
     } catch (error) {
       console.error("Error fetching pending reviews:", error);
-      res.status(500).json({ message: "Failed to fetch pending reviews" });
+      sendInternalError(res, "Failed to fetch pending reviews");
     }
   });
 
@@ -852,21 +856,21 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const auditId = parseInt(req.params.id);
       const { status, notes } = req.body;
       
       if (!status || !["passed", "failed", "needs_review"].includes(status)) {
-        return res.status(400).json({ message: "Valid status required (passed, failed, needs_review)" });
+        return sendBadRequest(res, "Valid status required (passed, failed, needs_review)");
       }
 
       const result = await verificationService.addHumanReview(auditId, userId, notes || "", status);
       res.json(result);
     } catch (error) {
       console.error("Error submitting review:", error);
-      res.status(500).json({ message: "Failed to submit review" });
+      sendInternalError(res, "Failed to submit review");
     }
   });
 
@@ -876,7 +880,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ publishableKey });
     } catch (error) {
       console.error("Error getting Stripe key:", error);
-      res.status(500).json({ message: "Failed to get Stripe key" });
+      sendInternalError(res, "Failed to get Stripe key");
     }
   });
 
@@ -884,22 +888,22 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
       const bounty = await storage.getBounty(bountyId);
       
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
 
       if (bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Only the bounty poster can fund this bounty" });
+        return sendForbidden(res, "Only the bounty poster can fund this bounty");
       }
 
       if (bounty.paymentStatus === "funded") {
-        return res.status(400).json({ message: "Bounty is already funded" });
+        return sendBadRequest(res, "Bounty is already funded");
       }
 
       let profile = await storage.getUserProfile(userId);
@@ -931,7 +935,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ url: session.url });
     } catch (error) {
       console.error("Error creating checkout session:", error);
-      res.status(500).json({ message: "Failed to create payment session" });
+      sendInternalError(res, "Failed to create payment session");
     }
   });
 
@@ -940,38 +944,38 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
       const { submissionId, autoRelease } = req.body;
 
       if (!submissionId || typeof submissionId !== "number") {
-        return res.status(400).json({ message: "Valid submissionId is required" });
+        return sendBadRequest(res, "Valid submissionId is required");
       }
 
       const bounty = await storage.getBounty(bountyId);
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
 
       if (bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Only the bounty poster can select a winner" });
+        return sendForbidden(res, "Only the bounty poster can select a winner");
       }
 
       if (bounty.status === "completed" || bounty.status === "cancelled") {
-        return res.status(400).json({ message: "Bounty is already completed or cancelled" });
+        return sendBadRequest(res, "Bounty is already completed or cancelled");
       }
 
       // Verify the submission belongs to this bounty
       const submission = await storage.getSubmission(submissionId);
       if (!submission || submission.bountyId !== bountyId) {
-        return res.status(400).json({ message: "Invalid submission for this bounty" });
+        return sendBadRequest(res, "Invalid submission for this bounty");
       }
 
       const updated = await storage.selectWinner(bountyId, submissionId);
       if (!updated) {
-        return res.status(500).json({ message: "Failed to select winner" });
+        return sendInternalError(res, "Failed to select winner");
       }
 
       // Auto-release payment if requested and bounty is funded
@@ -999,7 +1003,7 @@ Only ask questions about genuinely missing or unclear information.`;
       });
     } catch (error) {
       console.error("Error selecting winner:", error);
-      res.status(500).json({ message: "Failed to select winner" });
+      sendInternalError(res, "Failed to select winner");
     }
   });
 
@@ -1007,26 +1011,26 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
       const bounty = await storage.getBounty(bountyId);
       
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
 
       if (bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Only the bounty poster can release payment" });
+        return sendForbidden(res, "Only the bounty poster can release payment");
       }
 
       if (bounty.paymentStatus !== "funded") {
-        return res.status(400).json({ message: "Bounty is not funded" });
+        return sendBadRequest(res, "Bounty is not funded");
       }
 
       if (!bounty.stripePaymentIntentId) {
-        return res.status(400).json({ message: "No payment intent found" });
+        return sendBadRequest(res, "No payment intent found");
       }
 
       await stripeService.capturePayment(bounty.stripePaymentIntentId);
@@ -1036,7 +1040,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ success: true, message: "Payment released successfully" });
     } catch (error) {
       console.error("Error releasing payment:", error);
-      res.status(500).json({ message: "Failed to release payment" });
+      sendInternalError(res, "Failed to release payment");
     }
   });
 
@@ -1044,26 +1048,26 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const bountyId = parseInt(req.params.id);
       const bounty = await storage.getBounty(bountyId);
       
       if (!bounty) {
-        return res.status(404).json({ message: "Bounty not found" });
+        return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
 
       if (bounty.posterId !== userId) {
-        return res.status(403).json({ message: "Only the bounty poster can request a refund" });
+        return sendForbidden(res, "Only the bounty poster can request a refund");
       }
 
       if (bounty.paymentStatus !== "funded") {
-        return res.status(400).json({ message: "Bounty is not funded or already released" });
+        return sendBadRequest(res, "Bounty is not funded or already released");
       }
 
       if (!bounty.stripePaymentIntentId) {
-        return res.status(400).json({ message: "No payment intent found" });
+        return sendBadRequest(res, "No payment intent found");
       }
 
       await stripeService.refundPayment(bounty.stripePaymentIntentId);
@@ -1074,7 +1078,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ success: true, message: "Payment refunded successfully" });
     } catch (error) {
       console.error("Error refunding payment:", error);
-      res.status(500).json({ message: "Failed to refund payment" });
+      sendInternalError(res, "Failed to refund payment");
     }
   });
 
@@ -1088,7 +1092,7 @@ Only ask questions about genuinely missing or unclear information.`;
       });
     } catch (error) {
       console.error("Error fetching plans:", error);
-      res.status(500).json({ message: "Failed to fetch plans" });
+      sendInternalError(res, "Failed to fetch plans");
     }
   });
 
@@ -1096,12 +1100,12 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const { tier } = req.body;
       if (!tier || !["pro", "enterprise"].includes(tier)) {
-        return res.status(400).json({ message: "Invalid tier" });
+        return sendBadRequest(res, "Invalid tier");
       }
 
       let profile = await storage.getUserProfile(userId);
@@ -1133,7 +1137,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ url: session.url });
     } catch (error) {
       console.error("Error creating subscription checkout:", error);
-      res.status(500).json({ message: "Failed to create subscription checkout" });
+      sendInternalError(res, "Failed to create subscription checkout");
     }
   });
 
@@ -1141,12 +1145,12 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
 
       const profile = await storage.getUserProfile(userId);
       if (!profile?.stripeSubscriptionId) {
-        return res.status(400).json({ message: "No active subscription" });
+        return sendBadRequest(res, "No active subscription");
       }
 
       await stripeService.cancelSubscription(profile.stripeSubscriptionId);
@@ -1155,7 +1159,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json({ success: true, message: "Subscription cancelled" });
     } catch (error) {
       console.error("Error cancelling subscription:", error);
-      res.status(500).json({ message: "Failed to cancel subscription" });
+      sendInternalError(res, "Failed to cancel subscription");
     }
   });
 
@@ -1165,7 +1169,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(leaderboard);
     } catch (error) {
       console.error("Error fetching leaderboard:", error);
-      res.status(500).json({ message: "Failed to fetch leaderboard" });
+      sendInternalError(res, "Failed to fetch leaderboard");
     }
   });
 
@@ -1175,7 +1179,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(analytics);
     } catch (error) {
       console.error("Error fetching analytics:", error);
-      res.status(500).json({ message: "Failed to fetch analytics" });
+      sendInternalError(res, "Failed to fetch analytics");
     }
   });
 
@@ -1185,7 +1189,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(advancedAnalytics);
     } catch (error) {
       console.error("Error fetching advanced analytics:", error);
-      res.status(500).json({ message: "Failed to fetch advanced analytics" });
+      sendInternalError(res, "Failed to fetch advanced analytics");
     }
   });
 
@@ -1195,7 +1199,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(performance);
     } catch (error) {
       console.error("Error fetching agent performance:", error);
-      res.status(500).json({ message: "Failed to fetch agent performance" });
+      sendInternalError(res, "Failed to fetch agent performance");
     }
   });
 
@@ -1205,7 +1209,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(roi);
     } catch (error) {
       console.error("Error fetching ROI analytics:", error);
-      res.status(500).json({ message: "Failed to fetch ROI analytics" });
+      sendInternalError(res, "Failed to fetch ROI analytics");
     }
   });
 
@@ -1215,7 +1219,7 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(benchmarks);
     } catch (error) {
       console.error("Error fetching benchmarks:", error);
-      res.status(500).json({ message: "Failed to fetch benchmarks" });
+      sendInternalError(res, "Failed to fetch benchmarks");
     }
   });
 
@@ -1223,7 +1227,7 @@ Only ask questions about genuinely missing or unclear information.`;
     try {
       const { prompt } = req.body;
       if (!prompt || prompt.length < 10) {
-        return res.status(400).json({ message: "Please provide a more detailed description" });
+        return sendBadRequest(res, "Please provide a more detailed description");
       }
 
       const openai = getOpenAIClient();
@@ -1268,7 +1272,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
       const content = completion.choices[0]?.message?.content;
       if (!content) {
-        return res.status(500).json({ message: "Failed to generate bounty" });
+        return sendInternalError(res, "Failed to generate bounty");
       }
 
       const generated = JSON.parse(content);
@@ -1292,7 +1296,7 @@ Only ask questions about genuinely missing or unclear information.`;
       });
     } catch (error) {
       console.error("Error generating bounty:", error);
-      res.status(500).json({ message: "Failed to generate bounty" });
+      sendInternalError(res, "Failed to generate bounty");
     }
   });
 
@@ -1340,13 +1344,13 @@ ${agentOutput}`
 
       const content = completion.choices[0]?.message?.content;
       if (!content) {
-        return res.status(500).json({ message: "Failed to verify output" });
+        return sendInternalError(res, "Failed to verify output");
       }
 
       res.json(JSON.parse(content));
     } catch (error) {
       console.error("Error verifying output:", error);
-      res.status(500).json({ message: "Failed to verify output" });
+      sendInternalError(res, "Failed to verify output");
     }
   });
 
@@ -1405,13 +1409,13 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const uploads = await storage.getAgentUploadsByDeveloper(userId);
       res.json(uploads);
     } catch (error) {
       console.error("Error fetching agent uploads:", error);
-      res.status(500).json({ message: "Failed to fetch agent uploads" });
+      sendInternalError(res, "Failed to fetch agent uploads");
     }
   });
 
@@ -1419,12 +1423,12 @@ ${agentOutput}`
     try {
       const upload = await storage.getAgentUpload(parseInt(req.params.id));
       if (!upload) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       res.json(upload);
     } catch (error) {
       console.error("Error fetching agent upload:", error);
-      res.status(500).json({ message: "Failed to fetch agent upload" });
+      sendInternalError(res, "Failed to fetch agent upload");
     }
   });
 
@@ -1432,20 +1436,20 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const parsed = insertAgentUploadSchema.safeParse({
         ...req.body,
         developerId: userId,
       });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid request body", parsed.error.errors);
       }
       const upload = await storage.createAgentUpload(parsed.data);
       res.status(201).json(upload);
     } catch (error) {
       console.error("Error creating agent upload:", error);
-      res.status(500).json({ message: "Failed to create agent upload" });
+      sendInternalError(res, "Failed to create agent upload");
     }
   });
 
@@ -1453,21 +1457,21 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized to update this agent" });
+        return sendForbidden(res, "Not authorized to update this agent");
       }
       const updated = await storage.updateAgentUpload(id, req.body);
       res.json(updated);
     } catch (error) {
       console.error("Error updating agent upload:", error);
-      res.status(500).json({ message: "Failed to update agent upload" });
+      sendInternalError(res, "Failed to update agent upload");
     }
   });
 
@@ -1475,21 +1479,21 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized to delete this agent" });
+        return sendForbidden(res, "Not authorized to delete this agent");
       }
       await storage.deleteAgentUpload(id);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting agent upload:", error);
-      res.status(500).json({ message: "Failed to delete agent upload" });
+      sendInternalError(res, "Failed to delete agent upload");
     }
   });
 
@@ -1497,21 +1501,21 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
       const updated = await storage.updateAgentUploadStatus(id, "pending_review");
       res.json(updated);
     } catch (error) {
       console.error("Error submitting agent:", error);
-      res.status(500).json({ message: "Failed to submit agent for review" });
+      sendInternalError(res, "Failed to submit agent for review");
     }
   });
 
@@ -1519,18 +1523,18 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
       if (existing.status !== "approved" && existing.status !== "testing") {
-        return res.status(400).json({ message: "Agent must pass testing before publishing" });
+        return sendBadRequest(res, "Agent must pass testing before publishing");
       }
       const updated = await storage.updateAgentUploadStatus(id, "published");
       wsService.broadcastUserNotification(userId, "agent_published", 
@@ -1540,7 +1544,7 @@ ${agentOutput}`
       res.json(updated);
     } catch (error) {
       console.error("Error publishing agent:", error);
-      res.status(500).json({ message: "Failed to publish agent" });
+      sendInternalError(res, "Failed to publish agent");
     }
   });
 
@@ -1549,7 +1553,7 @@ ${agentOutput}`
       const { prompt, targetCategories } = req.body;
       
       if (!prompt || prompt.length < 10) {
-        return res.status(400).json({ message: "Please provide a more detailed description" });
+        return sendBadRequest(res, "Please provide a more detailed description");
       }
 
       const openai = getOpenAIClient();
@@ -1596,7 +1600,7 @@ ${agentOutput}`
 
       const content = completion.choices[0]?.message?.content;
       if (!content) {
-        return res.status(500).json({ message: "Failed to generate agent" });
+        return sendInternalError(res, "Failed to generate agent");
       }
 
       const generated = JSON.parse(content);
@@ -1613,7 +1617,7 @@ ${agentOutput}`
       });
     } catch (error) {
       console.error("Error generating agent:", error);
-      res.status(500).json({ message: "Failed to generate agent" });
+      sendInternalError(res, "Failed to generate agent");
     }
   });
 
@@ -1639,7 +1643,7 @@ ${agentOutput}`
       res.json(tools);
     } catch (error) {
       console.error("Error fetching agent tools:", error);
-      res.status(500).json({ message: "Failed to fetch agent tools" });
+      sendInternalError(res, "Failed to fetch agent tools");
     }
   });
 
@@ -1647,23 +1651,23 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const { toolId, config } = req.body;
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
       await storage.addToolToAgentUpload(id, toolId, config);
       const tools = await storage.getToolsForAgentUpload(id);
       res.json(tools);
     } catch (error) {
       console.error("Error adding tool:", error);
-      res.status(500).json({ message: "Failed to add tool" });
+      sendInternalError(res, "Failed to add tool");
     }
   });
 
@@ -1673,7 +1677,7 @@ ${agentOutput}`
       res.json(tools);
     } catch (error) {
       console.error("Error fetching tools:", error);
-      res.status(500).json({ message: "Failed to fetch tools" });
+      sendInternalError(res, "Failed to fetch tools");
     }
   });
 
@@ -1681,17 +1685,17 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const { testName, testType, input, expectedOutput } = req.body;
       
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
 
       const parsed = insertAgentTestSchema.safeParse({
@@ -1702,7 +1706,7 @@ ${agentOutput}`
         expectedOutput,
       });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid test data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid test data", parsed.error.errors);
       }
       const test = await storage.createAgentTest(parsed.data);
 
@@ -1759,7 +1763,7 @@ ${agentOutput}`
       res.status(201).json(test);
     } catch (error) {
       console.error("Error creating test:", error);
-      res.status(500).json({ message: "Failed to create test" });
+      sendInternalError(res, "Failed to create test");
     }
   });
 
@@ -1769,7 +1773,7 @@ ${agentOutput}`
       res.json(tests);
     } catch (error) {
       console.error("Error fetching tests:", error);
-      res.status(500).json({ message: "Failed to fetch tests" });
+      sendInternalError(res, "Failed to fetch tests");
     }
   });
 
@@ -1783,7 +1787,7 @@ ${agentOutput}`
       res.json(agents);
     } catch (error) {
       console.error("Error fetching marketplace agents:", error);
-      res.status(500).json({ message: "Failed to fetch marketplace agents" });
+      sendInternalError(res, "Failed to fetch marketplace agents");
     }
   });
 
@@ -1793,7 +1797,7 @@ ${agentOutput}`
       res.json(featured);
     } catch (error) {
       console.error("Error fetching featured agents:", error);
-      res.status(500).json({ message: "Failed to fetch featured agents" });
+      sendInternalError(res, "Failed to fetch featured agents");
     }
   });
 
@@ -1801,15 +1805,15 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       if (existing.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
       
       const existingListing = await storage.getAgentListing(id);
@@ -1825,13 +1829,13 @@ ${agentOutput}`
         ...req.body,
       });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid listing data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid listing data", parsed.error.errors);
       }
       const listing = await storage.createAgentListing(parsed.data);
       res.status(201).json(listing);
     } catch (error) {
       console.error("Error creating listing:", error);
-      res.status(500).json({ message: "Failed to create listing" });
+      sendInternalError(res, "Failed to create listing");
     }
   });
 
@@ -1841,7 +1845,7 @@ ${agentOutput}`
       res.json(listing || null);
     } catch (error) {
       console.error("Error fetching listing:", error);
-      res.status(500).json({ message: "Failed to fetch listing" });
+      sendInternalError(res, "Failed to fetch listing");
     }
   });
 
@@ -1849,12 +1853,12 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const id = parseInt(req.params.id);
       const existing = await storage.getAgentUpload(id);
       if (!existing) {
-        return res.status(404).json({ message: "Agent upload not found" });
+        return sendNotFound(res, "Agent upload not found");
       }
       
       const parsed = insertAgentReviewSchema.safeParse({
@@ -1866,7 +1870,7 @@ ${agentOutput}`
         isVerifiedPurchase: req.body.isVerifiedPurchase || false,
       });
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid request body", parsed.error.errors);
       }
       
       const review = await storage.createAgentReview(parsed.data);
@@ -1881,7 +1885,7 @@ ${agentOutput}`
       res.status(201).json(review);
     } catch (error) {
       console.error("Error creating review:", error);
-      res.status(500).json({ message: "Failed to create review" });
+      sendInternalError(res, "Failed to create review");
     }
   });
 
@@ -1891,7 +1895,7 @@ ${agentOutput}`
       res.json(reviews);
     } catch (error) {
       console.error("Error fetching reviews:", error);
-      res.status(500).json({ message: "Failed to fetch reviews" });
+      sendInternalError(res, "Failed to fetch reviews");
     }
   });
 
@@ -1901,7 +1905,7 @@ ${agentOutput}`
       res.json(badges);
     } catch (error) {
       console.error("Error fetching badges:", error);
-      res.status(500).json({ message: "Failed to fetch badges" });
+      sendInternalError(res, "Failed to fetch badges");
     }
   });
 
@@ -1909,7 +1913,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const badge = await storage.awardBadge({
         agentUploadId: parseInt(req.params.id),
@@ -1921,7 +1925,7 @@ ${agentOutput}`
       res.status(201).json(badge);
     } catch (error) {
       console.error("Error awarding badge:", error);
-      res.status(500).json({ message: "Failed to award badge" });
+      sendInternalError(res, "Failed to award badge");
     }
   });
 
@@ -1931,7 +1935,7 @@ ${agentOutput}`
       res.json(connectors);
     } catch (error) {
       console.error("Error fetching integrations:", error);
-      res.status(500).json({ message: "Failed to fetch integrations" });
+      sendInternalError(res, "Failed to fetch integrations");
     }
   });
 
@@ -1951,7 +1955,7 @@ ${agentOutput}`
       res.status(201).json(connector);
     } catch (error) {
       console.error("Error creating integration:", error);
-      res.status(500).json({ message: "Failed to create integration" });
+      sendInternalError(res, "Failed to create integration");
     }
   });
 
@@ -1961,7 +1965,7 @@ ${agentOutput}`
       res.json(integrations);
     } catch (error) {
       console.error("Error fetching agent integrations:", error);
-      res.status(500).json({ message: "Failed to fetch agent integrations" });
+      sendInternalError(res, "Failed to fetch agent integrations");
     }
   });
 
@@ -1969,7 +1973,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const integration = await storage.addAgentIntegration({
         agentUploadId: parseInt(req.params.id),
@@ -1979,7 +1983,7 @@ ${agentOutput}`
       res.status(201).json(integration);
     } catch (error) {
       console.error("Error adding integration:", error);
-      res.status(500).json({ message: "Failed to add integration" });
+      sendInternalError(res, "Failed to add integration");
     }
   });
 
@@ -1987,12 +1991,12 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const originalId = parseInt(req.params.id);
       const original = await storage.getAgentUpload(originalId);
       if (!original) {
-        return res.status(404).json({ message: "Agent not found" });
+        return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
 
       const forkedAgent = await storage.forkAgent(
@@ -2019,7 +2023,7 @@ ${agentOutput}`
       res.status(201).json(forkedAgent);
     } catch (error) {
       console.error("Error forking agent:", error);
-      res.status(500).json({ message: "Failed to fork agent" });
+      sendInternalError(res, "Failed to fork agent");
     }
   });
 
@@ -2029,7 +2033,7 @@ ${agentOutput}`
       res.json(forks);
     } catch (error) {
       console.error("Error fetching forks:", error);
-      res.status(500).json({ message: "Failed to fetch forks" });
+      sendInternalError(res, "Failed to fetch forks");
     }
   });
 
@@ -2037,11 +2041,11 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const agent = await storage.getAgentUpload(parseInt(req.params.id));
       if (!agent || agent.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
       const days = parseInt(req.query.days as string) || 30;
       const analytics = await storage.getAgentAnalytics(parseInt(req.params.id), days);
@@ -2049,7 +2053,7 @@ ${agentOutput}`
       res.json({ analytics, runLogs });
     } catch (error) {
       console.error("Error fetching analytics:", error);
-      res.status(500).json({ message: "Failed to fetch analytics" });
+      sendInternalError(res, "Failed to fetch analytics");
     }
   });
 
@@ -2060,7 +2064,7 @@ ${agentOutput}`
       res.json(discussions);
     } catch (error) {
       console.error("Error fetching discussions:", error);
-      res.status(500).json({ message: "Failed to fetch discussions" });
+      sendInternalError(res, "Failed to fetch discussions");
     }
   });
 
@@ -2068,13 +2072,13 @@ ${agentOutput}`
     try {
       const discussion = await storage.getDiscussion(parseInt(req.params.id));
       if (!discussion) {
-        return res.status(404).json({ message: "Discussion not found" });
+        return sendNotFound(res, "Discussion not found");
       }
       const replies = await storage.getDiscussionReplies(discussion.id);
       res.json({ ...discussion, replies });
     } catch (error) {
       console.error("Error fetching discussion:", error);
-      res.status(500).json({ message: "Failed to fetch discussion" });
+      sendInternalError(res, "Failed to fetch discussion");
     }
   });
 
@@ -2082,7 +2086,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const discussion = await storage.createDiscussion({
         authorId: userId,
@@ -2094,7 +2098,7 @@ ${agentOutput}`
       res.status(201).json(discussion);
     } catch (error) {
       console.error("Error creating discussion:", error);
-      res.status(500).json({ message: "Failed to create discussion" });
+      sendInternalError(res, "Failed to create discussion");
     }
   });
 
@@ -2102,7 +2106,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const reply = await storage.createDiscussionReply({
         discussionId: parseInt(req.params.id),
@@ -2113,7 +2117,7 @@ ${agentOutput}`
       res.status(201).json(reply);
     } catch (error) {
       console.error("Error creating reply:", error);
-      res.status(500).json({ message: "Failed to create reply" });
+      sendInternalError(res, "Failed to create reply");
     }
   });
 
@@ -2121,7 +2125,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const vote = await storage.vote({
         userId,
@@ -2132,7 +2136,7 @@ ${agentOutput}`
       res.json(vote);
     } catch (error) {
       console.error("Error voting:", error);
-      res.status(500).json({ message: "Failed to vote" });
+      sendInternalError(res, "Failed to vote");
     }
   });
 
@@ -2140,13 +2144,13 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const settings = await storage.getSecuritySettings(userId);
       res.json(settings || { userId, twoFactorEnabled: false, loginNotifications: true });
     } catch (error) {
       console.error("Error fetching security settings:", error);
-      res.status(500).json({ message: "Failed to fetch security settings" });
+      sendInternalError(res, "Failed to fetch security settings");
     }
   });
 
@@ -2154,7 +2158,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const settings = await storage.upsertSecuritySettings({
         userId,
@@ -2175,7 +2179,7 @@ ${agentOutput}`
       res.json(settings);
     } catch (error) {
       console.error("Error updating security settings:", error);
-      res.status(500).json({ message: "Failed to update security settings" });
+      sendInternalError(res, "Failed to update security settings");
     }
   });
 
@@ -2183,13 +2187,13 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const logs = await storage.getSecurityAuditLog(userId);
       res.json(logs);
     } catch (error) {
       console.error("Error fetching audit log:", error);
-      res.status(500).json({ message: "Failed to fetch audit log" });
+      sendInternalError(res, "Failed to fetch audit log");
     }
   });
 
@@ -2197,7 +2201,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       
       const { twoFactorService } = await import("./twoFactorService");
@@ -2205,7 +2209,7 @@ ${agentOutput}`
       res.json(result);
     } catch (error) {
       console.error("Error setting up 2FA:", error);
-      res.status(500).json({ message: "Failed to setup 2FA" });
+      sendInternalError(res, "Failed to setup 2FA");
     }
   });
 
@@ -2213,19 +2217,19 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       
       const { token } = req.body;
       if (!token) {
-        return res.status(400).json({ message: "Verification token required" });
+        return sendBadRequest(res, "Verification token required");
       }
 
       const { twoFactorService } = await import("./twoFactorService");
       const result = await twoFactorService.enable(userId, token);
       
       if (!result.success) {
-        return res.status(400).json({ message: result.error });
+        return sendBadRequest(res, result.error || "Invalid request");
       }
 
       const { emailService } = await import("./emailService");
@@ -2237,7 +2241,7 @@ ${agentOutput}`
       res.json({ success: true });
     } catch (error) {
       console.error("Error enabling 2FA:", error);
-      res.status(500).json({ message: "Failed to enable 2FA" });
+      sendInternalError(res, "Failed to enable 2FA");
     }
   });
 
@@ -2245,25 +2249,25 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       
       const { token } = req.body;
       if (!token) {
-        return res.status(400).json({ message: "Verification token required" });
+        return sendBadRequest(res, "Verification token required");
       }
 
       const { twoFactorService } = await import("./twoFactorService");
       const result = await twoFactorService.disable(userId, token);
       
       if (!result.success) {
-        return res.status(400).json({ message: result.error });
+        return sendBadRequest(res, result.error || "Invalid request");
       }
       
       res.json({ success: true });
     } catch (error) {
       console.error("Error disabling 2FA:", error);
-      res.status(500).json({ message: "Failed to disable 2FA" });
+      sendInternalError(res, "Failed to disable 2FA");
     }
   });
 
@@ -2271,25 +2275,25 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       
       const { token } = req.body;
       if (!token) {
-        return res.status(400).json({ message: "Verification token required" });
+        return sendBadRequest(res, "Verification token required");
       }
 
       const { twoFactorService } = await import("./twoFactorService");
       const result = await twoFactorService.verify(userId, token);
       
       if (!result.success) {
-        return res.status(400).json({ message: result.error });
+        return sendBadRequest(res, result.error || "Invalid request");
       }
       
       res.json({ success: true, verified: true });
     } catch (error) {
       console.error("Error verifying 2FA:", error);
-      res.status(500).json({ message: "Failed to verify 2FA" });
+      sendInternalError(res, "Failed to verify 2FA");
     }
   });
 
@@ -2297,11 +2301,11 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return sendUnauthorized(res, "Not authenticated");
       }
       const agent = await storage.getAgentUpload(parseInt(req.params.id));
       if (!agent || agent.developerId !== userId) {
-        return res.status(403).json({ message: "Not authorized" });
+        return sendForbidden(res, "Not authorized");
       }
       
       const scan = await storage.createSecurityScan({
@@ -2360,7 +2364,7 @@ ${agentOutput}`
       res.status(201).json(scan);
     } catch (error) {
       console.error("Error starting security scan:", error);
-      res.status(500).json({ message: "Failed to start security scan" });
+      sendInternalError(res, "Failed to start security scan");
     }
   });
 
@@ -2370,7 +2374,7 @@ ${agentOutput}`
       res.json(scans);
     } catch (error) {
       console.error("Error fetching security scans:", error);
-      res.status(500).json({ message: "Failed to fetch security scans" });
+      sendInternalError(res, "Failed to fetch security scans");
     }
   });
 
@@ -2378,12 +2382,12 @@ ${agentOutput}`
   app.get("/api/support/tickets", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       const tickets = await storage.getUserSupportTickets(userId);
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
-      res.status(500).json({ message: "Failed to fetch tickets" });
+      sendInternalError(res, "Failed to fetch tickets");
     }
   });
 
@@ -2397,18 +2401,18 @@ ${agentOutput}`
   app.post("/api/support/tickets", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       const parsed = createTicketSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid ticket data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid ticket data", parsed.error.errors);
       }
       
       const ticket = await storage.createSupportTicket({ ...parsed.data, userId });
       res.status(201).json(ticket);
     } catch (error) {
       console.error("Error creating ticket:", error);
-      res.status(500).json({ message: "Failed to create ticket" });
+      sendInternalError(res, "Failed to create ticket");
     }
   });
 
@@ -2419,11 +2423,11 @@ ${agentOutput}`
   app.post("/api/support/tickets/:id/messages", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       const parsed = ticketMessageSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid message", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid message", parsed.error.errors);
       }
       
       const message = await storage.createTicketMessage({
@@ -2435,7 +2439,7 @@ ${agentOutput}`
       res.status(201).json(message);
     } catch (error) {
       console.error("Error creating message:", error);
-      res.status(500).json({ message: "Failed to send message" });
+      sendInternalError(res, "Failed to send message");
     }
   });
 
@@ -2443,24 +2447,24 @@ ${agentOutput}`
   app.get("/api/disputes", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       const disputes = await storage.getUserDisputes(userId);
       res.json(disputes);
     } catch (error) {
       console.error("Error fetching disputes:", error);
-      res.status(500).json({ message: "Failed to fetch disputes" });
+      sendInternalError(res, "Failed to fetch disputes");
     }
   });
 
   app.get("/api/bounties/mine", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       const bounties = await storage.getUserBounties(userId);
       res.json(bounties);
     } catch (error) {
       console.error("Error fetching user bounties:", error);
-      res.status(500).json({ message: "Failed to fetch bounties" });
+      sendInternalError(res, "Failed to fetch bounties");
     }
   });
 
@@ -2476,11 +2480,11 @@ ${agentOutput}`
   app.post("/api/disputes", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       const parsed = createDisputeSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid dispute data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid dispute data", parsed.error.errors);
       }
       
       const dispute = await storage.createDispute({
@@ -2491,7 +2495,7 @@ ${agentOutput}`
       res.status(201).json(dispute);
     } catch (error) {
       console.error("Error creating dispute:", error);
-      res.status(500).json({ message: "Failed to create dispute" });
+      sendInternalError(res, "Failed to create dispute");
     }
   });
 
@@ -2502,11 +2506,11 @@ ${agentOutput}`
   app.post("/api/disputes/:id/messages", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       const parsed = disputeMessageSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid message", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid message", parsed.error.errors);
       }
       
       const message = await storage.createDisputeMessage({
@@ -2518,7 +2522,7 @@ ${agentOutput}`
       res.status(201).json(message);
     } catch (error) {
       console.error("Error creating dispute message:", error);
-      res.status(500).json({ message: "Failed to send message" });
+      sendInternalError(res, "Failed to send message");
     }
   });
 
@@ -2528,14 +2532,14 @@ ${agentOutput}`
   const requireAdmin = async (req: any, res: any, next: any) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       // First priority: Check if user is in explicit admin list (environment variable)
       if (ADMIN_USER_IDS.length > 0) {
         if (ADMIN_USER_IDS.includes(userId)) {
           return next();
         }
-        return res.status(403).json({ message: "Admin access required" });
+        return sendForbidden(res, "Admin access required");
       }
       
       // Second priority: Check isAdmin flag in user profile (database-backed authorization)
@@ -2544,20 +2548,20 @@ ${agentOutput}`
       // Defensive: Missing profile = deny access
       if (!profile) {
         console.error(`Admin check failed: No profile found for user ${userId}`);
-        return res.status(403).json({ message: "Admin access required" });
+        return sendForbidden(res, "Admin access required");
       }
       
       // Defensive: isAdmin must be explicitly true (not null, undefined, or false)
       // This handles legacy rows where isAdmin column may be NULL
       if (profile.isAdmin !== true) {
         console.error(`Admin check failed: User ${userId} isAdmin=${profile.isAdmin} (not true)`);
-        return res.status(403).json({ message: "Admin access required" });
+        return sendForbidden(res, "Admin access required");
       }
       
       return next();
     } catch (error) {
       console.error("Admin authorization error:", error);
-      return res.status(500).json({ message: "Authorization check failed" });
+      return sendInternalError(res, "Authorization check failed");
     }
   };
 
@@ -2568,7 +2572,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching admin stats:", error);
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -2579,7 +2583,7 @@ ${agentOutput}`
       res.json(agents);
     } catch (error) {
       console.error("Error fetching pending agents:", error);
-      res.status(500).json({ message: "Failed to fetch pending agents" });
+      sendInternalError(res, "Failed to fetch pending agents");
     }
   });
 
@@ -2589,7 +2593,7 @@ ${agentOutput}`
       res.json(flags);
     } catch (error) {
       console.error("Error fetching content flags:", error);
-      res.status(500).json({ message: "Failed to fetch flags" });
+      sendInternalError(res, "Failed to fetch flags");
     }
   });
 
@@ -2603,7 +2607,7 @@ ${agentOutput}`
       res.json(agent);
     } catch (error) {
       console.error("Error approving agent:", error);
-      res.status(500).json({ message: "Failed to approve agent" });
+      sendInternalError(res, "Failed to approve agent");
     }
   });
 
@@ -2615,7 +2619,7 @@ ${agentOutput}`
       res.json(agent);
     } catch (error) {
       console.error("Error rejecting agent:", error);
-      res.status(500).json({ message: "Failed to reject agent" });
+      sendInternalError(res, "Failed to reject agent");
     }
   });
 
@@ -2632,26 +2636,26 @@ ${agentOutput}`
   app.post("/api/executions", isAuthenticated, aiRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       const parsed = executeAgentSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid execution data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid execution data", parsed.error.errors);
       }
       
       const agent = await storage.getAgent(parsed.data.agentId);
       if (!agent) {
-        return res.status(404).json({ message: "Agent not found" });
+        return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
       if (agent.developerId !== userId) {
-        return res.status(403).json({ message: "You can only execute your own agents" });
+        return sendForbidden(res, "You can only execute your own agents");
       }
       
       const executionId = await executionService.queueExecution(parsed.data);
       res.status(201).json({ executionId, status: "queued" });
     } catch (error) {
       console.error("Error queueing execution:", error);
-      res.status(500).json({ message: "Failed to queue execution" });
+      sendInternalError(res, "Failed to queue execution");
     }
   });
 
@@ -2659,12 +2663,12 @@ ${agentOutput}`
     try {
       const execution = await executionService.getExecution(parseInt(req.params.id));
       if (!execution) {
-        return res.status(404).json({ message: "Execution not found" });
+        return sendNotFound(res, "Execution not found");
       }
       res.json(execution);
     } catch (error) {
       console.error("Error fetching execution:", error);
-      res.status(500).json({ message: "Failed to fetch execution" });
+      sendInternalError(res, "Failed to fetch execution");
     }
   });
 
@@ -2674,7 +2678,7 @@ ${agentOutput}`
       res.json(executions);
     } catch (error) {
       console.error("Error fetching executions:", error);
-      res.status(500).json({ message: "Failed to fetch executions" });
+      sendInternalError(res, "Failed to fetch executions");
     }
   });
 
@@ -2684,7 +2688,7 @@ ${agentOutput}`
       res.json(executions);
     } catch (error) {
       console.error("Error fetching executions:", error);
-      res.status(500).json({ message: "Failed to fetch executions" });
+      sendInternalError(res, "Failed to fetch executions");
     }
   });
 
@@ -2692,12 +2696,12 @@ ${agentOutput}`
     try {
       const cancelled = await executionService.cancelExecution(parseInt(req.params.id));
       if (!cancelled) {
-        return res.status(400).json({ message: "Cannot cancel execution in current state" });
+        return sendBadRequest(res, "Cannot cancel execution in current state");
       }
       res.json({ message: "Execution cancelled" });
     } catch (error) {
       console.error("Error cancelling execution:", error);
-      res.status(500).json({ message: "Failed to cancel execution" });
+      sendInternalError(res, "Failed to cancel execution");
     }
   });
 
@@ -2705,12 +2709,12 @@ ${agentOutput}`
     try {
       const newExecutionId = await executionService.retryExecution(parseInt(req.params.id));
       if (!newExecutionId) {
-        return res.status(400).json({ message: "Cannot retry execution in current state" });
+        return sendBadRequest(res, "Cannot retry execution in current state");
       }
       res.json({ executionId: newExecutionId, status: "queued" });
     } catch (error) {
       console.error("Error retrying execution:", error);
-      res.status(500).json({ message: "Failed to retry execution" });
+      sendInternalError(res, "Failed to retry execution");
     }
   });
 
@@ -2720,7 +2724,7 @@ ${agentOutput}`
       res.json(result);
     } catch (error) {
       console.error("Error testing sandbox:", error);
-      res.status(500).json({ message: "Failed to test sandbox" });
+      sendInternalError(res, "Failed to test sandbox");
     }
   });
 
@@ -2732,7 +2736,7 @@ ${agentOutput}`
   app.post("/api/auth/token", isAuthenticated, authRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      if (!userId) return sendUnauthorized(res, "Authentication required");
       
       const deviceInfo = req.headers['user-agent'];
       const ipAddress = req.ip;
@@ -2741,7 +2745,7 @@ ${agentOutput}`
       res.json(tokens);
     } catch (error) {
       console.error("Error generating tokens:", error);
-      res.status(500).json({ message: "Failed to generate tokens" });
+      sendInternalError(res, "Failed to generate tokens");
     }
   });
 
@@ -2749,18 +2753,18 @@ ${agentOutput}`
     try {
       const { refreshToken } = req.body;
       if (!refreshToken) {
-        return res.status(400).json({ message: "Refresh token required" });
+        return sendBadRequest(res, "Refresh token required");
       }
       
       const tokens = await jwtService.refreshAccessToken(refreshToken, req.ip);
       if (!tokens) {
-        return res.status(401).json({ message: "Invalid or expired refresh token" });
+        return sendUnauthorized(res, "Invalid or expired refresh token", ErrorCode.TOKEN_INVALID);
       }
       
       res.json(tokens);
     } catch (error) {
       console.error("Error refreshing token:", error);
-      res.status(500).json({ message: "Failed to refresh token" });
+      sendInternalError(res, "Failed to refresh token");
     }
   });
 
@@ -2778,7 +2782,7 @@ ${agentOutput}`
       res.json({ message: "Token(s) revoked" });
     } catch (error) {
       console.error("Error revoking token:", error);
-      res.status(500).json({ message: "Failed to revoke token" });
+      sendInternalError(res, "Failed to revoke token");
     }
   });
 
@@ -2790,7 +2794,7 @@ ${agentOutput}`
       res.json({ roles, permissions });
     } catch (error) {
       console.error("Error fetching roles:", error);
-      res.status(500).json({ message: "Failed to fetch roles" });
+      sendInternalError(res, "Failed to fetch roles");
     }
   });
 
@@ -2802,7 +2806,7 @@ ${agentOutput}`
       res.json(consents);
     } catch (error) {
       console.error("Error fetching consents:", error);
-      res.status(500).json({ message: "Failed to fetch consents" });
+      sendInternalError(res, "Failed to fetch consents");
     }
   });
 
@@ -2814,7 +2818,7 @@ ${agentOutput}`
       res.json({ message: "Consent updated" });
     } catch (error) {
       console.error("Error updating consent:", error);
-      res.status(500).json({ message: "Failed to update consent" });
+      sendInternalError(res, "Failed to update consent");
     }
   });
 
@@ -2826,7 +2830,7 @@ ${agentOutput}`
       res.json({ requestId, message: "Data export requested" });
     } catch (error) {
       console.error("Error requesting data export:", error);
-      res.status(500).json({ message: "Failed to request data export" });
+      sendInternalError(res, "Failed to request data export");
     }
   });
 
@@ -2834,12 +2838,12 @@ ${agentOutput}`
     try {
       const request = await gdprService.getDataExportStatus(parseInt(req.params.id));
       if (!request) {
-        return res.status(404).json({ message: "Export request not found" });
+        return sendNotFound(res, "Export request not found");
       }
       res.json(request);
     } catch (error) {
       console.error("Error fetching export status:", error);
-      res.status(500).json({ message: "Failed to fetch export status" });
+      sendInternalError(res, "Failed to fetch export status");
     }
   });
 
@@ -2850,7 +2854,7 @@ ${agentOutput}`
       res.json(requests);
     } catch (error) {
       console.error("Error fetching exports:", error);
-      res.status(500).json({ message: "Failed to fetch exports" });
+      sendInternalError(res, "Failed to fetch exports");
     }
   });
 
@@ -2862,7 +2866,7 @@ ${agentOutput}`
       res.json(result);
     } catch (error) {
       console.error("Error requesting data deletion:", error);
-      res.status(500).json({ message: "Failed to request data deletion" });
+      sendInternalError(res, "Failed to request data deletion");
     }
   });
 
@@ -2871,12 +2875,12 @@ ${agentOutput}`
       const { requestId, confirmationCode } = req.body;
       const confirmed = await gdprService.confirmDataDeletion(requestId, confirmationCode);
       if (!confirmed) {
-        return res.status(400).json({ message: "Invalid confirmation code or request" });
+        return sendBadRequest(res, "Invalid confirmation code or request");
       }
       res.json({ message: "Data deletion confirmed and processing" });
     } catch (error) {
       console.error("Error confirming deletion:", error);
-      res.status(500).json({ message: "Failed to confirm deletion" });
+      sendInternalError(res, "Failed to confirm deletion");
     }
   });
 
@@ -2888,7 +2892,7 @@ ${agentOutput}`
       res.json({ auditId, status: "processing" });
     } catch (error) {
       console.error("Error starting ethics audit:", error);
-      res.status(500).json({ message: "Failed to start ethics audit" });
+      sendInternalError(res, "Failed to start ethics audit");
     }
   });
 
@@ -2900,7 +2904,7 @@ ${agentOutput}`
       res.json({ auditId, status: "processing" });
     } catch (error) {
       console.error("Error starting specific audit:", error);
-      res.status(500).json({ message: "Failed to start audit" });
+      sendInternalError(res, "Failed to start audit");
     }
   });
 
@@ -2908,12 +2912,12 @@ ${agentOutput}`
     try {
       const audit = await ethicsAuditorService.getAuditStatus(parseInt(req.params.auditId));
       if (!audit) {
-        return res.status(404).json({ message: "Audit not found" });
+        return sendNotFound(res, "Audit not found");
       }
       res.json(audit);
     } catch (error) {
       console.error("Error fetching audit status:", error);
-      res.status(500).json({ message: "Failed to fetch audit status" });
+      sendInternalError(res, "Failed to fetch audit status");
     }
   });
 
@@ -2923,7 +2927,7 @@ ${agentOutput}`
       res.json(audits);
     } catch (error) {
       console.error("Error fetching agent audits:", error);
-      res.status(500).json({ message: "Failed to fetch agent audits" });
+      sendInternalError(res, "Failed to fetch agent audits");
     }
   });
 
@@ -2935,7 +2939,7 @@ ${agentOutput}`
       res.json({ code });
     } catch (error) {
       console.error("Error generating referral code:", error);
-      res.status(500).json({ message: "Failed to generate referral code" });
+      sendInternalError(res, "Failed to generate referral code");
     }
   });
 
@@ -2946,7 +2950,7 @@ ${agentOutput}`
       res.json({ code });
     } catch (error) {
       console.error("Error fetching referral code:", error);
-      res.status(500).json({ message: "Failed to fetch referral code" });
+      sendInternalError(res, "Failed to fetch referral code");
     }
   });
 
@@ -2956,7 +2960,7 @@ ${agentOutput}`
       res.json(result);
     } catch (error) {
       console.error("Error validating referral code:", error);
-      res.status(500).json({ message: "Failed to validate referral code" });
+      sendInternalError(res, "Failed to validate referral code");
     }
   });
 
@@ -2966,12 +2970,12 @@ ${agentOutput}`
       const { code } = req.body;
       const applied = await referralService.applyReferral(code, userId);
       if (!applied) {
-        return res.status(400).json({ message: "Invalid or expired referral code" });
+        return sendBadRequest(res, "Invalid or expired referral code");
       }
       res.json({ message: "Referral applied successfully" });
     } catch (error) {
       console.error("Error applying referral:", error);
-      res.status(500).json({ message: "Failed to apply referral" });
+      sendInternalError(res, "Failed to apply referral");
     }
   });
 
@@ -2982,7 +2986,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching referral stats:", error);
-      res.status(500).json({ message: "Failed to fetch referral stats" });
+      sendInternalError(res, "Failed to fetch referral stats");
     }
   });
 
@@ -2993,7 +2997,7 @@ ${agentOutput}`
       res.json(payouts);
     } catch (error) {
       console.error("Error fetching payouts:", error);
-      res.status(500).json({ message: "Failed to fetch payouts" });
+      sendInternalError(res, "Failed to fetch payouts");
     }
   });
 
@@ -3011,7 +3015,7 @@ ${agentOutput}`
       res.json(recommendations);
     } catch (error) {
       console.error("Error fetching recommendations:", error);
-      res.status(500).json({ message: "Failed to fetch recommendations" });
+      sendInternalError(res, "Failed to fetch recommendations");
     }
   });
 
@@ -3022,7 +3026,7 @@ ${agentOutput}`
       res.json({ message: "Selection recorded" });
     } catch (error) {
       console.error("Error recording selection:", error);
-      res.status(500).json({ message: "Failed to record selection" });
+      sendInternalError(res, "Failed to record selection");
     }
   });
 
@@ -3037,7 +3041,7 @@ ${agentOutput}`
       res.json({ providers, models: modelsMap });
     } catch (error) {
       console.error("Error fetching providers:", error);
-      res.status(500).json({ message: "Failed to fetch providers" });
+      sendInternalError(res, "Failed to fetch providers");
     }
   });
 
@@ -3047,7 +3051,7 @@ ${agentOutput}`
       res.json(config);
     } catch (error) {
       console.error("Error fetching LLM config:", error);
-      res.status(500).json({ message: "Failed to fetch LLM config" });
+      sendInternalError(res, "Failed to fetch LLM config");
     }
   });
 
@@ -3057,7 +3061,7 @@ ${agentOutput}`
       res.json({ message: "LLM config updated" });
     } catch (error) {
       console.error("Error updating LLM config:", error);
-      res.status(500).json({ message: "Failed to update LLM config" });
+      sendInternalError(res, "Failed to update LLM config");
     }
   });
 
@@ -3068,7 +3072,7 @@ ${agentOutput}`
       res.json(response);
     } catch (error) {
       console.error("Error in LLM chat:", error);
-      res.status(500).json({ message: "Failed to process chat" });
+      sendInternalError(res, "Failed to process chat");
     }
   });
 
@@ -3080,7 +3084,7 @@ ${agentOutput}`
       res.json({ proofId, status: "pending" });
     } catch (error) {
       console.error("Error creating verification proof:", error);
-      res.status(500).json({ message: "Failed to create verification proof" });
+      sendInternalError(res, "Failed to create verification proof");
     }
   });
 
@@ -3088,12 +3092,12 @@ ${agentOutput}`
     try {
       const proof = await blockchainService.getProof(parseInt(req.params.proofId));
       if (!proof) {
-        return res.status(404).json({ message: "Proof not found" });
+        return sendNotFound(res, "Proof not found");
       }
       res.json(proof);
     } catch (error) {
       console.error("Error fetching proof:", error);
-      res.status(500).json({ message: "Failed to fetch proof" });
+      sendInternalError(res, "Failed to fetch proof");
     }
   });
 
@@ -3103,7 +3107,7 @@ ${agentOutput}`
       res.json(proofs);
     } catch (error) {
       console.error("Error fetching proofs:", error);
-      res.status(500).json({ message: "Failed to fetch proofs" });
+      sendInternalError(res, "Failed to fetch proofs");
     }
   });
 
@@ -3113,7 +3117,7 @@ ${agentOutput}`
       res.json(result);
     } catch (error) {
       console.error("Error verifying proof:", error);
-      res.status(500).json({ message: "Failed to verify proof" });
+      sendInternalError(res, "Failed to verify proof");
     }
   });
 
@@ -3123,7 +3127,7 @@ ${agentOutput}`
       res.json(networks);
     } catch (error) {
       console.error("Error fetching networks:", error);
-      res.status(500).json({ message: "Failed to fetch networks" });
+      sendInternalError(res, "Failed to fetch networks");
     }
   });
 
@@ -3134,7 +3138,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching cache stats:", error);
-      res.status(500).json({ message: "Failed to fetch cache stats" });
+      sendInternalError(res, "Failed to fetch cache stats");
     }
   });
 
@@ -3145,7 +3149,7 @@ ${agentOutput}`
       res.json(leaderboard);
     } catch (error) {
       console.error("Error fetching cached leaderboard:", error);
-      res.status(500).json({ message: "Failed to fetch leaderboard" });
+      sendInternalError(res, "Failed to fetch leaderboard");
     }
   });
 
@@ -3155,7 +3159,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching cached platform stats:", error);
-      res.status(500).json({ message: "Failed to fetch platform stats" });
+      sendInternalError(res, "Failed to fetch platform stats");
     }
   });
 
@@ -3176,7 +3180,7 @@ ${agentOutput}`
       res.json({ message: "Cache invalidated" });
     } catch (error) {
       console.error("Error invalidating cache:", error);
-      res.status(500).json({ message: "Failed to invalidate cache" });
+      sendInternalError(res, "Failed to invalidate cache");
     }
   });
 
@@ -3205,7 +3209,7 @@ ${agentOutput}`
       res.json(swarms);
     } catch (error) {
       console.error("Error fetching swarms:", error);
-      res.status(500).json({ message: "Failed to fetch swarms" });
+      sendInternalError(res, "Failed to fetch swarms");
     }
   });
 
@@ -3219,19 +3223,19 @@ ${agentOutput}`
       res.json(swarm);
     } catch (error) {
       console.error("Error creating swarm:", error);
-      res.status(500).json({ message: "Failed to create swarm" });
+      sendInternalError(res, "Failed to create swarm");
     }
   });
 
   app.get("/api/swarms/:id", async (req, res) => {
     try {
       const swarm = await swarmService.getSwarm(parseInt(req.params.id));
-      if (!swarm) return res.status(404).json({ message: "Swarm not found" });
+      if (!swarm) return sendNotFound(res, "Swarm not found");
       const members = await swarmService.getSwarmMembers(swarm.id);
       res.json({ ...swarm, members });
     } catch (error) {
       console.error("Error fetching swarm:", error);
-      res.status(500).json({ message: "Failed to fetch swarm" });
+      sendInternalError(res, "Failed to fetch swarm");
     }
   });
 
@@ -3242,7 +3246,7 @@ ${agentOutput}`
       res.json(member);
     } catch (error: any) {
       console.error("Error adding swarm member:", error);
-      res.status(400).json({ message: error.message || "Failed to add member" });
+      sendBadRequest(res, error.message || "Failed to add member");
     }
   });
 
@@ -3252,7 +3256,7 @@ ${agentOutput}`
       res.json(leader);
     } catch (error) {
       console.error("Error electing leader:", error);
-      res.status(500).json({ message: "Failed to elect leader" });
+      sendInternalError(res, "Failed to elect leader");
     }
   });
 
@@ -3263,7 +3267,7 @@ ${agentOutput}`
       res.json(execution);
     } catch (error) {
       console.error("Error executing swarm:", error);
-      res.status(500).json({ message: "Failed to execute swarm" });
+      sendInternalError(res, "Failed to execute swarm");
     }
   });
 
@@ -3275,7 +3279,7 @@ ${agentOutput}`
       res.json(swarm);
     } catch (error) {
       console.error("Error auto-assembling swarm:", error);
-      res.status(500).json({ message: "Failed to auto-assemble swarm" });
+      sendInternalError(res, "Failed to auto-assemble swarm");
     }
   });
 
@@ -3285,7 +3289,7 @@ ${agentOutput}`
       res.json({ message: "Swarm disbanded" });
     } catch (error) {
       console.error("Error disbanding swarm:", error);
-      res.status(500).json({ message: "Failed to disband swarm" });
+      sendInternalError(res, "Failed to disband swarm");
     }
   });
 
@@ -3304,7 +3308,7 @@ ${agentOutput}`
       res.json(connectors);
     } catch (error) {
       console.error("Error fetching connectors:", error);
-      res.status(500).json({ message: "Failed to fetch connectors" });
+      sendInternalError(res, "Failed to fetch connectors");
     }
   });
 
@@ -3315,18 +3319,18 @@ ${agentOutput}`
       res.json(connectors);
     } catch (error) {
       console.error("Error fetching popular connectors:", error);
-      res.status(500).json({ message: "Failed to fetch popular connectors" });
+      sendInternalError(res, "Failed to fetch popular connectors");
     }
   });
 
   app.get("/api/integrations/connectors/:id", async (req, res) => {
     try {
       const connector = await integrationsHubService.getConnector(parseInt(req.params.id));
-      if (!connector) return res.status(404).json({ message: "Connector not found" });
+      if (!connector) return sendNotFound(res, "Connector not found");
       res.json(connector);
     } catch (error) {
       console.error("Error fetching connector:", error);
-      res.status(500).json({ message: "Failed to fetch connector" });
+      sendInternalError(res, "Failed to fetch connector");
     }
   });
 
@@ -3336,7 +3340,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching category stats:", error);
-      res.status(500).json({ message: "Failed to fetch category stats" });
+      sendInternalError(res, "Failed to fetch category stats");
     }
   });
 
@@ -3347,7 +3351,7 @@ ${agentOutput}`
       res.json(integrations);
     } catch (error) {
       console.error("Error fetching user integrations:", error);
-      res.status(500).json({ message: "Failed to fetch user integrations" });
+      sendInternalError(res, "Failed to fetch user integrations");
     }
   });
 
@@ -3359,7 +3363,7 @@ ${agentOutput}`
       res.json(integration);
     } catch (error: any) {
       console.error("Error connecting integration:", error);
-      res.status(400).json({ message: error.message || "Failed to connect integration" });
+      sendBadRequest(res, error.message || "Failed to connect integration");
     }
   });
 
@@ -3370,7 +3374,7 @@ ${agentOutput}`
       res.json({ message: "Integration disconnected" });
     } catch (error) {
       console.error("Error disconnecting integration:", error);
-      res.status(500).json({ message: "Failed to disconnect integration" });
+      sendInternalError(res, "Failed to disconnect integration");
     }
   });
 
@@ -3378,12 +3382,12 @@ ${agentOutput}`
   app.get("/api/gateway/connectors/:id/manifest", async (req, res) => {
     try {
       const connector = await integrationsHubService.getConnector(parseInt(req.params.id));
-      if (!connector) return res.status(404).json({ message: "Connector not found" });
+      if (!connector) return sendNotFound(res, "Connector not found");
       const manifest = integrationGateway.getManifest(connector);
       res.json(manifest);
     } catch (error) {
       console.error("Error fetching connector manifest:", error);
-      res.status(500).json({ message: "Failed to fetch connector manifest" });
+      sendInternalError(res, "Failed to fetch connector manifest");
     }
   });
 
@@ -3395,11 +3399,11 @@ ${agentOutput}`
       if (result.success) {
         res.json({ success: true, integrationId: result.integrationId });
       } else {
-        res.status(400).json({ success: false, error: result.error });
+        sendBadRequest(res, result.error || "Invalid request");
       }
     } catch (error: any) {
       console.error("Error in gateway connect:", error);
-      res.status(500).json({ success: false, error: error.message });
+      sendError(res, 500, ErrorCode.INTERNAL_ERROR, error.message || "Internal server error");
     }
   });
 
@@ -3410,7 +3414,7 @@ ${agentOutput}`
       res.json(status);
     } catch (error) {
       console.error("Error fetching connection status:", error);
-      res.status(500).json({ message: "Failed to fetch status" });
+      sendInternalError(res, "Failed to fetch status");
     }
   });
 
@@ -3420,7 +3424,7 @@ ${agentOutput}`
       res.json(health);
     } catch (error) {
       console.error("Error fetching integration health:", error);
-      res.status(500).json({ message: "Failed to fetch health" });
+      sendInternalError(res, "Failed to fetch health");
     }
   });
 
@@ -3442,7 +3446,7 @@ ${agentOutput}`
       });
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+      sendError(res, 500, ErrorCode.INTERNAL_ERROR, error.message || "Internal server error");
     }
   });
 
@@ -3454,7 +3458,7 @@ ${agentOutput}`
       res.json(summary);
     } catch (error) {
       console.error("Error fetching FinOps summary:", error);
-      res.status(500).json({ message: "Failed to fetch FinOps summary" });
+      sendInternalError(res, "Failed to fetch FinOps summary");
     }
   });
 
@@ -3469,7 +3473,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching usage stats:", error);
-      res.status(500).json({ message: "Failed to fetch usage stats" });
+      sendInternalError(res, "Failed to fetch usage stats");
     }
   });
 
@@ -3480,7 +3484,7 @@ ${agentOutput}`
       res.json(budgets);
     } catch (error) {
       console.error("Error fetching budgets:", error);
-      res.status(500).json({ message: "Failed to fetch budgets" });
+      sendInternalError(res, "Failed to fetch budgets");
     }
   });
 
@@ -3501,7 +3505,7 @@ ${agentOutput}`
       const userId = req.user?.claims?.sub || req.user?.id;
       const parsed = finopsBudgetSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid budget data", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid budget data", parsed.error.errors);
       }
       const now = new Date();
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -3514,7 +3518,7 @@ ${agentOutput}`
       res.json(budget);
     } catch (error) {
       console.error("Error creating budget:", error);
-      res.status(500).json({ message: "Failed to create budget" });
+      sendInternalError(res, "Failed to create budget");
     }
   });
 
@@ -3525,7 +3529,7 @@ ${agentOutput}`
       res.json({ message: "Budget deleted" });
     } catch (error) {
       console.error("Error deleting budget:", error);
-      res.status(500).json({ message: "Failed to delete budget" });
+      sendInternalError(res, "Failed to delete budget");
     }
   });
 
@@ -3536,7 +3540,7 @@ ${agentOutput}`
       res.json(optimizations);
     } catch (error) {
       console.error("Error fetching optimizations:", error);
-      res.status(500).json({ message: "Failed to fetch optimizations" });
+      sendInternalError(res, "Failed to fetch optimizations");
     }
   });
 
@@ -3547,7 +3551,7 @@ ${agentOutput}`
       res.json(optimizations);
     } catch (error) {
       console.error("Error generating optimizations:", error);
-      res.status(500).json({ message: "Failed to generate optimizations" });
+      sendInternalError(res, "Failed to generate optimizations");
     }
   });
 
@@ -3558,7 +3562,7 @@ ${agentOutput}`
       res.json(optimization);
     } catch (error) {
       console.error("Error applying optimization:", error);
-      res.status(500).json({ message: "Failed to apply optimization" });
+      sendInternalError(res, "Failed to apply optimization");
     }
   });
 
@@ -3568,7 +3572,7 @@ ${agentOutput}`
       res.json(pricing);
     } catch (error) {
       console.error("Error fetching pricing:", error);
-      res.status(500).json({ message: "Failed to fetch pricing" });
+      sendInternalError(res, "Failed to fetch pricing");
     }
   });
 
@@ -3579,7 +3583,7 @@ ${agentOutput}`
       res.json(insights);
     } catch (error) {
       console.error("Error fetching insights:", error);
-      res.status(500).json({ message: "Failed to fetch insights" });
+      sendInternalError(res, "Failed to fetch insights");
     }
   });
 
@@ -3591,7 +3595,7 @@ ${agentOutput}`
       res.json(trends);
     } catch (error) {
       console.error("Error fetching trends:", error);
-      res.status(500).json({ message: "Failed to fetch trends" });
+      sendInternalError(res, "Failed to fetch trends");
     }
   });
 
@@ -3606,7 +3610,7 @@ ${agentOutput}`
       res.json(forecasts);
     } catch (error) {
       console.error("Error fetching forecasts:", error);
-      res.status(500).json({ message: "Failed to fetch forecasts" });
+      sendInternalError(res, "Failed to fetch forecasts");
     }
   });
 
@@ -3616,7 +3620,7 @@ ${agentOutput}`
       res.json(forecast);
     } catch (error: any) {
       console.error("Error generating bounty forecast:", error);
-      res.status(400).json({ message: error.message || "Failed to generate forecast" });
+      sendBadRequest(res, error.message || "Failed to generate forecast");
     }
   });
 
@@ -3630,7 +3634,7 @@ ${agentOutput}`
       res.json(forecast);
     } catch (error: any) {
       console.error("Error generating agent forecast:", error);
-      res.status(400).json({ message: error.message || "Failed to generate forecast" });
+      sendBadRequest(res, error.message || "Failed to generate forecast");
     }
   });
 
@@ -3642,7 +3646,7 @@ ${agentOutput}`
       res.json(forecast);
     } catch (error) {
       console.error("Error generating revenue forecast:", error);
-      res.status(500).json({ message: "Failed to generate forecast" });
+      sendInternalError(res, "Failed to generate forecast");
     }
   });
 
@@ -3655,7 +3659,7 @@ ${agentOutput}`
       res.json(score);
     } catch (error) {
       console.error("Error calculating risk score:", error);
-      res.status(500).json({ message: "Failed to calculate risk score" });
+      sendInternalError(res, "Failed to calculate risk score");
     }
   });
 
@@ -3666,7 +3670,7 @@ ${agentOutput}`
       res.json(risks);
     } catch (error) {
       console.error("Error fetching risk scores:", error);
-      res.status(500).json({ message: "Failed to fetch risk scores" });
+      sendInternalError(res, "Failed to fetch risk scores");
     }
   });
 
@@ -3677,7 +3681,7 @@ ${agentOutput}`
       res.json(tiers);
     } catch (error) {
       console.error("Error fetching insurance tiers:", error);
-      res.status(500).json({ message: "Failed to fetch insurance tiers" });
+      sendInternalError(res, "Failed to fetch insurance tiers");
     }
   });
 
@@ -3688,7 +3692,7 @@ ${agentOutput}`
       res.json(insurances);
     } catch (error) {
       console.error("Error fetching user insurances:", error);
-      res.status(500).json({ message: "Failed to fetch user insurances" });
+      sendInternalError(res, "Failed to fetch user insurances");
     }
   });
 
@@ -3698,7 +3702,7 @@ ${agentOutput}`
       res.json(insurance);
     } catch (error) {
       console.error("Error fetching agent insurance:", error);
-      res.status(500).json({ message: "Failed to fetch agent insurance" });
+      sendInternalError(res, "Failed to fetch agent insurance");
     }
   });
 
@@ -3710,7 +3714,7 @@ ${agentOutput}`
       res.json(insurance);
     } catch (error: any) {
       console.error("Error creating insurance:", error);
-      res.status(400).json({ message: error.message || "Failed to create insurance" });
+      sendBadRequest(res, error.message || "Failed to create insurance");
     }
   });
 
@@ -3721,7 +3725,7 @@ ${agentOutput}`
       res.json(claim);
     } catch (error: any) {
       console.error("Error filing claim:", error);
-      res.status(400).json({ message: error.message || "Failed to file claim" });
+      sendBadRequest(res, error.message || "Failed to file claim");
     }
   });
 
@@ -3735,7 +3739,7 @@ ${agentOutput}`
       res.json(claims);
     } catch (error) {
       console.error("Error fetching claims:", error);
-      res.status(500).json({ message: "Failed to fetch claims" });
+      sendInternalError(res, "Failed to fetch claims");
     }
   });
 
@@ -3749,7 +3753,7 @@ ${agentOutput}`
       res.json(claim);
     } catch (error) {
       console.error("Error reviewing claim:", error);
-      res.status(500).json({ message: "Failed to review claim" });
+      sendInternalError(res, "Failed to review claim");
     }
   });
 
@@ -3759,7 +3763,7 @@ ${agentOutput}`
       res.json(tokens);
     } catch (error) {
       console.error("Error fetching tokens:", error);
-      res.status(500).json({ message: "Failed to fetch tokens" });
+      sendInternalError(res, "Failed to fetch tokens");
     }
   });
 
@@ -3769,7 +3773,7 @@ ${agentOutput}`
       res.json(token);
     } catch (error) {
       console.error("Error fetching agent token:", error);
-      res.status(500).json({ message: "Failed to fetch agent token" });
+      sendInternalError(res, "Failed to fetch agent token");
     }
   });
 
@@ -3780,7 +3784,7 @@ ${agentOutput}`
       res.json(holdings);
     } catch (error) {
       console.error("Error fetching holdings:", error);
-      res.status(500).json({ message: "Failed to fetch holdings" });
+      sendInternalError(res, "Failed to fetch holdings");
     }
   });
 
@@ -3790,7 +3794,7 @@ ${agentOutput}`
       res.json(token);
     } catch (error: any) {
       console.error("Error tokenizing agent:", error);
-      res.status(400).json({ message: error.message || "Failed to tokenize agent" });
+      sendBadRequest(res, error.message || "Failed to tokenize agent");
     }
   });
 
@@ -3800,7 +3804,7 @@ ${agentOutput}`
       res.json(token);
     } catch (error) {
       console.error("Error listing token:", error);
-      res.status(500).json({ message: "Failed to list token" });
+      sendInternalError(res, "Failed to list token");
     }
   });
 
@@ -3812,7 +3816,7 @@ ${agentOutput}`
       res.json(holding);
     } catch (error: any) {
       console.error("Error buying tokens:", error);
-      res.status(400).json({ message: error.message || "Failed to buy tokens" });
+      sendBadRequest(res, error.message || "Failed to buy tokens");
     }
   });
 
@@ -3824,7 +3828,7 @@ ${agentOutput}`
       res.json(holding);
     } catch (error: any) {
       console.error("Error selling tokens:", error);
-      res.status(400).json({ message: error.message || "Failed to sell tokens" });
+      sendBadRequest(res, error.message || "Failed to sell tokens");
     }
   });
 
@@ -3835,7 +3839,7 @@ ${agentOutput}`
       res.json(languages);
     } catch (error) {
       console.error("Error fetching languages:", error);
-      res.status(500).json({ message: "Failed to fetch languages" });
+      sendInternalError(res, "Failed to fetch languages");
     }
   });
 
@@ -3851,7 +3855,7 @@ ${agentOutput}`
       res.json(translations);
     } catch (error) {
       console.error("Error fetching translations:", error);
-      res.status(500).json({ message: "Failed to fetch translations" });
+      sendInternalError(res, "Failed to fetch translations");
     }
   });
 
@@ -3862,7 +3866,7 @@ ${agentOutput}`
       res.json(prefs);
     } catch (error) {
       console.error("Error fetching language preferences:", error);
-      res.status(500).json({ message: "Failed to fetch language preferences" });
+      sendInternalError(res, "Failed to fetch language preferences");
     }
   });
 
@@ -3873,7 +3877,7 @@ ${agentOutput}`
       res.json(prefs);
     } catch (error) {
       console.error("Error setting language preferences:", error);
-      res.status(500).json({ message: "Failed to set language preferences" });
+      sendInternalError(res, "Failed to set language preferences");
     }
   });
 
@@ -3884,7 +3888,7 @@ ${agentOutput}`
       res.json({ language });
     } catch (error) {
       console.error("Error detecting language:", error);
-      res.status(500).json({ message: "Failed to detect language" });
+      sendInternalError(res, "Failed to detect language");
     }
   });
 
@@ -3894,7 +3898,7 @@ ${agentOutput}`
       res.json(stats);
     } catch (error) {
       console.error("Error fetching translation stats:", error);
-      res.status(500).json({ message: "Failed to fetch translation stats" });
+      sendInternalError(res, "Failed to fetch translation stats");
     }
   });
 
@@ -3904,7 +3908,7 @@ ${agentOutput}`
       res.json(missing);
     } catch (error) {
       console.error("Error fetching missing translations:", error);
-      res.status(500).json({ message: "Failed to fetch missing translations" });
+      sendInternalError(res, "Failed to fetch missing translations");
     }
   });
 
@@ -3915,7 +3919,7 @@ ${agentOutput}`
       res.json(translation);
     } catch (error) {
       console.error("Error adding translation:", error);
-      res.status(500).json({ message: "Failed to add translation" });
+      sendInternalError(res, "Failed to add translation");
     }
   });
 
@@ -3926,7 +3930,7 @@ ${agentOutput}`
       res.json(algorithms);
     } catch (error) {
       console.error("Error fetching algorithms:", error);
-      res.status(500).json({ message: "Failed to fetch algorithms" });
+      sendInternalError(res, "Failed to fetch algorithms");
     }
   });
 
@@ -3937,7 +3941,7 @@ ${agentOutput}`
       res.json(dashboard);
     } catch (error) {
       console.error("Error fetching quantum dashboard:", error);
-      res.status(500).json({ message: "Failed to fetch quantum dashboard" });
+      sendInternalError(res, "Failed to fetch quantum dashboard");
     }
   });
 
@@ -3948,7 +3952,7 @@ ${agentOutput}`
       res.json(keys);
     } catch (error) {
       console.error("Error fetching quantum keys:", error);
-      res.status(500).json({ message: "Failed to fetch quantum keys" });
+      sendInternalError(res, "Failed to fetch quantum keys");
     }
   });
 
@@ -3964,14 +3968,14 @@ ${agentOutput}`
       const userId = req.user?.claims?.sub || req.user?.id;
       const parsed = quantumKeySchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid key parameters", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid key parameters", parsed.error.errors);
       }
       const { keyType, algorithm, purpose, expiresInDays } = parsed.data;
       const key = await quantumEncryptionService.generateKeyPair(userId, keyType, algorithm, purpose, expiresInDays);
       res.json({ id: key.id, fingerprint: key.keyFingerprint, algorithm: key.algorithm, status: key.status });
     } catch (error) {
       console.error("Error generating quantum key:", error);
-      res.status(500).json({ message: "Failed to generate quantum key" });
+      sendInternalError(res, "Failed to generate quantum key");
     }
   });
 
@@ -3986,14 +3990,14 @@ ${agentOutput}`
       const userId = req.user?.claims?.sub || req.user?.id;
       const parsed = quantumEncryptSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid encryption request", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid encryption request", parsed.error.errors);
       }
       const { dataType, plaintext, keyId } = parsed.data;
       const encrypted = await quantumEncryptionService.encryptData(userId, dataType, plaintext, keyId);
       res.json({ id: encrypted.id, dataType: encrypted.dataType, algorithm: encrypted.algorithm });
     } catch (error: any) {
       console.error("Error encrypting data:", error);
-      res.status(400).json({ message: error.message || "Failed to encrypt data" });
+      sendBadRequest(res, error.message || "Failed to encrypt data");
     }
   });
 
@@ -4004,7 +4008,7 @@ ${agentOutput}`
       res.json({ plaintext });
     } catch (error: any) {
       console.error("Error decrypting data:", error);
-      res.status(400).json({ message: error.message || "Failed to decrypt data" });
+      sendBadRequest(res, error.message || "Failed to decrypt data");
     }
   });
 
@@ -4015,7 +4019,7 @@ ${agentOutput}`
       res.json(data.map(d => ({ id: d.id, dataType: d.dataType, algorithm: d.algorithm, createdAt: d.createdAt })));
     } catch (error) {
       console.error("Error fetching encrypted data:", error);
-      res.status(500).json({ message: "Failed to fetch encrypted data" });
+      sendInternalError(res, "Failed to fetch encrypted data");
     }
   });
 
@@ -4031,7 +4035,7 @@ ${agentOutput}`
       });
     } catch (error: any) {
       console.error("Error rotating key:", error);
-      res.status(400).json({ message: error.message || "Failed to rotate key" });
+      sendBadRequest(res, error.message || "Failed to rotate key");
     }
   });
 
@@ -4041,7 +4045,7 @@ ${agentOutput}`
       res.json({ message: "Key revoked" });
     } catch (error) {
       console.error("Error revoking key:", error);
-      res.status(500).json({ message: "Failed to revoke key" });
+      sendInternalError(res, "Failed to revoke key");
     }
   });
 
@@ -4052,7 +4056,7 @@ ${agentOutput}`
       res.json(history);
     } catch (error) {
       console.error("Error fetching rotation history:", error);
-      res.status(500).json({ message: "Failed to fetch rotation history" });
+      sendInternalError(res, "Failed to fetch rotation history");
     }
   });
 
@@ -4067,7 +4071,7 @@ ${agentOutput}`
       const session = await collaborationService.createSession(userId, name, swarmId, bountyId);
       res.json(session);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4077,17 +4081,17 @@ ${agentOutput}`
       const sessions = await collaborationService.getUserSessions(userId);
       res.json(sessions);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch sessions" });
+      sendInternalError(res, "Failed to fetch sessions");
     }
   });
 
   app.get("/api/collaboration/sessions/:id", hybridAuth, async (req: any, res) => {
     try {
       const session = await collaborationService.getSession(parseInt(req.params.id));
-      if (!session) return res.status(404).json({ message: "Session not found" });
+      if (!session) return sendNotFound(res, "Session not found");
       res.json(session);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch session" });
+      sendInternalError(res, "Failed to fetch session");
     }
   });
 
@@ -4099,7 +4103,7 @@ ${agentOutput}`
       );
       res.json(task);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4108,7 +4112,7 @@ ${agentOutput}`
       const tasks = await collaborationService.getSessionTasks(parseInt(req.params.id));
       res.json(tasks);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch tasks" });
+      sendInternalError(res, "Failed to fetch tasks");
     }
   });
 
@@ -4117,7 +4121,7 @@ ${agentOutput}`
       const task = await collaborationService.startTask(parseInt(req.params.id));
       res.json(task);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4127,7 +4131,7 @@ ${agentOutput}`
       const task = await collaborationService.completeTask(parseInt(req.params.id), outputData);
       res.json(task);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4139,7 +4143,7 @@ ${agentOutput}`
       );
       res.json(message);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4148,7 +4152,7 @@ ${agentOutput}`
       const messages = await collaborationService.getMessages(parseInt(req.params.id));
       res.json(messages);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch messages" });
+      sendInternalError(res, "Failed to fetch messages");
     }
   });
 
@@ -4157,7 +4161,7 @@ ${agentOutput}`
       await collaborationService.autoDistributeTasks(parseInt(req.params.id));
       res.json({ message: "Tasks distributed" });
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4171,17 +4175,17 @@ ${agentOutput}`
       const run = await aiExecutionService.executeAgent(agentId, input, { bountyId, submissionId, sessionId, model });
       res.json(run);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
   app.get("/api/execution/runs/:id", hybridAuth, async (req: any, res) => {
     try {
       const run = await aiExecutionService.getRunStatus(parseInt(req.params.id));
-      if (!run) return res.status(404).json({ message: "Run not found" });
+      if (!run) return sendNotFound(res, "Run not found");
       res.json(run);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch run" });
+      sendInternalError(res, "Failed to fetch run");
     }
   });
 
@@ -4190,7 +4194,7 @@ ${agentOutput}`
       const runs = await aiExecutionService.getAgentRuns(parseInt(req.params.agentId));
       res.json(runs);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch runs" });
+      sendInternalError(res, "Failed to fetch runs");
     }
   });
 
@@ -4200,7 +4204,7 @@ ${agentOutput}`
       const stats = await aiExecutionService.getExecutionStats(agentId ? parseInt(agentId as string) : undefined);
       res.json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -4209,7 +4213,7 @@ ${agentOutput}`
       await aiExecutionService.cancelRun(parseInt(req.params.id));
       res.json({ message: "Run cancelled" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to cancel run" });
+      sendInternalError(res, "Failed to cancel run");
     }
   });
 
@@ -4223,17 +4227,17 @@ ${agentOutput}`
       const audit = await verificationService.verifySubmission(submissionId, bountyId);
       res.json(audit);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
   app.get("/api/verification/audits/:id", hybridAuth, async (req: any, res) => {
     try {
       const audit = await verificationService.getAudit(parseInt(req.params.id));
-      if (!audit) return res.status(404).json({ message: "Audit not found" });
+      if (!audit) return sendNotFound(res, "Audit not found");
       res.json(audit);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch audit" });
+      sendInternalError(res, "Failed to fetch audit");
     }
   });
 
@@ -4242,7 +4246,7 @@ ${agentOutput}`
       const audits = await verificationService.getSubmissionAudits(parseInt(req.params.submissionId));
       res.json(audits);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch audits" });
+      sendInternalError(res, "Failed to fetch audits");
     }
   });
 
@@ -4251,7 +4255,7 @@ ${agentOutput}`
       const audits = await verificationService.getPendingReviews();
       res.json(audits);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch pending reviews" });
+      sendInternalError(res, "Failed to fetch pending reviews");
     }
   });
 
@@ -4262,7 +4266,7 @@ ${agentOutput}`
       const audit = await verificationService.addHumanReview(parseInt(req.params.id), userId, notes, decision);
       res.json(audit);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4271,7 +4275,7 @@ ${agentOutput}`
       const stats = await verificationService.getVerificationStats();
       res.json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -4287,7 +4291,7 @@ ${agentOutput}`
       }
       res.json(rep);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch reputation" });
+      sendInternalError(res, "Failed to fetch reputation");
     }
   });
 
@@ -4296,7 +4300,7 @@ ${agentOutput}`
       const history = await reputationService.getReputationHistory(parseInt(req.params.agentId));
       res.json(history);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch history" });
+      sendInternalError(res, "Failed to fetch history");
     }
   });
 
@@ -4306,7 +4310,7 @@ ${agentOutput}`
       const leaderboard = await reputationService.getLeaderboard(limit ? parseInt(limit as string) : 20);
       res.json(leaderboard);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch leaderboard" });
+      sendInternalError(res, "Failed to fetch leaderboard");
     }
   });
 
@@ -4315,7 +4319,7 @@ ${agentOutput}`
       const agents = await reputationService.getAgentsByTier(req.params.tier as any);
       res.json(agents);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch agents" });
+      sendInternalError(res, "Failed to fetch agents");
     }
   });
 
@@ -4324,7 +4328,7 @@ ${agentOutput}`
       const rep = await reputationService.recalculateReputation(parseInt(req.params.agentId));
       res.json(rep);
     } catch (error) {
-      res.status(500).json({ message: "Failed to recalculate" });
+      sendInternalError(res, "Failed to recalculate");
     }
   });
 
@@ -4339,7 +4343,7 @@ ${agentOutput}`
       const session = await liveChatService.createSession(userId, subject, category, priority);
       res.json(session);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4349,17 +4353,17 @@ ${agentOutput}`
       const sessions = await liveChatService.getUserSessions(userId);
       res.json(sessions);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch sessions" });
+      sendInternalError(res, "Failed to fetch sessions");
     }
   });
 
   app.get("/api/chat/sessions/:id", hybridAuth, async (req: any, res) => {
     try {
       const session = await liveChatService.getSession(parseInt(req.params.id));
-      if (!session) return res.status(404).json({ message: "Session not found" });
+      if (!session) return sendNotFound(res, "Session not found");
       res.json(session);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch session" });
+      sendInternalError(res, "Failed to fetch session");
     }
   });
 
@@ -4368,7 +4372,7 @@ ${agentOutput}`
       const messages = await liveChatService.getSessionMessages(parseInt(req.params.id));
       res.json(messages);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch messages" });
+      sendInternalError(res, "Failed to fetch messages");
     }
   });
 
@@ -4381,7 +4385,7 @@ ${agentOutput}`
       );
       res.json(message);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4391,7 +4395,7 @@ ${agentOutput}`
       const session = await liveChatService.resolveSession(parseInt(req.params.id), satisfaction);
       res.json(session);
     } catch (error) {
-      res.status(500).json({ message: "Failed to resolve session" });
+      sendInternalError(res, "Failed to resolve session");
     }
   });
 
@@ -4400,7 +4404,7 @@ ${agentOutput}`
       const sessions = await liveChatService.getWaitingSessions();
       res.json(sessions);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch waiting sessions" });
+      sendInternalError(res, "Failed to fetch waiting sessions");
     }
   });
 
@@ -4409,7 +4413,7 @@ ${agentOutput}`
       const stats = await liveChatService.getChatStats();
       res.json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -4423,7 +4427,7 @@ ${agentOutput}`
       const progress = await onboardingService.getProgress(userId);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch progress" });
+      sendInternalError(res, "Failed to fetch progress");
     }
   });
 
@@ -4433,7 +4437,7 @@ ${agentOutput}`
       const progress = await onboardingService.initializeOnboarding(userId);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ message: "Failed to initialize onboarding" });
+      sendInternalError(res, "Failed to initialize onboarding");
     }
   });
 
@@ -4444,7 +4448,7 @@ ${agentOutput}`
       const progress = await onboardingService.setRole(userId, role);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ message: "Failed to set role" });
+      sendInternalError(res, "Failed to set role");
     }
   });
 
@@ -4454,7 +4458,7 @@ ${agentOutput}`
       const progress = await onboardingService.completeStep(userId, req.params.stepId);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ message: "Failed to complete step" });
+      sendInternalError(res, "Failed to complete step");
     }
   });
 
@@ -4464,7 +4468,7 @@ ${agentOutput}`
       const progress = await onboardingService.skipStep(userId, req.params.stepId);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ message: "Failed to skip step" });
+      sendInternalError(res, "Failed to skip step");
     }
   });
 
@@ -4474,7 +4478,7 @@ ${agentOutput}`
       const progress = await onboardingService.resetOnboarding(userId);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ message: "Failed to reset onboarding" });
+      sendInternalError(res, "Failed to reset onboarding");
     }
   });
 
@@ -4488,7 +4492,7 @@ ${agentOutput}`
       const dashboard = await customDashboardService.getFullDashboard(userId);
       res.json(dashboard);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch dashboard" });
+      sendInternalError(res, "Failed to fetch dashboard");
     }
   });
 
@@ -4498,7 +4502,7 @@ ${agentOutput}`
       const widgets = await customDashboardService.getUserWidgets(userId);
       res.json(widgets);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch widgets" });
+      sendInternalError(res, "Failed to fetch widgets");
     }
   });
 
@@ -4509,7 +4513,7 @@ ${agentOutput}`
       const widget = await customDashboardService.addWidget(userId, widgetType, title, size, config);
       res.json(widget);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4518,7 +4522,7 @@ ${agentOutput}`
       const widget = await customDashboardService.updateWidget(parseInt(req.params.id), req.body);
       res.json(widget);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update widget" });
+      sendInternalError(res, "Failed to update widget");
     }
   });
 
@@ -4527,7 +4531,7 @@ ${agentOutput}`
       await customDashboardService.removeWidget(parseInt(req.params.id));
       res.json({ message: "Widget removed" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to remove widget" });
+      sendInternalError(res, "Failed to remove widget");
     }
   });
 
@@ -4538,7 +4542,7 @@ ${agentOutput}`
       await customDashboardService.reorderWidgets(userId, widgetIds);
       res.json({ message: "Widgets reordered" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to reorder" });
+      sendInternalError(res, "Failed to reorder");
     }
   });
 
@@ -4550,7 +4554,7 @@ ${agentOutput}`
       const dashboard = await customDashboardService.getFullDashboard(userId);
       res.json(dashboard);
     } catch (error) {
-      res.status(500).json({ message: "Failed to initialize dashboard" });
+      sendInternalError(res, "Failed to initialize dashboard");
     }
   });
 
@@ -4560,7 +4564,7 @@ ${agentOutput}`
       const widgets = customDashboardService.getWidgetDefinitions(role as any);
       res.json(widgets);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch widgets" });
+      sendInternalError(res, "Failed to fetch widgets");
     }
   });
 
@@ -4573,7 +4577,7 @@ ${agentOutput}`
       const tiers = enterpriseTierService.getTierConfigs();
       res.json(tiers);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch tiers" });
+      sendInternalError(res, "Failed to fetch tiers");
     }
   });
 
@@ -4583,7 +4587,7 @@ ${agentOutput}`
       const sub = await enterpriseTierService.getSubscription(userId);
       res.json(sub || { tier: "starter", status: "none" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch subscription" });
+      sendInternalError(res, "Failed to fetch subscription");
     }
   });
 
@@ -4594,7 +4598,7 @@ ${agentOutput}`
       const sub = await enterpriseTierService.createSubscription(userId, tier, stripeSubscriptionId);
       res.json(sub);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4605,7 +4609,7 @@ ${agentOutput}`
       const sub = await enterpriseTierService.upgradeTier(userId, tier, stripeSubscriptionId);
       res.json(sub);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4615,7 +4619,7 @@ ${agentOutput}`
       const usage = await enterpriseTierService.getUsageStats(userId);
       res.json(usage);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch usage" });
+      sendInternalError(res, "Failed to fetch usage");
     }
   });
 
@@ -4625,7 +4629,7 @@ ${agentOutput}`
       const limit = await enterpriseTierService.checkLimit(userId, req.params.type as any);
       res.json(limit);
     } catch (error) {
-      res.status(500).json({ message: "Failed to check limit" });
+      sendInternalError(res, "Failed to check limit");
     }
   });
 
@@ -4635,7 +4639,7 @@ ${agentOutput}`
       const sub = await enterpriseTierService.cancelSubscription(userId);
       res.json(sub);
     } catch (error) {
-      res.status(500).json({ message: "Failed to cancel" });
+      sendInternalError(res, "Failed to cancel");
     }
   });
 
@@ -4648,7 +4652,7 @@ ${agentOutput}`
       const configs = await maxTierSandboxService.getAllConfigurations();
       res.json(configs);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch configurations" });
+      sendInternalError(res, "Failed to fetch configurations");
     }
   });
 
@@ -4657,7 +4661,7 @@ ${agentOutput}`
       const config = await maxTierSandboxService.getDefaultConfiguration();
       res.json(config);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch default configuration" });
+      sendInternalError(res, "Failed to fetch default configuration");
     }
   });
 
@@ -4676,12 +4680,12 @@ ${agentOutput}`
     try {
       const parsed = sandboxConfigSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid configuration", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid configuration", parsed.error.errors);
       }
       const config = await maxTierSandboxService.createConfiguration(parsed.data);
       res.json(config);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4697,7 +4701,7 @@ ${agentOutput}`
     try {
       const parsed = sandboxExecuteSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid execution request", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid execution request", parsed.error.errors);
       }
       const { code, input, agentId, executionId, configId } = parsed.data;
       const result = await maxTierSandboxService.executeWithMonitoring(
@@ -4705,7 +4709,7 @@ ${agentOutput}`
       );
       res.json(result);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4717,12 +4721,12 @@ ${agentOutput}`
     try {
       const parsed = sandboxScanSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid scan request", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid scan request", parsed.error.errors);
       }
       const result = await maxTierSandboxService.scanCodeSecurity(parsed.data.code);
       res.json(result);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4732,17 +4736,17 @@ ${agentOutput}`
       const sessions = await maxTierSandboxService.getRecentSessions(limit);
       res.json(sessions);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch sessions" });
+      sendInternalError(res, "Failed to fetch sessions");
     }
   });
 
   app.get("/api/sandbox/sessions/:sessionId", hybridAuth, async (req, res) => {
     try {
       const session = await maxTierSandboxService.getSessionById(req.params.sessionId);
-      if (!session) return res.status(404).json({ message: "Session not found" });
+      if (!session) return sendNotFound(res, "Session not found");
       res.json(session);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch session" });
+      sendInternalError(res, "Failed to fetch session");
     }
   });
 
@@ -4752,7 +4756,7 @@ ${agentOutput}`
       const violations = await maxTierSandboxService.getSecurityViolations(resolved);
       res.json(violations);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch violations" });
+      sendInternalError(res, "Failed to fetch violations");
     }
   });
 
@@ -4762,7 +4766,7 @@ ${agentOutput}`
       const anomalies = await maxTierSandboxService.getAnomalies(limit);
       res.json(anomalies);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch anomalies" });
+      sendInternalError(res, "Failed to fetch anomalies");
     }
   });
 
@@ -4771,7 +4775,7 @@ ${agentOutput}`
       const stats = await maxTierSandboxService.getExecutionStats();
       res.json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
+      sendInternalError(res, "Failed to fetch stats");
     }
   });
 
@@ -4780,7 +4784,7 @@ ${agentOutput}`
       const rules = await maxTierSandboxService.getToolProxyRules();
       res.json(rules);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch proxy rules" });
+      sendInternalError(res, "Failed to fetch proxy rules");
     }
   });
 
@@ -4799,12 +4803,12 @@ ${agentOutput}`
     try {
       const parsed = proxyRuleSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid proxy rule", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid proxy rule", parsed.error.errors);
       }
       const rule = await maxTierSandboxService.createToolProxyRule(parsed.data);
       res.json(rule);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4819,13 +4823,13 @@ ${agentOutput}`
     try {
       const parsed = blockchainProofSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid proof request", errors: parsed.error.errors });
+        return sendValidationError(res, "Invalid proof request", parsed.error.errors);
       }
       const { executionId, network, inputHash, outputHash } = parsed.data;
       const proof = await maxTierSandboxService.createBlockchainProof(executionId, network, inputHash, outputHash);
       res.json(proof);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      sendBadRequest(res, error.message);
     }
   });
 
@@ -4834,7 +4838,7 @@ ${agentOutput}`
       const proofs = await maxTierSandboxService.getBlockchainProofs(parseInt(req.params.executionId));
       res.json(proofs);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch proofs" });
+      sendInternalError(res, "Failed to fetch proofs");
     }
   });
 
@@ -4846,7 +4850,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
       
       let profile = await storage.getUserProfile(userId);
@@ -4862,7 +4866,7 @@ ${agentOutput}`
       res.json(profile);
     } catch (error) {
       console.error("Error fetching profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
+      sendInternalError(res, "Failed to fetch profile");
     }
   });
 
@@ -4870,7 +4874,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
       
       const { role, companyName, bio } = req.body;
@@ -4884,7 +4888,7 @@ ${agentOutput}`
       res.json(profile);
     } catch (error) {
       console.error("Error updating profile:", error);
-      res.status(500).json({ message: "Failed to update profile" });
+      sendInternalError(res, "Failed to update profile");
     }
   });
 
@@ -4892,7 +4896,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
       
       // Get bounties posted by user
@@ -4917,7 +4921,7 @@ ${agentOutput}`
       });
     } catch (error) {
       console.error("Error fetching profile stats:", error);
-      res.status(500).json({ message: "Failed to fetch profile stats" });
+      sendInternalError(res, "Failed to fetch profile stats");
     }
   });
 
@@ -4929,7 +4933,7 @@ ${agentOutput}`
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
+        return sendUnauthorized(res, "Authentication required");
       }
       
       // Get user stats for achievement calculation
@@ -5017,7 +5021,7 @@ ${agentOutput}`
       res.json(achievements);
     } catch (error) {
       console.error("Error fetching achievements:", error);
-      res.status(500).json({ message: "Failed to fetch achievements" });
+      sendInternalError(res, "Failed to fetch achievements");
     }
   });
 
@@ -5032,7 +5036,7 @@ ${agentOutput}`
       res.json(deletions);
     } catch (error) {
       console.error("Error fetching deletion requests:", error);
-      res.status(500).json({ message: "Failed to fetch deletion requests" });
+      sendInternalError(res, "Failed to fetch deletion requests");
     }
   });
 

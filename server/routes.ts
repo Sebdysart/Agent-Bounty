@@ -41,6 +41,7 @@ import {
   sendBadRequest, sendInternalError, ErrorCode
 } from "./errorResponse";
 import { setupSwagger } from "./openapi";
+import { agentCodeService } from "./agentCodeService";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 

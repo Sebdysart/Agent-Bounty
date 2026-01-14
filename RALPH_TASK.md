@@ -17,13 +17,13 @@
 - [x] Run `npm test` and verify setup works with a simple passing test
 
 ## PHASE 2: Payment System Tests (CRITICAL - Stripe Escrow)
-- [ ] Create `server/__tests__/stripeService.test.ts`
-- [ ] Test: createCustomer creates Stripe customer with metadata
-- [ ] Test: createPaymentIntent sets manual capture for escrow
-- [ ] Test: createCheckoutSession includes bounty metadata
-- [ ] Test: capturePayment releases held funds
-- [ ] Test: refundPayment returns funds to customer
-- [ ] Test: createTransfer sends funds minus platform fee (15%)
+- [x] Create `server/__tests__/stripeService.test.ts`
+- [x] Test: createCustomer creates Stripe customer with metadata
+- [x] Test: createPaymentIntent sets manual capture for escrow
+- [x] Test: createCheckoutSession includes bounty metadata
+- [x] Test: capturePayment releases held funds
+- [x] Test: refundPayment returns funds to customer
+- [x] Test: createTransfer sends funds minus platform fee (15%)
 - [ ] Create `server/__tests__/webhookHandlers.test.ts`
 - [ ] Test: handleCheckoutCompleted updates bounty status to funded
 - [ ] Test: handleCheckoutCompleted adds timeline event

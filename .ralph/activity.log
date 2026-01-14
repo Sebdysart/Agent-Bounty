@@ -777,3 +777,39 @@ All error responses now use the standardized format:
   }
 }
 ```
+Done. I've completed the task:
+
+1. **Created `server/logger.ts`** - A structured logging service with:
+   - Request ID tracking using AsyncLocalStorage
+   - Structured JSON log format with timestamp, level, requestId, userId, source, and metadata
+   - Log levels: DEBUG, INFO, WARN, ERROR
+   - HTTP request logging middleware
+   - Request ID middleware that generates UUIDs or uses existing `X-Request-Id` headers for distributed tracing
+   - Sets `X-Request-Id` response header for correlation
+   - Child logger creation with `createLogger(source)`
+
+2. **Updated `server/index.ts`** - Integrated the logging:
+   - Added `requestIdMiddleware` early in the middleware chain
+   - Added `httpLoggerMiddleware` for automatic HTTP request logging
+   - Converted console.log calls to use the structured logger
+   - Maintained backward compatibility with exported `log()` function
+
+3. **Created `server/__tests__/logger.test.ts`** - 17 comprehensive tests covering:
+   - All log levels (debug, info, warn, error)
+   - HTTP logging with method, path, status, duration
+   - Request ID generation and propagation
+   - User ID context tracking
+   - Child logger creation
+
+4. **All 893 tests pass** ✅
+
+5. **Committed**: `Ralph #22: Fix logger test deprecation warnings and update task tracker`
+The structured logging with request IDs task is already complete (from a previous commit). There are no code changes to commit - only activity log changes which don't need committing.
+
+Task complete:
+- Structured logging with request IDs is implemented in `server/logger.ts`
+- Tests are in `server/__tests__/logger.test.ts` (17 tests passing)
+- All 893 tests pass
+- Task already marked `[x]` in RALPH_TASK.md
+- Previous commit `b7e0a25` already recorded this work
+[2026-01-14 01:13:24] ✅ Task DONE!

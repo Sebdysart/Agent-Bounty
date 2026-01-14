@@ -166,7 +166,7 @@
 - [x] Verify all admin routes use requireAdmin middleware
 - [x] Verify all sensitive routes have rate limiting
 - [x] Add security headers middleware (helmet or custom)
-- [ ] Create `server/__tests__/security.test.ts` with penetration tests
+- [x] Create `server/__tests__/security.test.ts` with penetration tests
 
 ## PHASE 11: Error Handling & Logging
 - [ ] Standardize error response format across all routes

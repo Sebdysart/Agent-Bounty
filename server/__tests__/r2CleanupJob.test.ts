@@ -4,29 +4,21 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  extractAgentIdFromKey,
-  extractSubmissionIdFromKey,
-} from "../r2CleanupJob";
 
-// Mock r2Storage
-const mockR2Storage = {
-  isAvailable: vi.fn(),
-  list: vi.fn(),
-  delete: vi.fn(),
-};
-
+// Mock r2Storage before importing the module
 vi.mock("../r2Storage", () => ({
-  r2Storage: mockR2Storage,
+  r2Storage: {
+    isAvailable: vi.fn(),
+    list: vi.fn(),
+    delete: vi.fn(),
+  },
 }));
 
 // Mock database
-const mockDb = {
-  select: vi.fn(),
-};
-
 vi.mock("../db", () => ({
-  db: mockDb,
+  db: {
+    select: vi.fn(),
+  },
 }));
 
 // Mock drizzle-orm
@@ -50,13 +42,15 @@ describe("R2 Cleanup Job", () => {
   });
 
   describe("extractAgentIdFromKey", () => {
-    it("should extract agent ID from valid key", () => {
+    it("should extract agent ID from valid key", async () => {
+      const { extractAgentIdFromKey } = await import("../r2CleanupJob");
       expect(extractAgentIdFromKey("agents/123/source.js")).toBe("123");
       expect(extractAgentIdFromKey("agents/456/config.json")).toBe("456");
       expect(extractAgentIdFromKey("agents/789/")).toBe("789");
     });
 
-    it("should return null for invalid keys", () => {
+    it("should return null for invalid keys", async () => {
+      const { extractAgentIdFromKey } = await import("../r2CleanupJob");
       expect(extractAgentIdFromKey("submissions/123/file.js")).toBeNull();
       expect(extractAgentIdFromKey("agents/abc/source.js")).toBeNull();
       expect(extractAgentIdFromKey("other/123/file.js")).toBeNull();
@@ -65,13 +59,15 @@ describe("R2 Cleanup Job", () => {
   });
 
   describe("extractSubmissionIdFromKey", () => {
-    it("should extract submission ID from valid key", () => {
+    it("should extract submission ID from valid key", async () => {
+      const { extractSubmissionIdFromKey } = await import("../r2CleanupJob");
       expect(extractSubmissionIdFromKey("submissions/123/artifacts/output.json")).toBe("123");
       expect(extractSubmissionIdFromKey("submissions/456/file.txt")).toBe("456");
       expect(extractSubmissionIdFromKey("submissions/789/")).toBe("789");
     });
 
-    it("should return null for invalid keys", () => {
+    it("should return null for invalid keys", async () => {
+      const { extractSubmissionIdFromKey } = await import("../r2CleanupJob");
       expect(extractSubmissionIdFromKey("agents/123/source.js")).toBeNull();
       expect(extractSubmissionIdFromKey("submissions/abc/file.js")).toBeNull();
       expect(extractSubmissionIdFromKey("other/123/file.js")).toBeNull();
@@ -81,20 +77,21 @@ describe("R2 Cleanup Job", () => {
 
   describe("runR2CleanupJob", () => {
     it("should return early when R2 is not configured", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(false);
+      const { r2Storage } = await import("../r2Storage");
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(false);
 
-      // Re-import to get fresh module with mocks
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob();
 
       expect(result.success).toBe(false);
       expect(result.errors).toContain("R2 storage is not configured");
-      expect(mockR2Storage.list).not.toHaveBeenCalled();
+      expect(r2Storage.list).not.toHaveBeenCalled();
     });
 
     it("should handle empty R2 storage", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.list.mockResolvedValue([]);
+      const { r2Storage } = await import("../r2Storage");
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list).mockResolvedValue([]);
 
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob();
@@ -107,8 +104,11 @@ describe("R2 Cleanup Job", () => {
     });
 
     it("should identify orphaned agent files", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.list
+      const { r2Storage } = await import("../r2Storage");
+      const { db } = await import("../db");
+
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list)
         .mockResolvedValueOnce([
           "agents/1/source.js",
           "agents/2/source.js",
@@ -117,11 +117,11 @@ describe("R2 Cleanup Job", () => {
         .mockResolvedValueOnce([]);
 
       // Mock DB to return only agents 1 and 2 exist
-      mockDb.select.mockReturnValue({
+      vi.mocked(db.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
         }),
-      });
+      } as any);
 
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob({ dryRun: true });
@@ -131,39 +131,45 @@ describe("R2 Cleanup Job", () => {
     });
 
     it("should delete orphaned files when not in dry run mode", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.list
+      const { r2Storage } = await import("../r2Storage");
+      const { db } = await import("../db");
+
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list)
         .mockResolvedValueOnce(["agents/999/source.js"])
         .mockResolvedValueOnce([]);
-      mockR2Storage.delete.mockResolvedValue(true);
+      vi.mocked(r2Storage.delete).mockResolvedValue(true);
 
       // Mock DB to return empty (no matching agents)
-      mockDb.select.mockReturnValue({
+      vi.mocked(db.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
-      });
+      } as any);
 
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob({ dryRun: false });
 
       expect(result.orphanedAgentFiles).toBe(1);
       expect(result.deletedAgentFiles).toBe(1);
-      expect(mockR2Storage.delete).toHaveBeenCalledWith("agents/999/source.js");
+      expect(r2Storage.delete).toHaveBeenCalledWith("agents/999/source.js");
     });
 
     it("should handle delete failures gracefully", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.list
+      const { r2Storage } = await import("../r2Storage");
+      const { db } = await import("../db");
+
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list)
         .mockResolvedValueOnce(["agents/999/source.js"])
         .mockResolvedValueOnce([]);
-      mockR2Storage.delete.mockResolvedValue(false);
+      vi.mocked(r2Storage.delete).mockResolvedValue(false);
 
-      mockDb.select.mockReturnValue({
+      vi.mocked(db.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
-      });
+      } as any);
 
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob({ dryRun: false });
@@ -174,8 +180,11 @@ describe("R2 Cleanup Job", () => {
     });
 
     it("should respect maxFilesToDelete limit", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.list
+      const { r2Storage } = await import("../r2Storage");
+      const { db } = await import("../db");
+
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list)
         .mockResolvedValueOnce([
           "agents/1/source.js",
           "agents/2/source.js",
@@ -183,13 +192,13 @@ describe("R2 Cleanup Job", () => {
           "agents/4/source.js",
         ])
         .mockResolvedValueOnce([]);
-      mockR2Storage.delete.mockResolvedValue(true);
+      vi.mocked(r2Storage.delete).mockResolvedValue(true);
 
-      mockDb.select.mockReturnValue({
+      vi.mocked(db.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
-      });
+      } as any);
 
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob({ dryRun: false, maxFilesToDelete: 2 });
@@ -199,13 +208,45 @@ describe("R2 Cleanup Job", () => {
     });
 
     it("should track duration", async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.list.mockResolvedValue([]);
+      const { r2Storage } = await import("../r2Storage");
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list).mockResolvedValue([]);
 
       const { runR2CleanupJob } = await import("../r2CleanupJob");
       const result = await runR2CleanupJob();
 
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it("should identify orphaned submission files", async () => {
+      const { r2Storage } = await import("../r2Storage");
+      const { db } = await import("../db");
+
+      vi.mocked(r2Storage.isAvailable).mockReturnValue(true);
+      vi.mocked(r2Storage.list)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          "submissions/1/artifacts/out.json",
+          "submissions/2/artifacts/out.json",
+          "submissions/999/artifacts/out.json",
+        ]);
+
+      // First call for agents (empty), second for submissions
+      let callCount = 0;
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockImplementation(() => {
+            callCount++;
+            if (callCount === 1) return Promise.resolve([{ id: 1 }, { id: 2 }]);
+            return Promise.resolve([]);
+          }),
+        }),
+      } as any);
+
+      const { runR2CleanupJob } = await import("../r2CleanupJob");
+      const result = await runR2CleanupJob({ dryRun: true });
+
+      expect(result.orphanedSubmissionFiles).toBe(1); // Submission 999 is orphaned
     });
   });
 });

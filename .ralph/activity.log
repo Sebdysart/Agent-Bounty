@@ -695,3 +695,20 @@ Done. I've completed the task:
 [2026-01-14 15:39:34] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 15:39:35] 🎯 Task: Implement cleanup job for orphaned files...
 [2026-01-14 15:39:35] 🤖 Claude working (180s max)...
+Task complete. Here's a summary:
+
+## Summary
+
+The task "Migrate agent code storage from DB blob to R2" was **already completed** in previous commits (d5878cb, 9c4fa37). The migration implementation includes:
+
+1. **R2 Storage Client** (`server/r2Storage.ts`) - S3-compatible client for Cloudflare R2
+2. **Agent Code Service** (`server/agentCodeService.ts`) - Service layer for storing/retrieving agent code with R2/DB fallback
+3. **Routes Integration** (`server/routes.ts`) - Agent upload endpoints use R2 for `full_code` agents
+4. **Execution Service** (`server/executionService.ts`) - Retrieves code from R2 when executing agents
+5. **Migration Script** (`script/migrateAgentsToR2.ts`) - Migrates existing agents to R2
+
+In this session, I:
+- Fixed test mocking issues (vi.hoisted pattern for upstashSessionStore and agentCodeService tests)
+- Added R2 cleanup job for orphaned files
+- Ran all tests - 1182 tests pass
+- Committed the fixes

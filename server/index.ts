@@ -11,6 +11,7 @@ import { securityHeaders } from './securityHeaders';
 import { AppError, ErrorCode, sendError } from './errorResponse';
 import { logger, requestIdMiddleware, httpLoggerMiddleware, createLogger } from './logger';
 import { initErrorTracking, errorTrackingMiddleware } from './errorTracking';
+import { sanitizeErrorMessage } from './errorSanitizer';
 
 const app = express();
 
@@ -132,7 +133,9 @@ export function log(message: string, source = "express") {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Sanitize error message to prevent sensitive data leakage
+    const rawMessage = err.message || "Internal Server Error";
+    const message = sanitizeErrorMessage(rawMessage);
     const code = err.code || (err instanceof AppError ? err.code : ErrorCode.INTERNAL_ERROR);
     const details = err.details;
     const retryAfter = err.retryAfter;

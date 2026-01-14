@@ -857,3 +857,14 @@ Done. I've completed the task:
 5. **Committed** - Changes committed to git
 The task is complete. The error tracking integration (Sentry-ready) was already committed in `be2c934`, and I added a fix for the sampling rate bug in `24f1e3b`. All 929 tests pass, the RALPH_TASK.md is updated with `[x]`, and the changes are committed.
 [2026-01-14 01:20:39] ✅ Task DONE!
+[2026-01-14 01:20:41] 💤 Cooling down 10s...
+[2026-01-14 01:20:51] ⚠️ Low memory (272MB) - forcing cleanup
+[2026-01-14 01:20:51] 🧹 Cleaning up memory...
+[2026-01-14 01:21:12] 
+[2026-01-14 01:21:12] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 01:21:12] 📍 ITERATION 25/50 | ✅145 | ⏳8 | 💾272MB free
+[2026-01-14 01:21:12] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 01:21:13] 🎯 Task: Ensure no sensitive data in error messages...
+[2026-01-14 01:21:13] 🤖 Claude working (180s max)...
+[2026-01-14 01:24:20] ⏰ Timeout - killing process
+[2026-01-14 01:24:20] ⚠️ Not done - will retry

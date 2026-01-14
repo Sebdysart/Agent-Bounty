@@ -1,4 +1,5 @@
 import { Response } from "express";
+import { sanitizeErrorMessage, sanitizeErrorDetails } from "./errorSanitizer";
 
 /**
  * Standardized error codes used across the application
@@ -69,6 +70,7 @@ export interface StandardSuccessResponse<T = unknown> {
 
 /**
  * Send a standardized error response
+ * Messages and details are automatically sanitized to prevent sensitive data leakage
  */
 export function sendError(
   res: Response,
@@ -78,16 +80,20 @@ export function sendError(
   details?: unknown,
   retryAfter?: number
 ): Response {
+  // Sanitize message to prevent sensitive data leakage
+  const sanitizedMessage = sanitizeErrorMessage(message);
+
   const response: StandardErrorResponse = {
     success: false,
     error: {
       code,
-      message,
+      message: sanitizedMessage,
     },
   };
 
   if (details !== undefined) {
-    response.error.details = details;
+    // Sanitize details to prevent sensitive data leakage
+    response.error.details = sanitizeErrorDetails(details);
   }
 
   if (retryAfter !== undefined) {

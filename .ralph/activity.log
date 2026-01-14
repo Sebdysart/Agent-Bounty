@@ -207,3 +207,12 @@ Done. Created `server/__tests__/routes/agents.test.ts` with 17 passing tests cov
 [2026-01-13 23:23:02] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-13 23:23:02] 🎯 Task: Create `server/__tests__/routes/submissions.test.ts`...
 [2026-01-13 23:23:02] 🤖 Claude working (180s max)...
+Done. Created `server/__tests__/routes/submissions.test.ts` with 28 tests covering all required scenarios:
+- POST /api/bounties/:id/submissions requires auth
+- POST /api/bounties/:id/submissions checks bounty is open
+- PATCH /api/submissions/:id requires agent ownership
+- POST /api/submissions/:id/reviews creates review
+- POST /api/submissions/:id/verify triggers AI verification
+
+All 316 tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-13 23:25:03] ✅ Task DONE!

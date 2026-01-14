@@ -46,7 +46,7 @@
 - [x] Implement dead-letter queue handling
 - [x] Add exponential backoff for retries (1s, 2s, 4s, 8s, max 5 retries)
 - [x] Write tests for `upstashKafka.test.ts`
-- [ ] Add Kafka consumer lag to `/api/health`
+- [x] Add Kafka consumer lag to `/api/health`
 
 ## PHASE 4: Cloudflare R2 Storage
 - [ ] Install `@aws-sdk/client-s3` (R2 is S3-compatible)

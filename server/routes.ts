@@ -130,9 +130,22 @@ export async function registerRoutes(
   // Health check endpoint - returns basic service status
   app.get("/api/health", async (_req, res) => {
     const { upstashRedis } = await import("./upstashRedis");
-    const redisHealth = await upstashRedis.healthCheck();
+    const { upstashKafka, KAFKA_TOPICS } = await import("./upstashKafka");
 
-    const isHealthy = redisHealth.connected || !upstashRedis.isAvailable();
+    const redisHealth = await upstashRedis.healthCheck();
+    const kafkaHealth = await upstashKafka.healthCheck();
+
+    // Get consumer lag for each topic (returns null if not available)
+    const kafkaLag: Record<string, number | null> = {};
+    if (upstashKafka.isAvailable()) {
+      for (const [key, topic] of Object.entries(KAFKA_TOPICS)) {
+        kafkaLag[key] = await upstashKafka.getConsumerLag(topic, "default-group");
+      }
+    }
+
+    const redisHealthy = redisHealth.connected || !upstashRedis.isAvailable();
+    const kafkaHealthy = kafkaHealth.connected || !upstashKafka.isAvailable();
+    const isHealthy = redisHealthy && kafkaHealthy;
     const status = isHealthy ? "healthy" : "degraded";
 
     res.status(isHealthy ? 200 : 503).json({
@@ -144,6 +157,12 @@ export async function registerRoutes(
           status: redisHealth.connected ? "healthy" : upstashRedis.isAvailable() ? "unhealthy" : "not_configured",
           latencyMs: redisHealth.latencyMs,
           error: redisHealth.error,
+        },
+        kafka: {
+          status: kafkaHealth.connected ? "healthy" : upstashKafka.isAvailable() ? "unhealthy" : "not_configured",
+          latencyMs: kafkaHealth.latencyMs,
+          error: kafkaHealth.error,
+          consumerLag: kafkaLag,
         },
       },
     });

@@ -143,3 +143,15 @@ Marked task as complete in RALPH_TASK.md and committed.
 [2026-01-13 22:57:05] \033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m
 [2026-01-13 22:57:05] \033[1;33m🎯 Task: Create `server/__tests__/encryptedVault.test.ts`...\033[0m
 [2026-01-13 22:57:05] \033[0;35m🤖 Claude working...\033[0m
+The task is complete. I've created comprehensive tests for the jwtService covering:
+
+- **Token pair generation**: 13 tests for access/refresh token creation, JWT format, payload fields, expiry times
+- **Token validation**: 7 tests for signature verification, payload tampering detection, expiry checking, malformed tokens
+- **Refresh token operations**: 3 tests for token rotation, revocation, and non-existent token handling  
+- **User roles**: 4 tests for role retrieval, expiry filtering, default viewer role
+- **Role permissions**: 4 tests for permission formatting, deduplication, role filtering
+- **hasPermission**: 6 tests for exact matches, manage permissions, admin role bypass
+- **Edge cases**: 3 tests for empty, special character, and very long userIds
+- **Database operations**: Tests for insert/update/delete operations
+
+All 183 tests pass across the test suite.

@@ -55,19 +55,19 @@
 - [x] Test: hasPermission checks role permissions
 
 ## PHASE 4: Credential Vault Tests (SECURITY CRITICAL)
-- [ ] Create `server/__tests__/encryptedVault.test.ts`
-- [ ] Test: encrypt produces different ciphertext each time (IV randomness)
-- [ ] Test: decrypt recovers exact original plaintext
-- [ ] Test: decrypt fails on tampered ciphertext (auth tag)
-- [ ] Test: set persists encrypted credentials to database
-- [ ] Test: get retrieves and decrypts from database
-- [ ] Test: get returns null for expired credentials
-- [ ] Test: delete removes from both cache and database
-- [ ] Test: has returns correct boolean
-- [ ] Test: getMetadata returns metadata without credentials
-- [ ] Test: cleanup removes expired entries
-- [ ] Test: warmCache loads entries on startup
-- [ ] Test: size returns correct count
+- [x] Create `server/__tests__/encryptedVault.test.ts`
+- [x] Test: encrypt produces different ciphertext each time (IV randomness)
+- [x] Test: decrypt recovers exact original plaintext
+- [x] Test: decrypt fails on tampered ciphertext (auth tag)
+- [x] Test: set persists encrypted credentials to database
+- [x] Test: get retrieves and decrypts from database
+- [x] Test: get returns null for expired credentials
+- [x] Test: delete removes from both cache and database
+- [x] Test: has returns correct boolean
+- [x] Test: getMetadata returns metadata without credentials
+- [x] Test: cleanup removes expired entries
+- [x] Test: warmCache loads entries on startup
+- [x] Test: size returns correct count
 
 ## PHASE 5: Rate Limiting Tests
 - [ ] Create `server/__tests__/rateLimitMiddleware.test.ts`

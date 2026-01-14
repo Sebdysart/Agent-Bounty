@@ -934,3 +934,10 @@ All 970 tests pass. Task marked complete in RALPH_TASK.md and committed.
 [2026-01-14 01:30:36] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 01:30:42] 🎯 Task: Add readiness check endpoint /api/ready...
 [2026-01-14 01:30:43] 🤖 Claude working (180s max)...
+Done. Added the `/api/ready` readiness check endpoint that:
+- Checks database connectivity via `SELECT 1` query
+- Returns 200 with `"status": "ready"` when database is accessible
+- Returns 503 with `"status": "not_ready"` when database check fails
+
+All 970 tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 01:33:45] ✅ Task DONE!

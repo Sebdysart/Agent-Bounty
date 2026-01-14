@@ -1051,3 +1051,5 @@ Done. The `/api/docs` endpoint was already implemented in `server/openapi.ts`:
 - Raw OpenAPI spec at `/api/openapi.json`
 - Tests pass (976/976)
 - Task marked complete and committed
+Done. Created `.env.example` with comprehensive documentation for all environment variables found in the codebase, organized by category with clear required/optional markers. Tests pass (976/976), task marked complete in RALPH_TASK.md, and committed.
+[2026-01-14 12:55:23] ✅ Task DONE!

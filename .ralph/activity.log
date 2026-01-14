@@ -1071,3 +1071,5 @@ The Swagger tests I added are there. The task is complete:
 4. **Already committed** - The work was committed in a prior commit (`c1aebfd Ralph #2: Add /api/docs endpoint serving Swagger UI`)
 
 The task is complete. The `/api/docs` endpoint serves Swagger UI with the full OpenAPI 3.0.0 specification.
+Done. Created CONTRIBUTING.md with test instructions, all tests pass (177 tests), marked the task complete in RALPH_TASK.md, and committed.
+[2026-01-14 12:56:21] ✅ Task DONE!

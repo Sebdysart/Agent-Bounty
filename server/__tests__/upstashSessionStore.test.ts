@@ -33,8 +33,6 @@ vi.mock('../upstashRedis', () => ({
 
 import { UpstashSessionStore } from '../upstashSessionStore';
 
-import { upstashRedis } from '../upstashRedis';
-
 describe('UpstashSessionStore', () => {
   let store: UpstashSessionStore;
 
@@ -56,7 +54,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should return false when upstash redis is not available', () => {
-      vi.mocked(upstashRedis.isAvailable).mockReturnValueOnce(false);
+      mockUpstashRedis.isAvailable.mockReturnValueOnce(false);
       expect(UpstashSessionStore.isAvailable()).toBe(false);
     });
   });
@@ -138,7 +136,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should handle missing client', (done) => {
-      vi.mocked(upstashRedis.getClient).mockReturnValueOnce(null);
+      mockUpstashRedis.getClient.mockReturnValueOnce(null);
       const session = { cookie: {} } as Express.SessionData;
 
       store.set('test-sid', session, (err) => {
@@ -151,7 +149,7 @@ describe('UpstashSessionStore', () => {
 
   describe('destroy', () => {
     it('should delete session', (done) => {
-      vi.mocked(upstashRedis.delete).mockResolvedValue(true);
+      mockUpstashRedis.delete.mockResolvedValue(true);
 
       store.destroy('test-sid', (err) => {
         expect(err).toBeUndefined();
@@ -161,7 +159,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should handle errors', (done) => {
-      vi.mocked(upstashRedis.delete).mockRejectedValue(new Error('Delete error'));
+      mockUpstashRedis.delete.mockRejectedValue(new Error('Delete error'));
 
       store.destroy('error-sid', (err) => {
         expect(err).toBeInstanceOf(Error);
@@ -173,7 +171,7 @@ describe('UpstashSessionStore', () => {
 
   describe('touch', () => {
     it('should refresh session TTL', (done) => {
-      vi.mocked(upstashRedis.expire).mockResolvedValue(true);
+      mockUpstashRedis.expire.mockResolvedValue(true);
       const session = { cookie: { maxAge: 3600000 } } as Express.SessionData;
 
       store.touch('test-sid', session, (err) => {
@@ -184,7 +182,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should handle errors', (done) => {
-      vi.mocked(upstashRedis.expire).mockRejectedValue(new Error('Expire error'));
+      mockUpstashRedis.expire.mockRejectedValue(new Error('Expire error'));
       const session = { cookie: {} } as Express.SessionData;
 
       store.touch('error-sid', session, (err) => {
@@ -233,7 +231,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should return empty object when client not available', (done) => {
-      vi.mocked(upstashRedis.getClient).mockReturnValueOnce(null);
+      mockUpstashRedis.getClient.mockReturnValueOnce(null);
 
       store.all((err, sessions) => {
         expect(err).toBeNull();
@@ -267,7 +265,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should return 0 when client not available', (done) => {
-      vi.mocked(upstashRedis.getClient).mockReturnValueOnce(null);
+      mockUpstashRedis.getClient.mockReturnValueOnce(null);
 
       store.length((err, length) => {
         expect(err).toBeNull();
@@ -279,7 +277,7 @@ describe('UpstashSessionStore', () => {
 
   describe('clear', () => {
     it('should clear all sessions', (done) => {
-      vi.mocked(upstashRedis.deleteByPattern).mockResolvedValue(5);
+      mockUpstashRedis.deleteByPattern.mockResolvedValue(5);
 
       store.clear((err) => {
         expect(err).toBeUndefined();
@@ -289,7 +287,7 @@ describe('UpstashSessionStore', () => {
     });
 
     it('should handle errors', (done) => {
-      vi.mocked(upstashRedis.deleteByPattern).mockRejectedValue(new Error('Clear error'));
+      mockUpstashRedis.deleteByPattern.mockRejectedValue(new Error('Clear error'));
 
       store.clear((err) => {
         expect(err).toBeInstanceOf(Error);

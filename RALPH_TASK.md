@@ -61,7 +61,7 @@
 - [ ] Add migration script for existing agents
 - [ ] Implement cleanup job for orphaned files
 - [x] Write tests for `r2Storage.test.ts`
-- [ ] Add R2 connectivity to `/api/health`
+- [x] Add R2 connectivity to `/api/health`
 
 ## PHASE 5: Neon PostgreSQL Optimization
 - [ ] Update DATABASE_URL format for Neon pooler

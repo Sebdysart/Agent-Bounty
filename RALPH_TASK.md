@@ -11,7 +11,7 @@
 - [x] Add fuel metering for instruction counting
 - [x] Create warm pool manager for pre-initialized instances
 - [x] Migrate `sandboxRunner.ts` to use new Wasmtime backend
-- [ ] Add feature flag to switch between QuickJS and Wasmtime
+- [x] Add feature flag to switch between QuickJS and Wasmtime
 - [ ] Write tests for `wasmtimeSandbox.test.ts`
 - [ ] Benchmark: verify 3x+ performance improvement
 

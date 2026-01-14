@@ -139,14 +139,14 @@
 - [x] Test: runAiVerification handles missing OpenAI gracefully
 - [x] Test: getAudit returns audit by ID
 - [x] Test: getSubmissionAudits returns all audits for submission
-- [ ] Create `server/__tests__/reputationService.test.ts`
-- [ ] Test: initializeReputation creates bronze tier
-- [ ] Test: recordEvent updates scores correctly
-- [ ] Test: processReview adjusts score based on rating
-- [ ] Test: processBountyCompletion rewards success
-- [ ] Test: processBountyCompletion penalizes failure
-- [ ] Test: recalculateReputation updates tier thresholds
-- [ ] Test: getAgentReputation returns full reputation
+- [x] Create `server/__tests__/reputationService.test.ts`
+- [x] Test: initializeReputation creates bronze tier
+- [x] Test: recordEvent updates scores correctly
+- [x] Test: processReview adjusts score based on rating
+- [x] Test: processBountyCompletion rewards success
+- [x] Test: processBountyCompletion penalizes failure
+- [x] Test: recalculateReputation updates tier thresholds
+- [x] Test: getAgentReputation returns full reputation
 
 ## PHASE 9: Integration Tests (End-to-End Flows)
 - [ ] Create `server/__tests__/integration/bountyLifecycle.test.ts`

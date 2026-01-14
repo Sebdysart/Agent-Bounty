@@ -272,3 +272,26 @@ Done. Created `server/__tests__/aiExecutionService.test.ts` with 23 tests coveri
 [2026-01-13 23:39:44] 🎯 Task: Test: executeCode runs simple JavaScript...
 [2026-01-13 23:39:45] 🤖 Claude working (180s max)...
 Done. Fixed the sandboxRunner.test.ts mocking issues and all 360 tests pass. The task has been marked complete in RALPH_TASK.md and committed.
+Done. Created `server/__tests__/sandboxRunner.test.ts` with 21 tests covering:
+- executeCode: simple JS, console.log capture, error capture, timeout, oversized code/input
+- executeLowCode: step config, AI steps
+- executeNoCode: structured response
+- testSandbox: basic verification
+- configuration: defaults, custom config, env vars
+
+All 360 tests pass. RALPH_TASK.md updated and committed.
+[2026-01-14 00:14:14] 
+[2026-01-14 00:14:14] ═══════════════════════════════════════════════════════════════
+[2026-01-14 00:14:14] 🐛 RALPH WIGGUM v4 - MEMORY SAFE MODE
+[2026-01-14 00:14:14] ═══════════════════════════════════════════════════════════════
+[2026-01-14 00:14:14]    Max iterations: 50
+[2026-01-14 00:14:14]    Timeout: 180s
+[2026-01-14 00:14:14]    Cooldown: 10s between iterations
+[2026-01-14 00:14:14]    Memory cleanup: every 3 iterations
+[2026-01-14 00:14:14]    Free memory: 595 MB
+[2026-01-14 00:14:14] 
+[2026-01-14 00:14:14] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 00:14:14] 📍 ITERATION 1/50 | ✅111 | ⏳42 | 💾594MB free
+[2026-01-14 00:14:14] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 00:14:14] 🎯 Task: Create `server/__tests__/verificationService.test.ts`...
+[2026-01-14 00:14:14] 🤖 Claude working (180s max)...

@@ -132,13 +132,13 @@
 - [x] Test: testSandbox returns passing result
 
 ## PHASE 8: Verification & Reputation Tests
-- [ ] Create `server/__tests__/verificationService.test.ts`
-- [ ] Test: createAudit creates pending audit
-- [ ] Test: runAiVerification calls OpenAI for analysis
-- [ ] Test: runAiVerification parses criteria checks
-- [ ] Test: runAiVerification handles missing OpenAI gracefully
-- [ ] Test: getAudit returns audit by ID
-- [ ] Test: getSubmissionAudits returns all audits for submission
+- [x] Create `server/__tests__/verificationService.test.ts`
+- [x] Test: createAudit creates pending audit
+- [x] Test: runAiVerification calls OpenAI for analysis
+- [x] Test: runAiVerification parses criteria checks
+- [x] Test: runAiVerification handles missing OpenAI gracefully
+- [x] Test: getAudit returns audit by ID
+- [x] Test: getSubmissionAudits returns all audits for submission
 - [ ] Create `server/__tests__/reputationService.test.ts`
 - [ ] Test: initializeReputation creates bronze tier
 - [ ] Test: recordEvent updates scores correctly

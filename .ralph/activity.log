@@ -878,3 +878,11 @@ The task is complete. The error tracking integration (Sentry-ready) was already 
 [2026-01-14 01:24:51] ⚠️ Retry 2/3
 [2026-01-14 01:24:51] 🎯 Task: Ensure no sensitive data in error messages...
 [2026-01-14 01:24:51] 🤖 Claude working (180s max)...
+Done. Created error sanitization to prevent sensitive data leakage:
+
+- **`server/errorSanitizer.ts`** - Utility to detect and redact sensitive patterns (API keys, tokens, passwords, DB URLs, IPs, JWTs, credit cards, SSNs, file paths)
+- **`server/__tests__/errorSanitizer.test.ts`** - 41 comprehensive tests
+- Updated **`errorResponse.ts`** to auto-sanitize all error messages and details
+- Updated **`index.ts`** global error handler to sanitize messages
+
+All 970 tests pass.

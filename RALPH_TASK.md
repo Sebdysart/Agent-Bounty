@@ -1,94 +1,210 @@
-# 🎯 Ralph Task: Comprehensive Test Coverage for Agent-Bounty
+# 🎯 RALPH TASK: Make Agent-Bounty BULLETPROOF
 
-## Mission
-Add production-grade test coverage to the AI Bounty Marketplace platform.
-Target: 80%+ coverage on critical paths.
-
----
-
-## Phase 1: Test Infrastructure Setup
-- [ ] Install testing dependencies (vitest, supertest, @testing-library/react)
-- [ ] Create vitest.config.ts with proper TypeScript support
-- [ ] Create test setup file with mocks for database and external services
-- [ ] Add test scripts to package.json ("test", "test:watch", "test:coverage")
-- [ ] Create mock factories for User, Bounty, Agent, Submission entities
-
-## Phase 2: Payment System Tests (Critical Path)
-- [ ] Test stripeService.createCustomer()
-- [ ] Test stripeService.createPaymentIntent() with escrow
-- [ ] Test stripeService.capturePayment() for winner payout
-- [ ] Test stripeService.refundPayment() for cancellations
-- [ ] Test stripeService.createCheckoutSession()
-- [ ] Test webhookHandlers.handleCheckoutCompleted()
-- [ ] Test webhookHandlers.handlePaymentSucceeded()
-- [ ] Test webhookHandlers.handleChargeCaptured()
-- [ ] Test webhookHandlers.handleChargeRefunded()
-- [ ] Test full escrow flow: create → fund → complete → release
-
-## Phase 3: Authentication & Authorization Tests
-- [ ] Test JWT token generation and validation
-- [ ] Test requireJWT middleware blocks unauthorized
-- [ ] Test requireRole middleware enforces roles
-- [ ] Test requirePermission middleware checks RBAC
-- [ ] Test hybridAuth accepts both session and JWT
-- [ ] Test requireAdmin blocks non-admin users
-- [ ] Test ownership verification on bounty updates
-- [ ] Test ownership verification on submission updates
-
-## Phase 4: Credential Vault Tests (Security Critical)
-- [ ] Test encrypt() produces different output each time (IV randomness)
-- [ ] Test decrypt() recovers original plaintext
-- [ ] Test encryptedVault.set() persists to database
-- [ ] Test encryptedVault.get() retrieves and decrypts
-- [ ] Test encryptedVault.delete() removes credentials
-- [ ] Test expired credentials are not returned
-- [ ] Test cleanup() removes expired entries
-- [ ] Test warmCache() loads from database on startup
-
-## Phase 5: Core API Endpoint Tests
-- [ ] Test GET /api/bounties returns list
-- [ ] Test POST /api/bounties creates with validation
-- [ ] Test GET /api/bounties/:id returns details + submissions
-- [ ] Test PATCH /api/bounties/:id/status with ownership check
-- [ ] Test POST /api/bounties/:id/fund creates checkout session
-- [ ] Test POST /api/bounties/:id/select-winner updates winner
-- [ ] Test POST /api/bounties/:id/release-payment captures escrow
-- [ ] Test GET /api/agents returns list
-- [ ] Test POST /api/agents creates with validation
-- [ ] Test POST /api/bounties/:id/submissions creates submission
-- [ ] Test PATCH /api/submissions/:id with agent ownership check
-
-## Phase 6: AI Execution Tests
-- [ ] Test aiExecutionService.createExecutionRun()
-- [ ] Test aiExecutionService.executeRun() with mock OpenAI
-- [ ] Test aiExecutionService.executeAgent() end-to-end
-- [ ] Test execution fails gracefully without API key
-- [ ] Test sandboxRunner.executeCode() with simple JS
-- [ ] Test sandboxRunner.executeLowCode() with config
-- [ ] Test sandbox enforces memory limits
-- [ ] Test sandbox enforces timeout limits
-
-## Phase 7: Rate Limiting Tests
-- [ ] Test apiRateLimit allows under limit
-- [ ] Test apiRateLimit blocks over limit (429)
-- [ ] Test authRateLimit has stricter limits
-- [ ] Test rate limit headers are set correctly
-- [ ] Test rate limits reset after window expires
-
-## Phase 8: Integration Tests
-- [ ] Test complete bounty lifecycle: create → fund → submit → verify → complete → payout
-- [ ] Test dispute creation and resolution flow
-- [ ] Test subscription upgrade flow
-- [ ] Test agent upload and publishing flow
+> Mission: Production-ready platform with comprehensive tests, security hardening, and zero gaps.
+> Model: Claude Sonnet 4.5
+> Completion: All checkboxes must be [x] before outputting `<promise>DONE</promise>`
 
 ---
 
-## Completion Criteria
-All checkboxes above must be marked [x] before outputting:
+## PHASE 1: Test Infrastructure Setup
+- [x] Create `vitest.config.ts` with TypeScript and path aliases support
+- [x] Create `server/__tests__/setup.ts` with global test utilities
+- [x] Create `server/__tests__/mocks/database.ts` - mock Drizzle DB
+- [x] Create `server/__tests__/mocks/stripe.ts` - mock Stripe client
+- [x] Create `server/__tests__/mocks/openai.ts` - mock OpenAI client
+- [x] Create `server/__tests__/factories/index.ts` - entity factories (User, Bounty, Agent, Submission)
+- [x] Update `package.json` with test scripts: "test", "test:watch", "test:coverage", "test:ci"
+- [x] Run `npm test` and verify setup works with a simple passing test
+
+## PHASE 2: Payment System Tests (CRITICAL - Stripe Escrow)
+- [ ] Create `server/__tests__/stripeService.test.ts`
+- [ ] Test: createCustomer creates Stripe customer with metadata
+- [ ] Test: createPaymentIntent sets manual capture for escrow
+- [ ] Test: createCheckoutSession includes bounty metadata
+- [ ] Test: capturePayment releases held funds
+- [ ] Test: refundPayment returns funds to customer
+- [ ] Test: createTransfer sends funds minus platform fee (15%)
+- [ ] Create `server/__tests__/webhookHandlers.test.ts`
+- [ ] Test: handleCheckoutCompleted updates bounty status to funded
+- [ ] Test: handleCheckoutCompleted adds timeline event
+- [ ] Test: handlePaymentFailed reverts to pending status
+- [ ] Test: handleChargeCaptured marks payment released
+- [ ] Test: handleChargeCaptured triggers reputation update
+- [ ] Test: handleChargeRefunded cancels bounty
+- [ ] Test: handleSubscriptionUpdated updates user tier
+- [ ] Test: handleSubscriptionDeleted reverts to free tier
+- [ ] Integration test: Full escrow lifecycle (create → fund → complete → release)
+
+## PHASE 3: Authentication & Authorization Tests
+- [ ] Create `server/__tests__/authMiddleware.test.ts`
+- [ ] Test: validateJWT extracts payload from valid token
+- [ ] Test: validateJWT ignores invalid tokens gracefully
+- [ ] Test: requireJWT rejects requests without token (401)
+- [ ] Test: requireJWT rejects expired tokens (401)
+- [ ] Test: requireRole allows matching roles
+- [ ] Test: requireRole blocks non-matching roles (403)
+- [ ] Test: requirePermission checks RBAC correctly
+- [ ] Test: requireAdmin blocks non-admin users
+- [ ] Test: requireAdmin allows ADMIN_USER_IDS env override
+- [ ] Test: hybridAuth accepts session OR JWT
+- [ ] Create `server/__tests__/jwtService.test.ts`
+- [ ] Test: generateTokens creates access and refresh tokens
+- [ ] Test: validateAccessToken verifies signature
+- [ ] Test: validateRefreshToken verifies signature
+- [ ] Test: refreshTokens rotates tokens correctly
+- [ ] Test: hasPermission checks role permissions
+
+## PHASE 4: Credential Vault Tests (SECURITY CRITICAL)
+- [ ] Create `server/__tests__/encryptedVault.test.ts`
+- [ ] Test: encrypt produces different ciphertext each time (IV randomness)
+- [ ] Test: decrypt recovers exact original plaintext
+- [ ] Test: decrypt fails on tampered ciphertext (auth tag)
+- [ ] Test: set persists encrypted credentials to database
+- [ ] Test: get retrieves and decrypts from database
+- [ ] Test: get returns null for expired credentials
+- [ ] Test: delete removes from both cache and database
+- [ ] Test: has returns correct boolean
+- [ ] Test: getMetadata returns metadata without credentials
+- [ ] Test: cleanup removes expired entries
+- [ ] Test: warmCache loads entries on startup
+- [ ] Test: size returns correct count
+
+## PHASE 5: Rate Limiting Tests
+- [ ] Create `server/__tests__/rateLimitMiddleware.test.ts`
+- [ ] Test: apiRateLimit allows 100 requests per minute
+- [ ] Test: apiRateLimit blocks request 101 with 429
+- [ ] Test: apiRateLimit sets correct headers (X-RateLimit-*)
+- [ ] Test: authRateLimit allows 10 requests per 15 minutes
+- [ ] Test: credentialRateLimit allows 5 requests per minute
+- [ ] Test: aiRateLimit allows 20 requests per minute
+- [ ] Test: stripeRateLimit allows 10 requests per minute
+- [ ] Test: rate limits reset after window expires
+- [ ] Test: rate limits are per-user, not global
+
+## PHASE 6: Core API Routes Tests
+- [ ] Create `server/__tests__/routes/bounties.test.ts`
+- [ ] Test: GET /api/bounties returns all bounties
+- [ ] Test: GET /api/bounties/:id returns bounty with submissions
+- [ ] Test: POST /api/bounties requires authentication
+- [ ] Test: POST /api/bounties validates input with Zod
+- [ ] Test: POST /api/bounties sets posterId from session
+- [ ] Test: PATCH /api/bounties/:id/status requires ownership
+- [ ] Test: PATCH /api/bounties/:id/status rejects non-owner (403)
+- [ ] Test: POST /api/bounties/:id/fund creates checkout session
+- [ ] Test: POST /api/bounties/:id/select-winner sets winner
+- [ ] Test: POST /api/bounties/:id/select-winner auto-releases if requested
+- [ ] Test: POST /api/bounties/:id/release-payment requires ownership
+- [ ] Test: POST /api/bounties/:id/refund cancels bounty
+- [ ] Create `server/__tests__/routes/agents.test.ts`
+- [ ] Test: GET /api/agents returns all agents
+- [ ] Test: GET /api/agents/top returns sorted by rating
+- [ ] Test: GET /api/agents/mine returns user's agents only
+- [ ] Test: POST /api/agents requires authentication
+- [ ] Test: POST /api/agents validates input
+- [ ] Create `server/__tests__/routes/submissions.test.ts`
+- [ ] Test: POST /api/bounties/:id/submissions requires auth
+- [ ] Test: POST /api/bounties/:id/submissions checks bounty is open
+- [ ] Test: PATCH /api/submissions/:id requires agent ownership
+- [ ] Test: POST /api/submissions/:id/reviews creates review
+- [ ] Test: POST /api/submissions/:id/verify triggers AI verification
+
+## PHASE 7: AI Execution Tests
+- [ ] Create `server/__tests__/aiExecutionService.test.ts`
+- [ ] Test: createExecutionRun creates queued run
+- [ ] Test: executeRun transitions to running state
+- [ ] Test: executeRun calls OpenAI with correct messages
+- [ ] Test: executeRun calculates cost correctly
+- [ ] Test: executeRun handles API errors gracefully
+- [ ] Test: executeRun increments retry count on failure
+- [ ] Test: executeAgent creates and executes in one call
+- [ ] Test: getRunStatus returns run by ID
+- [ ] Test: getAgentRuns returns runs for agent
+- [ ] Test: getExecutionStats returns correct aggregates
+- [ ] Test: cancelRun updates status to cancelled
+- [ ] Create `server/__tests__/sandboxRunner.test.ts`
+- [ ] Test: executeCode runs simple JavaScript
+- [ ] Test: executeCode captures console.log output
+- [ ] Test: executeCode captures errors
+- [ ] Test: executeCode enforces timeout
+- [ ] Test: executeCode rejects oversized code
+- [ ] Test: executeLowCode processes step config
+- [ ] Test: executeLowCode executes AI steps when configured
+- [ ] Test: testSandbox returns passing result
+
+## PHASE 8: Verification & Reputation Tests
+- [ ] Create `server/__tests__/verificationService.test.ts`
+- [ ] Test: createAudit creates pending audit
+- [ ] Test: runAiVerification calls OpenAI for analysis
+- [ ] Test: runAiVerification parses criteria checks
+- [ ] Test: runAiVerification handles missing OpenAI gracefully
+- [ ] Test: getAudit returns audit by ID
+- [ ] Test: getSubmissionAudits returns all audits for submission
+- [ ] Create `server/__tests__/reputationService.test.ts`
+- [ ] Test: initializeReputation creates bronze tier
+- [ ] Test: recordEvent updates scores correctly
+- [ ] Test: processReview adjusts score based on rating
+- [ ] Test: processBountyCompletion rewards success
+- [ ] Test: processBountyCompletion penalizes failure
+- [ ] Test: recalculateReputation updates tier thresholds
+- [ ] Test: getAgentReputation returns full reputation
+
+## PHASE 9: Integration Tests (End-to-End Flows)
+- [ ] Create `server/__tests__/integration/bountyLifecycle.test.ts`
+- [ ] Test: Complete flow: create bounty → fund → submit → verify → select winner → release payment
+- [ ] Test: Cancelled flow: create bounty → fund → cancel → refund
+- [ ] Test: Failed submission flow: create → fund → submit → reject → new submission
+- [ ] Create `server/__tests__/integration/disputeFlow.test.ts`
+- [ ] Test: Dispute flow: submission → dispute → messages → resolution
+- [ ] Create `server/__tests__/integration/agentUpload.test.ts`
+- [ ] Test: Agent upload: create → test → publish → marketplace listing
+
+## PHASE 10: Security Hardening
+- [ ] Add input sanitization for all user-provided HTML/text
+- [ ] Add SQL injection protection verification tests
+- [ ] Add XSS protection for stored content
+- [ ] Add CSRF token validation for state-changing operations
+- [ ] Verify all admin routes use requireAdmin middleware
+- [ ] Verify all sensitive routes have rate limiting
+- [ ] Add security headers middleware (helmet or custom)
+- [ ] Create `server/__tests__/security.test.ts` with penetration tests
+
+## PHASE 11: Error Handling & Logging
+- [ ] Standardize error response format across all routes
+- [ ] Add structured logging with request IDs
+- [ ] Add error tracking integration (Sentry-ready)
+- [ ] Ensure no sensitive data in error messages
+- [ ] Add health check endpoint /api/health
+- [ ] Add readiness check endpoint /api/ready
+
+## PHASE 12: Documentation & DevX
+- [ ] Generate OpenAPI spec from routes (swagger-jsdoc or similar)
+- [ ] Add /api/docs endpoint serving Swagger UI
+- [ ] Document all environment variables in .env.example
+- [ ] Add CONTRIBUTING.md with test instructions
+- [ ] Update README.md with architecture overview
+
+---
+
+## COMPLETION CRITERIA
+
+✅ All phases complete
+✅ `npm test` passes with 0 failures  
+✅ `npm run test:coverage` shows >80% coverage on critical paths
+✅ All security tests pass
+✅ All integration tests pass
+
+When ALL boxes are checked, output:
 <promise>DONE</promise>
 
-## Notes
-- Use mocks for Stripe, OpenAI, and database where appropriate
-- Each test file should be colocated: `service.test.ts` next to `service.ts`
-- Aim for descriptive test names that document behavior
-- Include both success and failure cases
+---
+
+## NOTES FOR RALPH
+
+- Use vitest for all tests (already in package.json)
+- Use supertest for HTTP route testing
+- Mock external services (Stripe, OpenAI) - never call real APIs
+- Each test file goes next to the file it tests (e.g., `stripeService.test.ts`)
+- Run tests after each change to verify
+- Commit frequently with descriptive messages
+- If a test is flaky, fix it before moving on
+- Quality > speed - take time to do it right

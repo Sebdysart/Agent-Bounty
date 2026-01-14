@@ -1,119 +1,109 @@
 #!/bin/bash
-# Ralph Wiggum Loop - Persistent autonomous development
-# Named after the Simpsons character who never gives up
+# Ralph Wiggum BULLETPROOF Loop
+# Never stops until the job is done
+# "I bent my wookie!" - Ralph
 
 set -e
 
-# Configuration
-MAX_ITERATIONS=${1:-20}
-MODEL=${2:-"claude-sonnet-4-5-20250514"}
+cd /Users/sebastiandysart/Projects/Agent-Bounty
+
+MAX_ITERATIONS=${1:-100}
 TASK_FILE="RALPH_TASK.md"
 LOG_FILE=".ralph/activity.log"
-COMPLETION_PROMISE="<promise>DONE</promise>"
 
 # Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${PURPLE}🐛 Ralph Wiggum Loop - \"I'm helping!\"${NC}"
-echo -e "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
-echo ""
+mkdir -p .ralph
 
-# Check for task file
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+    echo -e "$1"
+}
+
+log "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
+log "${PURPLE}🐛 RALPH WIGGUM - BULLETPROOF MODE${NC}"
+log "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
+
 if [ ! -f "$TASK_FILE" ]; then
-    echo -e "${RED}Error: $TASK_FILE not found${NC}"
-    echo "Create a RALPH_TASK.md with checkboxes for completion criteria"
+    log "${RED}❌ No RALPH_TASK.md found${NC}"
     exit 1
 fi
 
-# Initialize log
-mkdir -p .ralph
-echo "=== Ralph Loop Started: $(date) ===" >> "$LOG_FILE"
-echo "Max iterations: $MAX_ITERATIONS" >> "$LOG_FILE"
-echo "Model: $MODEL" >> "$LOG_FILE"
-
 ITERATION=0
-COMPLETED=false
 
-while [ $ITERATION -lt $MAX_ITERATIONS ] && [ "$COMPLETED" = false ]; do
+while [ $ITERATION -lt $MAX_ITERATIONS ]; do
     ITERATION=$((ITERATION + 1))
     
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}📍 Iteration $ITERATION of $MAX_ITERATIONS${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    # Count progress
+    UNCHECKED=$(grep -c "\- \[ \]" "$TASK_FILE" 2>/dev/null || echo "0")
+    CHECKED=$(grep -c "\- \[x\]" "$TASK_FILE" 2>/dev/null || echo "0")
     
-    echo "[$(date)] Iteration $ITERATION started" >> "$LOG_FILE"
+    log ""
+    log "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    log "${YELLOW}📍 ITERATION $ITERATION/$MAX_ITERATIONS | ✅ $CHECKED done | ⏳ $UNCHECKED left${NC}"
+    log "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
-    # Read task file
-    TASK=$(cat "$TASK_FILE")
-    
-    # Check if all checkboxes are checked
-    UNCHECKED=$(grep -c "\- \[ \]" "$TASK_FILE" || true)
-    CHECKED=$(grep -c "\- \[x\]" "$TASK_FILE" || true)
-    
-    echo -e "${GREEN}Progress: $CHECKED completed, $UNCHECKED remaining${NC}"
-    
+    # Check completion
     if [ "$UNCHECKED" -eq 0 ] && [ "$CHECKED" -gt 0 ]; then
-        echo -e "${GREEN}✅ All tasks completed!${NC}"
-        COMPLETED=true
+        log "${GREEN}🎉 ALL TASKS COMPLETE! Ralph is done.${NC}"
         break
     fi
     
-    # Build prompt for Claude
-    PROMPT="You are working on this task autonomously. 
+    # Find next task
+    NEXT_TASK=$(grep -m1 "\- \[ \]" "$TASK_FILE" | sed 's/- \[ \] //' | head -c 100)
+    log "${YELLOW}🎯 Working on: $NEXT_TASK${NC}"
+    
+    # Build the prompt
+    PROMPT="You are an autonomous AI developer working in /Users/sebastiandysart/Projects/Agent-Bounty
 
-TASK FILE:
-$TASK
+CURRENT TASK FROM RALPH_TASK.md:
+$NEXT_TASK
 
 INSTRUCTIONS:
-1. Check the current state of the codebase
-2. Work on the next unchecked item
-3. When you complete an item, update RALPH_TASK.md to mark it [x]
-4. If ALL items are complete, output: $COMPLETION_PROMISE
-5. Be thorough - run tests, verify changes work
+1. Implement this task completely
+2. Write real code, not placeholders  
+3. Run tests with 'npm test' to verify
+4. When DONE, update RALPH_TASK.md to mark this item [x]
+5. Use git to commit your changes
 
-Current iteration: $ITERATION of $MAX_ITERATIONS
-Focus on quality over speed. Take your time."
+Work directory: /Users/sebastiandysart/Projects/Agent-Bounty
+Be thorough. Take your time. Quality matters.
 
-    # Run Claude Code or cursor-agent
-    if command -v claude &> /dev/null; then
-        echo -e "${PURPLE}Running Claude Code...${NC}"
-        RESPONSE=$(echo "$PROMPT" | claude --model "$MODEL" 2>&1) || true
-        echo "$RESPONSE" >> "$LOG_FILE"
-    elif command -v cursor-agent &> /dev/null; then
-        echo -e "${PURPLE}Running Cursor Agent...${NC}"
-        RESPONSE=$(cursor-agent "$PROMPT" --model "$MODEL" 2>&1) || true
-        echo "$RESPONSE" >> "$LOG_FILE"
+START NOW."
+
+    # Run Claude Code with full permissions
+    log "${PURPLE}🤖 Claude working...${NC}"
+    
+    if echo "$PROMPT" | npx @anthropic-ai/claude-code \
+        --print \
+        --dangerously-skip-permissions \
+        --allowedTools "Edit,Write,Bash,Read" \
+        >> "$LOG_FILE" 2>&1; then
+        log "${GREEN}✅ Iteration complete${NC}"
     else
-        echo -e "${RED}Neither 'claude' nor 'cursor-agent' CLI found${NC}"
-        echo "Install Claude Code: npm install -g @anthropic-ai/claude-code"
-        echo "Or Cursor CLI: curl https://cursor.com/install -fsS | bash"
-        exit 1
+        log "${RED}⚠️ Iteration had issues, continuing...${NC}"
     fi
     
-    # Check for completion promise
-    if echo "$RESPONSE" | grep -q "$COMPLETION_PROMISE"; then
-        echo -e "${GREEN}🎉 Completion promise received!${NC}"
-        COMPLETED=true
+    # Commit any changes
+    if git diff --quiet 2>/dev/null; then
+        log "No changes to commit"
+    else
+        git add -A
+        git commit -m "Ralph iteration $ITERATION: $NEXT_TASK" --no-verify 2>/dev/null || true
+        log "${GREEN}📝 Changes committed${NC}"
     fi
     
-    # Brief pause between iterations
+    # Brief pause
     sleep 2
 done
 
-echo ""
-echo -e "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
-if [ "$COMPLETED" = true ]; then
-    echo -e "${GREEN}✅ Ralph completed the task in $ITERATION iterations!${NC}"
-else
-    echo -e "${YELLOW}⚠️  Max iterations reached. Review progress in $TASK_FILE${NC}"
-fi
-echo -e "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
-
-echo "=== Ralph Loop Ended: $(date) ===" >> "$LOG_FILE"
-echo "Final status: $([ "$COMPLETED" = true ] && echo 'COMPLETED' || echo 'MAX_ITERATIONS')" >> "$LOG_FILE"
+log ""
+log "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"
+log "${GREEN}🐛 Ralph completed after $ITERATION iterations${NC}"
+log "${PURPLE}═══════════════════════════════════════════════════════════════${NC}"

@@ -49,7 +49,7 @@
 - [x] Add Kafka consumer lag to `/api/health`
 
 ## PHASE 4: Cloudflare R2 Storage
-- [ ] Install `@aws-sdk/client-s3` (R2 is S3-compatible)
+- [x] Install `@aws-sdk/client-s3` (R2 is S3-compatible)
 - [ ] Create `server/r2Storage.ts` client
 - [ ] Configure with R2 endpoint and credentials
 - [ ] Implement file operations:

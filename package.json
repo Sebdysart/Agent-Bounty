@@ -15,6 +15,7 @@
     "test:ui": "npx vitest --ui"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.969.0",
     "@hookform/resolvers": "^3.10.0",
     "@jitl/quickjs-ng-wasmfile-release-sync": "^0.31.0",
     "@jridgewell/trace-mapping": "^0.3.25",

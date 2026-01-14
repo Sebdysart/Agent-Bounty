@@ -120,26 +120,29 @@ describe('Logger', () => {
   });
 
   describe('requestIdMiddleware', () => {
-    it('generates a new request ID when none provided', (done) => {
+    it('generates a new request ID when none provided', async () => {
       const req = {
         headers: {},
       } as Request;
       const res = {
         setHeader: vi.fn(),
       } as unknown as Response;
-      const next: NextFunction = () => {
-        const requestId = getRequestId();
-        expect(requestId).toBeDefined();
-        expect(typeof requestId).toBe('string');
-        expect(requestId?.length).toBeGreaterThan(0);
-        expect(res.setHeader).toHaveBeenCalledWith('X-Request-Id', requestId);
-        done();
-      };
 
-      requestIdMiddleware(req, res, next);
+      await new Promise<void>((resolve) => {
+        const next: NextFunction = () => {
+          const requestId = getRequestId();
+          expect(requestId).toBeDefined();
+          expect(typeof requestId).toBe('string');
+          expect(requestId?.length).toBeGreaterThan(0);
+          expect(res.setHeader).toHaveBeenCalledWith('X-Request-Id', requestId);
+          resolve();
+        };
+
+        requestIdMiddleware(req, res, next);
+      });
     });
 
-    it('uses existing request ID from headers', (done) => {
+    it('uses existing request ID from headers', async () => {
       const existingRequestId = 'existing-request-id-123';
       const req = {
         headers: {
@@ -149,45 +152,53 @@ describe('Logger', () => {
       const res = {
         setHeader: vi.fn(),
       } as unknown as Response;
-      const next: NextFunction = () => {
-        const requestId = getRequestId();
-        expect(requestId).toBe(existingRequestId);
-        expect(res.setHeader).toHaveBeenCalledWith('X-Request-Id', existingRequestId);
-        done();
-      };
 
-      requestIdMiddleware(req, res, next);
+      await new Promise<void>((resolve) => {
+        const next: NextFunction = () => {
+          const requestId = getRequestId();
+          expect(requestId).toBe(existingRequestId);
+          expect(res.setHeader).toHaveBeenCalledWith('X-Request-Id', existingRequestId);
+          resolve();
+        };
+
+        requestIdMiddleware(req, res, next);
+      });
     });
 
-    it('includes request ID in log entries within request context', (done) => {
+    it('includes request ID in log entries within request context', async () => {
       const req = {
         headers: {},
       } as Request;
       const res = {
         setHeader: vi.fn(),
       } as unknown as Response;
-      const next: NextFunction = () => {
-        logger.info('Test within context');
-        const logEntry = JSON.parse(consoleSpy.log.mock.calls[0][0]);
-        expect(logEntry.requestId).toBeDefined();
-        expect(typeof logEntry.requestId).toBe('string');
-        done();
-      };
 
-      requestIdMiddleware(req, res, next);
+      await new Promise<void>((resolve) => {
+        const next: NextFunction = () => {
+          logger.info('Test within context');
+          const logEntry = JSON.parse(consoleSpy.log.mock.calls[0][0]);
+          expect(logEntry.requestId).toBeDefined();
+          expect(typeof logEntry.requestId).toBe('string');
+          resolve();
+        };
+
+        requestIdMiddleware(req, res, next);
+      });
     });
   });
 
   describe('user ID context', () => {
-    it('tracks user ID in request context', (done) => {
-      requestContext.run({ requestId: 'test-123', startTime: Date.now() }, () => {
-        setCurrentUserId(456);
-        expect(getCurrentUserId()).toBe(456);
+    it('tracks user ID in request context', async () => {
+      await new Promise<void>((resolve) => {
+        requestContext.run({ requestId: 'test-123', startTime: Date.now() }, () => {
+          setCurrentUserId(456);
+          expect(getCurrentUserId()).toBe(456);
 
-        logger.info('Test with user');
-        const logEntry = JSON.parse(consoleSpy.log.mock.calls[0][0]);
-        expect(logEntry.userId).toBe(456);
-        done();
+          logger.info('Test with user');
+          const logEntry = JSON.parse(consoleSpy.log.mock.calls[0][0]);
+          expect(logEntry.userId).toBe(456);
+          resolve();
+        });
       });
     });
 
@@ -197,75 +208,79 @@ describe('Logger', () => {
   });
 
   describe('httpLoggerMiddleware', () => {
-    it('logs HTTP requests on response finish', (done) => {
-      requestContext.run({ requestId: 'test-http-123', startTime: Date.now() }, () => {
-        const req = {
-          method: 'POST',
-          path: '/api/test-endpoint',
-          headers: {
-            'user-agent': 'test-agent',
-          },
-          ip: '127.0.0.1',
-          socket: { remoteAddress: '127.0.0.1' },
-        } as unknown as Request;
+    it('logs HTTP requests on response finish', async () => {
+      await new Promise<void>((resolve) => {
+        requestContext.run({ requestId: 'test-http-123', startTime: Date.now() }, () => {
+          const req = {
+            method: 'POST',
+            path: '/api/test-endpoint',
+            headers: {
+              'user-agent': 'test-agent',
+            },
+            ip: '127.0.0.1',
+            socket: { remoteAddress: '127.0.0.1' },
+          } as unknown as Request;
 
-        const finishCallbacks: (() => void)[] = [];
-        const res = {
-          on: (event: string, callback: () => void) => {
-            if (event === 'finish') {
-              finishCallbacks.push(callback);
-            }
-          },
-          get: vi.fn().mockReturnValue('100'),
-          statusCode: 201,
-        } as unknown as Response;
+          const finishCallbacks: (() => void)[] = [];
+          const res = {
+            on: (event: string, callback: () => void) => {
+              if (event === 'finish') {
+                finishCallbacks.push(callback);
+              }
+            },
+            get: vi.fn().mockReturnValue('100'),
+            statusCode: 201,
+          } as unknown as Response;
 
-        const next: NextFunction = () => {
-          // Simulate response finish
-          finishCallbacks.forEach((cb) => cb());
+          const next: NextFunction = () => {
+            // Simulate response finish
+            finishCallbacks.forEach((cb) => cb());
 
-          expect(consoleSpy.log).toHaveBeenCalled();
-          const logEntry = JSON.parse(consoleSpy.log.mock.calls[0][0]);
-          expect(logEntry.method).toBe('POST');
-          expect(logEntry.path).toBe('/api/test-endpoint');
-          expect(logEntry.statusCode).toBe(201);
-          expect(logEntry.requestId).toBe('test-http-123');
-          done();
-        };
+            expect(consoleSpy.log).toHaveBeenCalled();
+            const logEntry = JSON.parse(consoleSpy.log.mock.calls[0][0]);
+            expect(logEntry.method).toBe('POST');
+            expect(logEntry.path).toBe('/api/test-endpoint');
+            expect(logEntry.statusCode).toBe(201);
+            expect(logEntry.requestId).toBe('test-http-123');
+            resolve();
+          };
 
-        httpLoggerMiddleware(req, res, next);
+          httpLoggerMiddleware(req, res, next);
+        });
       });
     });
 
-    it('does not log non-API requests', (done) => {
-      requestContext.run({ requestId: 'test-static-123', startTime: Date.now() }, () => {
-        const req = {
-          method: 'GET',
-          path: '/static/app.js',
-          headers: {},
-          socket: { remoteAddress: '127.0.0.1' },
-        } as unknown as Request;
+    it('does not log non-API requests', async () => {
+      await new Promise<void>((resolve) => {
+        requestContext.run({ requestId: 'test-static-123', startTime: Date.now() }, () => {
+          const req = {
+            method: 'GET',
+            path: '/static/app.js',
+            headers: {},
+            socket: { remoteAddress: '127.0.0.1' },
+          } as unknown as Request;
 
-        const finishCallbacks: (() => void)[] = [];
-        const res = {
-          on: (event: string, callback: () => void) => {
-            if (event === 'finish') {
-              finishCallbacks.push(callback);
-            }
-          },
-          get: vi.fn(),
-          statusCode: 200,
-        } as unknown as Response;
+          const finishCallbacks: (() => void)[] = [];
+          const res = {
+            on: (event: string, callback: () => void) => {
+              if (event === 'finish') {
+                finishCallbacks.push(callback);
+              }
+            },
+            get: vi.fn(),
+            statusCode: 200,
+          } as unknown as Response;
 
-        const next: NextFunction = () => {
-          // Simulate response finish
-          finishCallbacks.forEach((cb) => cb());
+          const next: NextFunction = () => {
+            // Simulate response finish
+            finishCallbacks.forEach((cb) => cb());
 
-          expect(consoleSpy.log).not.toHaveBeenCalled();
-          done();
-        };
+            expect(consoleSpy.log).not.toHaveBeenCalled();
+            resolve();
+          };
 
-        httpLoggerMiddleware(req, res, next);
+          httpLoggerMiddleware(req, res, next);
+        });
       });
     });
   });
@@ -275,10 +290,12 @@ describe('Logger', () => {
       expect(getRequestId()).toBeUndefined();
     });
 
-    it('returns request ID within context', (done) => {
-      requestContext.run({ requestId: 'context-test-id', startTime: Date.now() }, () => {
-        expect(getRequestId()).toBe('context-test-id');
-        done();
+    it('returns request ID within context', async () => {
+      await new Promise<void>((resolve) => {
+        requestContext.run({ requestId: 'context-test-id', startTime: Date.now() }, () => {
+          expect(getRequestId()).toBe('context-test-id');
+          resolve();
+        });
       });
     });
   });

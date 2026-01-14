@@ -126,3 +126,13 @@ Marked task as complete in RALPH_TASK.md and committed.
 [2026-01-13 22:55:27] \033[1;33m⚠️ Retry 2/3\033[0m
 [2026-01-13 22:55:27] \033[1;33m🎯 Task: Create `server/__tests__/jwtService.test.ts`...\033[0m
 [2026-01-13 22:55:27] \033[0;35m🤖 Claude working...\033[0m
+Task completed. Created and fixed `server/__tests__/jwtService.test.ts` with 47 passing tests covering:
+- Token pair generation (access + refresh tokens)
+- Access token validation and expiry
+- Refresh token rotation and revocation
+- User role assignment and retrieval
+- Role permission lookups
+- Permission checking (hasPermission)
+
+Marked task as complete in RALPH_TASK.md and committed.
+[2026-01-13 22:57:02] \033[0;32m✅ Task DONE!\033[0m

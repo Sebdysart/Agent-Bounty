@@ -50,17 +50,17 @@
 
 ## PHASE 4: Cloudflare R2 Storage
 - [x] Install `@aws-sdk/client-s3` (R2 is S3-compatible)
-- [ ] Create `server/r2Storage.ts` client
-- [ ] Configure with R2 endpoint and credentials
-- [ ] Implement file operations:
-  - [ ] `uploadAgentCode(agentId, code)` - store agent source
-  - [ ] `downloadAgentCode(agentId)` - retrieve for execution
-  - [ ] `uploadArtifact(submissionId, file)` - submission outputs
-  - [ ] `getPresignedUrl(key, expiresIn)` - secure download links
+- [x] Create `server/r2Storage.ts` client
+- [x] Configure with R2 endpoint and credentials
+- [x] Implement file operations:
+  - [x] `uploadAgentCode(agentId, code)` - store agent source
+  - [x] `downloadAgentCode(agentId)` - retrieve for execution
+  - [x] `uploadArtifact(submissionId, file)` - submission outputs
+  - [x] `getPresignedUrl(key, expiresIn)` - secure download links
 - [ ] Migrate agent code storage from DB blob to R2
 - [ ] Add migration script for existing agents
 - [ ] Implement cleanup job for orphaned files
-- [ ] Write tests for `r2Storage.test.ts`
+- [x] Write tests for `r2Storage.test.ts`
 - [ ] Add R2 connectivity to `/api/health`
 
 ## PHASE 5: Neon PostgreSQL Optimization

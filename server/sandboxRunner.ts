@@ -1,8 +1,12 @@
 import variant from '@jitl/quickjs-ng-wasmfile-release-sync';
 import { type SandboxOptions, loadQuickJs } from '@sebastianwessel/quickjs';
 import OpenAI from "openai";
+import { WasmtimeSandbox, type WasmtimeSandboxConfig, BOUNTY_TIERS } from './wasmtimeSandbox';
 
 const MAX_CODE_SIZE = 512 * 1024;
+
+// Feature flag for Wasmtime backend - can be toggled via environment variable
+const USE_WASMTIME_SANDBOX = process.env.USE_WASMTIME_SANDBOX === 'true';
 
 function getOpenAIClient(): OpenAI | null {
   const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
@@ -22,6 +26,8 @@ export interface SandboxConfig {
   env?: Record<string, string>;
   maxCodeSize?: number;
   maxInputSize?: number;
+  tier?: string;  // Bounty tier for Wasmtime backend
+  useWasmtime?: boolean;  // Override feature flag per-instance
 }
 
 export interface SandboxResult {
@@ -54,12 +60,66 @@ export class SandboxRunner {
   private config: SandboxConfig;
   private logs: string[] = [];
   private errors: string[] = [];
+  private wasmtimeSandbox: WasmtimeSandbox | null = null;
 
   constructor(config: Partial<SandboxConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+
+    // Initialize Wasmtime sandbox if enabled
+    if (this.shouldUseWasmtime()) {
+      this.wasmtimeSandbox = new WasmtimeSandbox({
+        memoryLimit: this.config.memoryLimit,
+        timeoutMs: this.config.timeoutMs,
+        allowFetch: this.config.allowFetch,
+        allowFs: this.config.allowFs,
+        env: this.config.env,
+        tier: this.config.tier,
+      });
+    }
+  }
+
+  /**
+   * Determine whether to use Wasmtime backend
+   */
+  private shouldUseWasmtime(): boolean {
+    // Per-instance override takes precedence
+    if (this.config.useWasmtime !== undefined) {
+      return this.config.useWasmtime;
+    }
+    // Fall back to global feature flag
+    return USE_WASMTIME_SANDBOX;
   }
 
   async executeCode(code: string, input?: any): Promise<SandboxResult> {
+    // Route to Wasmtime backend if enabled
+    if (this.shouldUseWasmtime()) {
+      return this.executeWithWasmtime(code, input);
+    }
+    // Fall back to QuickJS
+    return this.executeWithQuickJS(code, input);
+  }
+
+  /**
+   * Execute code using the Wasmtime backend
+   */
+  private async executeWithWasmtime(code: string, input?: any): Promise<SandboxResult> {
+    if (!this.wasmtimeSandbox) {
+      this.wasmtimeSandbox = new WasmtimeSandbox({
+        memoryLimit: this.config.memoryLimit,
+        timeoutMs: this.config.timeoutMs,
+        allowFetch: this.config.allowFetch,
+        allowFs: this.config.allowFs,
+        env: this.config.env,
+        tier: this.config.tier,
+      });
+    }
+    return this.wasmtimeSandbox.executeCode(code, input);
+  }
+
+  /**
+   * Execute code using the QuickJS backend (original implementation)
+   */
+  private async executeWithQuickJS(code: string, input?: any): Promise<SandboxResult> {
     const startTime = Date.now();
     this.logs = [];
     this.errors = [];
@@ -100,26 +160,26 @@ export class SandboxRunner {
 
       const wrappedCode = `
         const INPUT = ${JSON.stringify(input || null)};
-        
+
         const logs = [];
         const errors = [];
-        
+
         const originalLog = console.log;
         const originalError = console.error;
-        
+
         console.log = (...args) => {
           logs.push(args.map(a => String(a)).join(' '));
         };
         console.error = (...args) => {
           errors.push(args.map(a => String(a)).join(' '));
         };
-        
+
         try {
           ${code}
         } catch (e) {
           errors.push(String(e));
         }
-        
+
         export default { logs, errors };
       `;
 
@@ -140,10 +200,10 @@ export class SandboxRunner {
           executionTimeMs,
         };
       } else {
-        const errorMsg = result.error instanceof Error 
-          ? result.error.message 
-          : typeof result.error === 'object' 
-            ? JSON.stringify(result.error) 
+        const errorMsg = result.error instanceof Error
+          ? result.error.message
+          : typeof result.error === 'object'
+            ? JSON.stringify(result.error)
             : String(result.error);
         return {
           success: false,
@@ -155,10 +215,10 @@ export class SandboxRunner {
       }
     } catch (error: any) {
       const executionTimeMs = Date.now() - startTime;
-      const errorMsg = error instanceof Error 
-        ? error.message 
-        : typeof error === 'object' 
-          ? JSON.stringify(error) 
+      const errorMsg = error instanceof Error
+        ? error.message
+        : typeof error === 'object'
+          ? JSON.stringify(error)
           : String(error);
       return {
         success: false,
@@ -279,6 +339,31 @@ export class SandboxRunner {
     `;
     return this.executeCode(testCode);
   }
+
+  /**
+   * Get the current backend type being used
+   */
+  getBackendType(): 'wasmtime' | 'quickjs' {
+    return this.shouldUseWasmtime() ? 'wasmtime' : 'quickjs';
+  }
+
+  /**
+   * Get configuration
+   */
+  getConfig(): SandboxConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Check if Wasmtime backend is enabled
+   */
+  static isWasmtimeEnabled(): boolean {
+    return USE_WASMTIME_SANDBOX;
+  }
 }
+
+// Re-export Wasmtime types and constants for convenience
+export { BOUNTY_TIERS, WasmtimeSandbox };
+export type { WasmtimeSandboxConfig };
 
 export const sandboxRunner = new SandboxRunner();

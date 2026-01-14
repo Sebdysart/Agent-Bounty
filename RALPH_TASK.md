@@ -64,7 +64,7 @@
 - [x] Add R2 connectivity to `/api/health`
 
 ## PHASE 5: Neon PostgreSQL Optimization
-- [ ] Update DATABASE_URL format for Neon pooler
+- [x] Update DATABASE_URL format for Neon pooler
 - [ ] Configure connection pooling settings (max 20 connections)
 - [ ] Add `@neondatabase/serverless` driver for edge compatibility
 - [ ] Implement query timeout (30s default)

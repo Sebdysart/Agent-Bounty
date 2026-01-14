@@ -155,8 +155,8 @@
 - [x] Test: Failed submission flow: create → fund → submit → reject → new submission
 - [x] Create `server/__tests__/integration/disputeFlow.test.ts`
 - [x] Test: Dispute flow: submission → dispute → messages → resolution
-- [ ] Create `server/__tests__/integration/agentUpload.test.ts`
-- [ ] Test: Agent upload: create → test → publish → marketplace listing
+- [x] Create `server/__tests__/integration/agentUpload.test.ts`
+- [x] Test: Agent upload: create → test → publish → marketplace listing
 
 ## PHASE 10: Security Hardening
 - [ ] Add input sanitization for all user-provided HTML/text

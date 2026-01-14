@@ -7,8 +7,12 @@ import { getStripeSync } from './stripeClient';
 import { WebhookHandlers } from './webhookHandlers';
 import { wsService } from './websocket';
 import { sanitizeAllInput } from './sanitizationMiddleware';
+import { securityHeaders } from './securityHeaders';
 
 const app = express();
+
+// Apply security headers to all requests (before other middleware)
+app.use(securityHeaders);
 const httpServer = createServer(app);
 
 declare module "http" {

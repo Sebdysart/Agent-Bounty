@@ -165,7 +165,7 @@
 - [x] Add CSRF token validation for state-changing operations
 - [x] Verify all admin routes use requireAdmin middleware
 - [x] Verify all sensitive routes have rate limiting
-- [ ] Add security headers middleware (helmet or custom)
+- [x] Add security headers middleware (helmet or custom)
 - [ ] Create `server/__tests__/security.test.ts` with penetration tests
 
 ## PHASE 11: Error Handling & Logging

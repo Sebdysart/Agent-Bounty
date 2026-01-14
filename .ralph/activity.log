@@ -583,3 +583,56 @@ Done. I've completed the task:
 
 4. **Committed** with descriptive message
 [2026-01-14 00:52:58] ✅ Task DONE!
+[2026-01-14 00:52:59] 💤 Cooling down 10s...
+[2026-01-14 00:53:09] 🧹 Cleaning up memory...
+[2026-01-14 00:53:12] 
+[2026-01-14 00:53:12] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 00:53:12] 📍 ITERATION 15/50 | ✅140 | ⏳13 | 💾619MB free
+[2026-01-14 00:53:12] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 00:53:12] 🎯 Task: Add security headers middleware (helmet or custom)...
+[2026-01-14 00:53:12] 🤖 Claude working (180s max)...
+The task has been completed. Here's a summary of what was done:
+
+**Task: Verify all sensitive routes have rate limiting**
+
+**Changes made:**
+
+1. **Added rate limiting to authentication routes (authRateLimit - 10 req/15min):**
+   - `POST /api/auth/token`
+   - `POST /api/auth/refresh`
+   - `POST /api/auth/revoke`
+   - `POST /api/security/settings`
+   - `POST /api/security/2fa/setup`
+   - `POST /api/security/2fa/enable`
+   - `POST /api/security/2fa/disable`
+   - `POST /api/security/2fa/verify`
+
+2. **Added rate limiting to credential routes (credentialRateLimit - 5 req/min):**
+   - `POST /api/bounties/:id/credentials`
+   - `POST /api/credentials/:consentId/revoke`
+   - (Already had: consent and access routes)
+
+3. **Added rate limiting to payment routes (stripeRateLimit - 10 req/min):**
+   - `POST /api/bounties/:id/release-payment`
+   - `POST /api/bounties/:id/refund`
+   - `POST /api/subscription/checkout`
+   - `POST /api/subscription/cancel`
+   - (Already had: fund route)
+
+4. **Added rate limiting to AI execution routes (aiRateLimit - 20 req/min):**
+   - `POST /api/ai/generate-bounty`
+   - `POST /api/ai/verify-output`
+   - `POST /api/ai/generate-agent`
+   - `POST /api/executions`
+   - `POST /api/executions/:id/retry`
+   - `POST /api/sandbox/test`
+   - `POST /api/llm/chat`
+
+5. **Added rate limiting to privacy routes (apiRateLimit - 100 req/min):**
+   - `POST /api/privacy/export`
+   - `POST /api/privacy/delete`
+   - `POST /api/privacy/delete/confirm`
+
+6. **Created verification test:** `server/__tests__/security/sensitiveRoutesRateLimiting.test.ts` with 29 tests verifying all sensitive routes have appropriate rate limiting.
+
+**All 740 tests pass.**

@@ -49,6 +49,23 @@ export interface WasmtimeSandboxConfig extends SandboxConfig {
   enableFuelMetering?: boolean;
 }
 
+/**
+ * Instruction counting result from fuel metering
+ */
+export interface FuelMeteringResult {
+  instructionsExecuted: number;
+  fuelConsumed: number;
+  fuelRemaining: number;
+  fuelLimitExceeded: boolean;
+  instructionBreakdown: {
+    arithmetic: number;
+    memory: number;
+    control: number;
+    function: number;
+    other: number;
+  };
+}
+
 interface WasmtimeInstance {
   id: string;
   createdAt: number;
@@ -192,6 +209,7 @@ export class WasmtimeSandbox {
   private logs: string[] = [];
   private errors: string[] = [];
   private static warmPool: WarmPoolManager | null = null;
+  private lastFuelMetering: FuelMeteringResult | null = null;
 
   constructor(config: Partial<WasmtimeSandboxConfig> = {}) {
     // Apply tier defaults if specified
@@ -272,11 +290,17 @@ export class WasmtimeSandbox {
       // In production, this would use actual wasmtime bindings
       const result = await this.simulateWasmtimeExecution(code, input);
 
-      // Calculate simulated fuel consumption based on code complexity
-      fuelConsumed = this.calculateFuelConsumption(code);
+      // Calculate fuel consumption via instruction counting
+      const fuelMetering = this.calculateFuelConsumption(code);
+      fuelConsumed = fuelMetering.fuelConsumed;
+
+      // Log instruction breakdown
+      this.logs.push(`Instructions executed: ${fuelMetering.instructionsExecuted}`);
+      this.logs.push(`Fuel consumed: ${fuelMetering.fuelConsumed} (limit: ${this.config.fuelLimit})`);
+      this.logs.push(`Instruction breakdown: arithmetic=${fuelMetering.instructionBreakdown.arithmetic}, memory=${fuelMetering.instructionBreakdown.memory}, control=${fuelMetering.instructionBreakdown.control}, function=${fuelMetering.instructionBreakdown.function}, other=${fuelMetering.instructionBreakdown.other}`);
 
       // Check fuel limit
-      if (this.config.enableFuelMetering && fuelConsumed > (this.config.fuelLimit || 0)) {
+      if (this.config.enableFuelMetering && fuelMetering.fuelLimitExceeded) {
         return {
           success: false,
           output: null,
@@ -359,15 +383,84 @@ export class WasmtimeSandbox {
   }
 
   /**
-   * Calculate simulated fuel consumption based on code characteristics
+   * Count instructions and calculate fuel consumption.
+   * Uses instruction-level analysis to meter execution costs.
+   *
+   * Instruction costs (fuel units):
+   * - Arithmetic ops (+, -, *, /, %): 1 fuel each
+   * - Memory access (., [], property): 2 fuel each
+   * - Control flow (if, for, while, switch): 5 fuel each
+   * - Function calls/definitions: 10 fuel each
+   * - String operations: 3 fuel per char estimated
    */
-  private calculateFuelConsumption(code: string): number {
-    // Estimate fuel based on code complexity indicators
-    const baseConsumption = code.length * 10;
-    const loopMultiplier = (code.match(/for|while|do/g) || []).length * 1000;
-    const functionMultiplier = (code.match(/function|=>/g) || []).length * 500;
+  private calculateFuelConsumption(code: string): FuelMeteringResult {
+    const breakdown = {
+      arithmetic: 0,
+      memory: 0,
+      control: 0,
+      function: 0,
+      other: 0,
+    };
 
-    return baseConsumption + loopMultiplier + functionMultiplier;
+    // Count arithmetic operations
+    const arithmeticOps = code.match(/[+\-*/%]=?(?!=)/g) || [];
+    breakdown.arithmetic = arithmeticOps.length;
+
+    // Count memory/property access operations
+    const memoryOps = code.match(/\.\w+|\[\w+\]|\[['"`]/g) || [];
+    breakdown.memory = memoryOps.length;
+
+    // Count control flow statements
+    const controlOps = code.match(/\b(if|else|for|while|do|switch|case|break|continue|return|throw|try|catch|finally)\b/g) || [];
+    breakdown.control = controlOps.length;
+
+    // Count function definitions and calls
+    const functionOps = code.match(/\bfunction\b|=>|\(\s*\)/g) || [];
+    const functionCalls = code.match(/\w+\s*\(/g) || [];
+    breakdown.function = functionOps.length + functionCalls.length;
+
+    // Count other operations (assignments, comparisons, etc.)
+    const otherOps = code.match(/[=<>!&|]{1,3}/g) || [];
+    breakdown.other = otherOps.length;
+
+    // Calculate total instructions
+    const instructionsExecuted =
+      breakdown.arithmetic +
+      breakdown.memory +
+      breakdown.control +
+      breakdown.function +
+      breakdown.other;
+
+    // Calculate fuel consumed with weighted costs
+    const fuelConsumed =
+      breakdown.arithmetic * 1 +  // Arithmetic: 1 fuel
+      breakdown.memory * 2 +      // Memory access: 2 fuel
+      breakdown.control * 5 +     // Control flow: 5 fuel
+      breakdown.function * 10 +   // Function ops: 10 fuel
+      breakdown.other * 1;        // Other: 1 fuel
+
+    // Add base cost for code size (parsing overhead)
+    const baseFuel = Math.ceil(code.length / 10);
+    const totalFuelConsumed = fuelConsumed + baseFuel;
+
+    const fuelLimit = this.config.fuelLimit || 0;
+    const result: FuelMeteringResult = {
+      instructionsExecuted,
+      fuelConsumed: totalFuelConsumed,
+      fuelRemaining: Math.max(0, fuelLimit - totalFuelConsumed),
+      fuelLimitExceeded: totalFuelConsumed > fuelLimit,
+      instructionBreakdown: breakdown,
+    };
+
+    this.lastFuelMetering = result;
+    return result;
+  }
+
+  /**
+   * Get the last fuel metering result
+   */
+  getLastFuelMetering(): FuelMeteringResult | null {
+    return this.lastFuelMetering;
   }
 
   /**

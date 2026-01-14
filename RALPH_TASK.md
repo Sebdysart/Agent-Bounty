@@ -7,7 +7,7 @@
 - [ ] Install wasmtime npm package (`@aspect-sh/wasmtime` or `wasmtime` bindings)
 - [ ] Create `server/wasmtimeSandbox.ts` with new sandbox implementation
 - [ ] Implement memory limits (configurable per bounty tier: 128MB-512MB)
-- [ ] Implement CPU time limits (5s-60s based on bounty)
+- [x] Implement CPU time limits (5s-60s based on bounty)
 - [ ] Add fuel metering for instruction counting
 - [ ] Create warm pool manager for pre-initialized instances
 - [ ] Migrate `sandboxRunner.ts` to use new Wasmtime backend

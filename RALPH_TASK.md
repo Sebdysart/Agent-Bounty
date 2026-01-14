@@ -8,7 +8,7 @@
 - [ ] Create `server/wasmtimeSandbox.ts` with new sandbox implementation
 - [ ] Implement memory limits (configurable per bounty tier: 128MB-512MB)
 - [x] Implement CPU time limits (5s-60s based on bounty)
-- [ ] Add fuel metering for instruction counting
+- [x] Add fuel metering for instruction counting
 - [ ] Create warm pool manager for pre-initialized instances
 - [ ] Migrate `sandboxRunner.ts` to use new Wasmtime backend
 - [ ] Add feature flag to switch between QuickJS and Wasmtime

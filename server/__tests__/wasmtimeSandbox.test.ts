@@ -14,6 +14,7 @@ import {
   WarmPoolManager,
   BOUNTY_TIERS,
   type BountyTierConfig,
+  type FuelMeteringResult,
 } from '../wasmtimeSandbox';
 
 describe('WasmtimeSandbox', () => {

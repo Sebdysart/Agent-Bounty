@@ -179,3 +179,7 @@
 [2026-01-14 14:20:40] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 14:20:40] 🎯 Task: Add fuel metering for instruction counting...
 [2026-01-14 14:20:40] 🤖 Claude working (180s max)...
+[2026-01-14 14:23:40] ⏰ Timeout - killing process
+./.cursor/ralph-scripts/ralph-loop.sh: line 192: [: 0
+0: integer expression expected
+[2026-01-14 14:23:40] ⚠️ Not done - will retry

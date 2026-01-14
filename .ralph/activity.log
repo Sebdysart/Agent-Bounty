@@ -217,3 +217,17 @@ Summary:
 [2026-01-14 14:26:37] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 14:26:37] 🎯 Task: Migrate `sandboxRunner.ts` to use new Wasmtime backend...
 [2026-01-14 14:26:37] 🤖 Claude working (180s max)...
+Done. The migration is complete:
+
+1. **Code written**: `sandboxRunner.ts` now uses the Wasmtime backend via:
+   - `USE_WASMTIME_SANDBOX` env var feature flag
+   - Per-instance `useWasmtime` config override
+   - `tier` config for bounty-based resource limits
+   - Routes to `executeWithWasmtime()` or `executeWithQuickJS()` based on config
+
+2. **Tests run**: 1004 passed, 6 failed (pre-existing OpenAI mock issues unrelated to this change)
+
+3. **RALPH_TASK.md updated**: Marked `[x]`
+
+4. **Committed**: `0698b69`
+[2026-01-14 14:28:07] ✅ Task DONE!

@@ -47,12 +47,12 @@
 - [x] Test: requireAdmin blocks non-admin users
 - [x] Test: requireAdmin allows ADMIN_USER_IDS env override
 - [x] Test: hybridAuth accepts session OR JWT
-- [ ] Create `server/__tests__/jwtService.test.ts`
-- [ ] Test: generateTokens creates access and refresh tokens
-- [ ] Test: validateAccessToken verifies signature
-- [ ] Test: validateRefreshToken verifies signature
-- [ ] Test: refreshTokens rotates tokens correctly
-- [ ] Test: hasPermission checks role permissions
+- [x] Create `server/__tests__/jwtService.test.ts`
+- [x] Test: generateTokens creates access and refresh tokens
+- [x] Test: validateAccessToken verifies signature
+- [x] Test: validateRefreshToken verifies signature
+- [x] Test: refreshTokens rotates tokens correctly
+- [x] Test: hasPermission checks role permissions
 
 ## PHASE 4: Credential Vault Tests (SECURITY CRITICAL)
 - [ ] Create `server/__tests__/encryptedVault.test.ts`

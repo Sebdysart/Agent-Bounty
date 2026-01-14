@@ -14,11 +14,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import crypto from 'crypto';
 
 // Use vi.hoisted to declare mocks before vi.mock is hoisted
-const { mockInsert, mockSelect, mockUpdate, mockDelete } = vi.hoisted(() => ({
+const { mockInsert, mockSelect, mockUpdate, mockDelete, mockRoleAssignments, mockRolePermissions } = vi.hoisted(() => ({
   mockInsert: vi.fn(),
   mockSelect: vi.fn(),
   mockUpdate: vi.fn(),
   mockDelete: vi.fn(),
+  mockRoleAssignments: { value: [] as any[] },
+  mockRolePermissions: { value: [] as any[] },
 }));
 
 // Mock the database
@@ -31,11 +33,32 @@ vi.mock('../db', () => ({
   },
 }));
 
-// Mock the schema
+// Mock the schema - use Symbol for unique references
+const refreshTokensTable = Symbol('refreshTokens');
+const userRoleAssignmentsTable = Symbol('userRoleAssignments');
+const rolePermissionsTable = Symbol('rolePermissions');
+
 vi.mock('@shared/schema', () => ({
-  refreshTokens: { userId: 'userId', token: 'token', id: 'id', revokedAt: 'revokedAt', expiresAt: 'expiresAt' },
-  userRoleAssignments: { userId: 'userId', role: 'role', expiresAt: 'expiresAt' },
-  rolePermissions: { role: 'role', resource: 'resource', action: 'action' },
+  refreshTokens: {
+    userId: 'userId',
+    token: 'token',
+    id: 'id',
+    revokedAt: 'revokedAt',
+    expiresAt: 'expiresAt',
+    _table: refreshTokensTable,
+  },
+  userRoleAssignments: {
+    userId: 'userId',
+    role: 'role',
+    expiresAt: 'expiresAt',
+    _table: userRoleAssignmentsTable,
+  },
+  rolePermissions: {
+    role: 'role',
+    resource: 'resource',
+    action: 'action',
+    _table: rolePermissionsTable,
+  },
 }));
 
 // Mock drizzle-orm operators
@@ -50,15 +73,19 @@ import { db } from '../db';
 
 // Helper to set up select mock that handles both getUserRoles (with where) and getRolePermissions (without where)
 function setupSelectMock(roleAssignments: any[] = [], rolePermissions: any[] = []) {
+  mockRoleAssignments.value = roleAssignments;
+  mockRolePermissions.value = rolePermissions;
+
   mockSelect.mockImplementation(() => ({
     from: vi.fn().mockImplementation((table: any) => {
-      // Check if it's the rolePermissions table (no where clause used)
-      if (table === 'rolePermissions' || table.role === 'role') {
-        return Promise.resolve(rolePermissions);
+      // Check if it's the rolePermissions table (no where clause used - getRolePermissions just does select().from())
+      if (table?.resource === 'resource' || table?.action === 'action') {
+        // getRolePermissions: db.select().from(rolePermissions) - returns Promise directly
+        return Promise.resolve(mockRolePermissions.value);
       }
-      // For userRoleAssignments, return object with where
+      // For userRoleAssignments and refreshTokens, return object with where
       return {
-        where: vi.fn().mockResolvedValue(roleAssignments),
+        where: vi.fn().mockResolvedValue(mockRoleAssignments.value),
       };
     }),
   }));
@@ -357,20 +384,25 @@ describe('JWTService', () => {
         revokedAt: null,
       };
 
-      // First call returns the refresh token record, subsequent calls for getUserRoles/getRolePermissions
-      let callCount = 0;
+      // Track calls to determine which table is being queried
+      let selectCallCount = 0;
       mockSelect.mockImplementation(() => ({
         from: vi.fn().mockImplementation((table: any) => {
-          callCount++;
-          if (callCount === 1) {
-            // First call is for refreshTokens
-            return { where: vi.fn().mockResolvedValue([mockTokenRecord]) };
-          }
-          // Subsequent calls for role lookups
-          if (table === 'rolePermissions' || table.role === 'role') {
+          selectCallCount++;
+          // rolePermissions table - no where clause, direct resolve
+          if (table?.resource === 'resource' || table?.action === 'action') {
             return Promise.resolve([]);
           }
-          return { where: vi.fn().mockResolvedValue([]) };
+          // All other tables need where clause
+          return {
+            where: vi.fn().mockImplementation(() => {
+              // First call with where is refreshTokens, second is userRoleAssignments
+              if (selectCallCount === 1) {
+                return Promise.resolve([mockTokenRecord]);
+              }
+              return Promise.resolve([]);
+            }),
+          };
         }),
       }));
 
@@ -390,17 +422,21 @@ describe('JWTService', () => {
         revokedAt: null,
       };
 
-      let callCount = 0;
+      let selectCallCount = 0;
       mockSelect.mockImplementation(() => ({
         from: vi.fn().mockImplementation((table: any) => {
-          callCount++;
-          if (callCount === 1) {
-            return { where: vi.fn().mockResolvedValue([mockTokenRecord]) };
-          }
-          if (table === 'rolePermissions' || table.role === 'role') {
+          selectCallCount++;
+          if (table?.resource === 'resource' || table?.action === 'action') {
             return Promise.resolve([]);
           }
-          return { where: vi.fn().mockResolvedValue([]) };
+          return {
+            where: vi.fn().mockImplementation(() => {
+              if (selectCallCount === 1) {
+                return Promise.resolve([mockTokenRecord]);
+              }
+              return Promise.resolve([]);
+            }),
+          };
         }),
       }));
 

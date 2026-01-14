@@ -39,6 +39,7 @@ import {
   sendError, sendUnauthorized, sendForbidden, sendNotFound, sendValidationError,
   sendBadRequest, sendInternalError, ErrorCode
 } from "./errorResponse";
+import { setupSwagger } from "./openapi";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 
@@ -111,6 +112,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // Setup OpenAPI documentation (Swagger UI at /api/docs)
+  setupSwagger(app);
 
   // Apply input sanitization to all routes
   app.use(sanitizeAllInput);

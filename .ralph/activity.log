@@ -664,3 +664,27 @@ Done! Here's a summary of what was implemented:
    - GET `/api/health` - Added R2 connectivity status
 
 5. **Tests** (`agentCodeService.test.ts`): Comprehensive tests for all agentCodeService methods.
+Done. I've completed the task:
+
+1. **Created migration script** at `script/migrateAgentsToR2.ts`:
+   - Iterates through all `agent_uploads` without an `r2CodeKey`
+   - Migrates `full_code` agents that have code in `configJson` or `prompt`
+   - Supports `--dry-run` mode for safe testing
+   - Provides detailed logging and a summary of results
+   - Usage: `npx tsx script/migrateAgentsToR2.ts [--dry-run]`
+
+2. **Added comprehensive tests** at `server/__tests__/migrateAgentsToR2.test.ts`:
+   - Tests R2 availability check
+   - Tests skipping agents without code
+   - Tests skipping non-full_code agents
+   - Tests successful migration
+   - Tests failure handling
+   - Tests dry-run mode
+   - Tests multiple agent migration
+
+3. **Tests pass**: 8/8 migration tests pass, 1180/1182 total tests pass (2 pre-existing failures in unrelated tests)
+
+4. **Marked task complete** in `RALPH_TASK.md`
+
+5. **Committed** with descriptive message
+[2026-01-14 15:39:23] ✅ Task DONE!

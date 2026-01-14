@@ -16,7 +16,7 @@
 - [x] Benchmark: verify 3x+ performance improvement
 
 ## PHASE 2: Upstash Redis Integration
-- [ ] Install `@upstash/redis` package
+- [x] Install `@upstash/redis` package
 - [ ] Create `server/upstashRedis.ts` client wrapper
 - [ ] Implement connection with REST API (serverless-friendly)
 - [ ] Migrate rate limiter storage from memory to Upstash

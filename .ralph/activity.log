@@ -499,3 +499,11 @@ Done. Installed `@upstash/kafka` package, ran tests (6 pre-existing failures unr
 [2026-01-14 15:04:22] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 15:04:23] 🎯 Task: Create `server/upstashKafka.ts` producer/consumer...
 [2026-01-14 15:04:23] 🤖 Claude working (180s max)...
+Done. Created `server/upstashKafka.ts` with:
+- Producer/consumer with retry logic and exponential backoff
+- All 4 topics defined (agent-execution-queue, agent-results-queue, notifications-queue, agent-execution-dlq)
+- Dead-letter queue handling
+- Idempotency keys
+- 24 tests passing
+- RALPH_TASK.md updated and committed
+[2026-01-14 15:06:38] ✅ Task DONE!

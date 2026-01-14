@@ -312,3 +312,13 @@ All 376 tests pass. RALPH_TASK.md updated and committed.
 [2026-01-14 00:17:06] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 00:17:06] 🎯 Task: Create `server/__tests__/reputationService.test.ts`...
 [2026-01-14 00:17:06] 🤖 Claude working (180s max)...
+Done. Created `server/__tests__/reputationService.test.ts` with 25 tests covering:
+- `initializeReputation` - bronze tier creation
+- `recordEvent` - score updates with clamping (0-100)
+- `processReview` - rating-based score adjustments (5-star: +3, 4-star: +2, 3-star: 0, 2-star: -2, 1-star: -3)
+- `processBountyCompletion` - success (+5) and failure (-5) handling
+- `recalculateReputation` - tier threshold updates (bronze/silver/gold/platinum/diamond)
+- `getReputation` - full reputation data retrieval
+
+All 401 tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 00:19:12] ✅ Task DONE!

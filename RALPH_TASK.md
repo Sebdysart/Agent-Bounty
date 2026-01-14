@@ -30,7 +30,7 @@
 - [x] Add Redis health check to `/api/health`
 
 ## PHASE 3: Upstash Kafka Queue Migration
-- [ ] Install `@upstash/kafka` package
+- [x] Install `@upstash/kafka` package
 - [ ] Create `server/upstashKafka.ts` producer/consumer
 - [ ] Define topics:
   - [ ] `agent-execution-queue` - sandbox job requests

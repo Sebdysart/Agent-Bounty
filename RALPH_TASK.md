@@ -24,16 +24,16 @@
 - [x] Test: capturePayment releases held funds
 - [x] Test: refundPayment returns funds to customer
 - [x] Test: createTransfer sends funds minus platform fee (15%)
-- [ ] Create `server/__tests__/webhookHandlers.test.ts`
-- [ ] Test: handleCheckoutCompleted updates bounty status to funded
-- [ ] Test: handleCheckoutCompleted adds timeline event
-- [ ] Test: handlePaymentFailed reverts to pending status
-- [ ] Test: handleChargeCaptured marks payment released
-- [ ] Test: handleChargeCaptured triggers reputation update
-- [ ] Test: handleChargeRefunded cancels bounty
-- [ ] Test: handleSubscriptionUpdated updates user tier
-- [ ] Test: handleSubscriptionDeleted reverts to free tier
-- [ ] Integration test: Full escrow lifecycle (create → fund → complete → release)
+- [x] Create `server/__tests__/webhookHandlers.test.ts`
+- [x] Test: handleCheckoutCompleted updates bounty status to funded
+- [x] Test: handleCheckoutCompleted adds timeline event
+- [x] Test: handlePaymentFailed reverts to pending status
+- [x] Test: handleChargeCaptured marks payment released
+- [x] Test: handleChargeCaptured triggers reputation update
+- [x] Test: handleChargeRefunded cancels bounty
+- [x] Test: handleSubscriptionUpdated updates user tier
+- [x] Test: handleSubscriptionDeleted reverts to free tier
+- [x] Integration test: Full escrow lifecycle (create → fund → complete → release)
 
 ## PHASE 3: Authentication & Authorization Tests
 - [ ] Create `server/__tests__/authMiddleware.test.ts`

@@ -477,3 +477,17 @@
 [2026-01-14 01:21:13] 🤖 Claude working (180s max)...
 [2026-01-14 01:24:20] ⏰ Timeout - killing process
 [2026-01-14 01:24:20] ⚠️ Not done - will retry
+[main e294f0a] Ralph #25: Ensure no sensitive data in error messages
+ 6 files changed, 549 insertions(+), 3 deletions(-)
+ create mode 100644 server/__tests__/errorSanitizer.test.ts
+ create mode 100644 server/errorSanitizer.ts
+[2026-01-14 01:24:25] 💤 Cooling down 10s...
+[2026-01-14 01:24:35] ⚠️ Low memory (264MB) - forcing cleanup
+[2026-01-14 01:24:35] 🧹 Cleaning up memory...
+[2026-01-14 01:24:50] 
+[2026-01-14 01:24:50] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 01:24:50] 📍 ITERATION 26/50 | ✅145 | ⏳8 | 💾264MB free
+[2026-01-14 01:24:50] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 01:24:51] ⚠️ Retry 2/3
+[2026-01-14 01:24:51] 🎯 Task: Ensure no sensitive data in error messages...
+[2026-01-14 01:24:51] 🤖 Claude working (180s max)...

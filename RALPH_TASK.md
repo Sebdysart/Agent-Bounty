@@ -172,7 +172,7 @@
 - [x] Standardize error response format across all routes
 - [x] Add structured logging with request IDs
 - [x] Add error tracking integration (Sentry-ready)
-- [ ] Ensure no sensitive data in error messages
+- [x] Ensure no sensitive data in error messages
 - [ ] Add health check endpoint /api/health
 - [ ] Add readiness check endpoint /api/ready
 

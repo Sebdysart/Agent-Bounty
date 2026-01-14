@@ -835,3 +835,25 @@ Task complete:
 [2026-01-14 01:17:57] ⚠️ Retry 2/3
 [2026-01-14 01:17:57] 🎯 Task: Add error tracking integration (Sentry-ready)...
 [2026-01-14 01:17:57] 🤖 Claude working (180s max)...
+Done. I've completed the task:
+
+1. **Error tracking integration** - Added a Sentry-ready `errorTracking.ts` module with:
+   - `captureException()` and `captureMessage()` for capturing errors
+   - Configurable DSN, environment, release, sampling rate
+   - `beforeSend` hook for filtering/modifying events
+   - `ignoreErrors` patterns
+   - Sensitive data scrubbing (passwords, API keys, etc.)
+   - Express middleware `errorTrackingMiddleware` for automatic error capture
+   - `withErrorTracking` and `wrapWithErrorTracking` wrappers
+   - Transaction/performance monitoring support
+   - Breadcrumb and context management
+
+2. **Tests** - 36 tests in `errorTracking.test.ts` all passing
+
+3. **npm test** - All 929 tests pass
+
+4. **RALPH_TASK.md** - Marked `[x] Add error tracking integration (Sentry-ready)`
+
+5. **Committed** - Changes committed to git
+The task is complete. The error tracking integration (Sentry-ready) was already committed in `be2c934`, and I added a fix for the sampling rate bug in `24f1e3b`. All 929 tests pass, the RALPH_TASK.md is updated with `[x]`, and the changes are committed.
+[2026-01-14 01:20:39] ✅ Task DONE!

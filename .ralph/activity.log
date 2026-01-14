@@ -389,3 +389,15 @@ Done. I've completed the task:
 [2026-01-14 14:51:11] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 14:51:11] 🎯 Task: Migrate session storage to Upstash (if using Redis sessions)...
 [2026-01-14 14:51:11] 🤖 Claude working (180s max)...
+Done. I've migrated session storage to Upstash Redis:
+
+1. **Created `server/upstashSessionStore.ts`** - An express-session compatible store that uses Upstash Redis REST API (serverless-friendly)
+
+2. **Updated `server/replit_integrations/auth/replitAuth.ts`** - Now automatically uses Upstash Redis when configured, with fallback to PostgreSQL
+
+3. **Added tests** - `server/__tests__/upstashSessionStore.test.ts` with 15 passing tests
+
+4. **Updated RALPH_TASK.md** - Marked task complete
+
+5. **Committed** - `a8fb744`
+[2026-01-14 14:53:37] ✅ Task DONE!

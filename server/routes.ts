@@ -34,6 +34,7 @@ import { maxTierSandboxService } from "./maxTierSandboxService";
 import { apiRateLimit, authRateLimit, credentialRateLimit, aiRateLimit, stripeRateLimit } from "./rateLimitMiddleware";
 import { encryptedVault, type StoredCredentials } from "./encryptedVault";
 import { sanitizeAllInput } from "./sanitizationMiddleware";
+import { ensureCsrfToken, validateCsrfToken, getCsrfTokenHandler } from "./csrfMiddleware";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 
@@ -109,6 +110,13 @@ export async function registerRoutes(
 
   // Apply input sanitization to all routes
   app.use(sanitizeAllInput);
+
+  // Apply CSRF protection
+  app.use(ensureCsrfToken);
+  app.use(validateCsrfToken);
+
+  // Endpoint to get CSRF token for forms/requests
+  app.get("/api/csrf-token", getCsrfTokenHandler);
 
   app.use(validateJWT);
 

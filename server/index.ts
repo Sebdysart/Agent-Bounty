@@ -10,6 +10,7 @@ import { sanitizeAllInput } from './sanitizationMiddleware';
 import { securityHeaders } from './securityHeaders';
 import { AppError, ErrorCode, sendError } from './errorResponse';
 import { logger, requestIdMiddleware, httpLoggerMiddleware, createLogger } from './logger';
+import { initErrorTracking, errorTrackingMiddleware } from './errorTracking';
 
 const app = express();
 
@@ -21,6 +22,12 @@ app.use(requestIdMiddleware);
 
 // Apply HTTP logging middleware
 app.use(httpLoggerMiddleware);
+
+// Initialize error tracking (Sentry-ready)
+initErrorTracking({
+  environment: process.env.NODE_ENV || 'development',
+  release: process.env.APP_VERSION,
+});
 
 const httpServer = createServer(app);
 const stripeLogger = createLogger('stripe');
@@ -120,6 +127,9 @@ export function log(message: string, source = "express") {
   wsService.initialize(httpServer);
   await registerRoutes(httpServer, app);
 
+  // Error tracking middleware (captures errors before they're handled)
+  app.use(errorTrackingMiddleware);
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -128,7 +138,6 @@ export function log(message: string, source = "express") {
     const retryAfter = err.retryAfter;
 
     sendError(res, status, code, message, details, retryAfter);
-    throw err;
   });
 
   // importantly only setup vite in development and after

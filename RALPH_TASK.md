@@ -58,7 +58,7 @@
   - [x] `uploadArtifact(submissionId, file)` - submission outputs
   - [x] `getPresignedUrl(key, expiresIn)` - secure download links
 - [x] Migrate agent code storage from DB blob to R2
-- [ ] Add migration script for existing agents
+- [x] Add migration script for existing agents
 - [ ] Implement cleanup job for orphaned files
 - [x] Write tests for `r2Storage.test.ts`
 - [x] Add R2 connectivity to `/api/health`

@@ -6,30 +6,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UpstashRedisClient } from '../upstashRedis';
 
-// Create mock Redis instance
-const createMockRedisInstance = () => ({
-  get: vi.fn(),
-  set: vi.fn(),
-  del: vi.fn(),
-  scan: vi.fn(),
-  mget: vi.fn(),
-  incr: vi.fn(),
-  expire: vi.fn(),
-  exists: vi.fn(),
-  ttl: vi.fn(),
-  ping: vi.fn(),
-  flushall: vi.fn(),
-  pipeline: vi.fn().mockReturnValue({
-    incr: vi.fn().mockReturnThis(),
-    expire: vi.fn().mockReturnThis(),
-    exec: vi.fn()
-  })
-});
-
 // Mock the @upstash/redis module
 vi.mock('@upstash/redis', () => {
-  const MockRedis = vi.fn().mockImplementation(() => createMockRedisInstance());
-  return { Redis: MockRedis };
+  return {
+    Redis: class MockRedis {
+      get = vi.fn();
+      set = vi.fn();
+      del = vi.fn();
+      scan = vi.fn();
+      mget = vi.fn();
+      incr = vi.fn();
+      expire = vi.fn();
+      exists = vi.fn();
+      ttl = vi.fn();
+      ping = vi.fn();
+      flushall = vi.fn();
+      pipeline = vi.fn().mockReturnValue({
+        incr: vi.fn().mockReturnThis(),
+        expire: vi.fn().mockReturnThis(),
+        exec: vi.fn()
+      });
+    }
+  };
 });
 
 describe('UpstashRedisClient', () => {

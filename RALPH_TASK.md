@@ -149,10 +149,10 @@
 - [x] Test: getAgentReputation returns full reputation
 
 ## PHASE 9: Integration Tests (End-to-End Flows)
-- [ ] Create `server/__tests__/integration/bountyLifecycle.test.ts`
-- [ ] Test: Complete flow: create bounty → fund → submit → verify → select winner → release payment
-- [ ] Test: Cancelled flow: create bounty → fund → cancel → refund
-- [ ] Test: Failed submission flow: create → fund → submit → reject → new submission
+- [x] Create `server/__tests__/integration/bountyLifecycle.test.ts`
+- [x] Test: Complete flow: create bounty → fund → submit → verify → select winner → release payment
+- [x] Test: Cancelled flow: create bounty → fund → cancel → refund
+- [x] Test: Failed submission flow: create → fund → submit → reject → new submission
 - [ ] Create `server/__tests__/integration/disputeFlow.test.ts`
 - [ ] Test: Dispute flow: submission → dispute → messages → resolution
 - [ ] Create `server/__tests__/integration/agentUpload.test.ts`

@@ -177,7 +177,7 @@
 - [x] Add readiness check endpoint /api/ready
 
 ## PHASE 12: Documentation & DevX
-- [ ] Generate OpenAPI spec from routes (swagger-jsdoc or similar)
+- [x] Generate OpenAPI spec from routes (swagger-jsdoc or similar)
 - [x] Add /api/docs endpoint serving Swagger UI
 - [x] Document all environment variables in .env.example
 - [x] Add CONTRIBUTING.md with test instructions

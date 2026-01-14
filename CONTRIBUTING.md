@@ -1,103 +1,157 @@
 # Contributing to Agent-Bounty
 
-Thank you for your interest in contributing to Agent-Bounty! This guide will help you get started.
+Thanks for your interest in contributing! This guide will help you get set up.
 
-## Development Setup
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Copy `.env.example` to `.env` and configure your environment variables
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Testing
-
-We use [Vitest](https://vitest.dev/) for testing. All tests should pass before submitting a pull request.
-
-### Running Tests
+## 🚀 Quick Start
 
 ```bash
-# Run all tests once
+# Clone the repo
+git clone https://github.com/Sebdysart/Agent-Bounty.git
+cd Agent-Bounty
+
+# Install dependencies
+npm install
+
+# Copy environment config
+cp .env.example .env
+# Edit .env with your API keys
+
+# Push database schema
+npm run db:push
+
+# Start development server
+npm run dev
+```
+
+## 🧪 Running Tests
+
+We have **976 tests** covering the entire platform. Always run tests before submitting PRs.
+
+```bash
+# Run all tests
 npm test
 
-# Run tests in watch mode (recommended during development)
+# Run tests in watch mode (re-runs on file changes)
 npm run test:watch
 
-# Run tests with coverage report
+# Run with coverage report
 npm run test:coverage
 
-# Run tests with UI (interactive browser interface)
-npm run test:ui
+# Run specific test file
+npx vitest run server/__tests__/stripeService.test.ts
 ```
 
 ### Test Structure
 
-- Test files are co-located with the files they test (e.g., `stripeService.test.ts` next to `stripeService.ts`)
-- Integration tests are in `server/__tests__/integration/`
-- Test utilities and setup are in `server/__tests__/setup.ts`
-- Mock implementations are in `server/__tests__/mocks/`
-- Entity factories are in `server/__tests__/factories/`
+```
+server/
+├── __tests__/
+│   ├── setup.ts                 # Global test config & utilities
+│   ├── factories/               # Test data factories
+│   │   └── index.ts             # User, Bounty, Agent, Submission factories
+│   ├── mocks/                   # Service mocks
+│   │   ├── database.ts          # Mock Drizzle DB
+│   │   ├── stripe.ts            # Mock Stripe client
+│   │   └── openai.ts            # Mock OpenAI client
+│   ├── stripeService.test.ts    # Payment tests
+│   ├── webhookHandlers.test.ts  # Stripe webhook tests
+│   ├── authMiddleware.test.ts   # Auth tests
+│   ├── jwtService.test.ts       # JWT tests
+│   ├── encryptedVault.test.ts   # Credential encryption tests
+│   ├── rateLimitMiddleware.test.ts
+│   ├── routes/                  # API endpoint tests
+│   │   ├── bounties.test.ts
+│   │   ├── agents.test.ts
+│   │   └── submissions.test.ts
+│   └── integration/             # End-to-end flow tests
+│       ├── bountyLifecycle.test.ts
+│       ├── disputeFlow.test.ts
+│       └── agentUpload.test.ts
+```
 
 ### Writing Tests
 
-- Use descriptive test names that explain the expected behavior
-- Mock external services (Stripe, OpenAI) - never call real APIs in tests
-- Use the provided factories to create test data
-- Ensure tests are deterministic and not flaky
+Use our factories for consistent test data:
 
-Example test structure:
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
+import { factories } from './factories';
 
-describe('MyService', () => {
-  it('should do something specific', async () => {
-    // Arrange
-    const input = createTestInput();
-
-    // Act
-    const result = await myService.doSomething(input);
-
-    // Assert
-    expect(result).toBe(expectedValue);
-  });
-});
+const user = factories.createUser({ role: 'business' });
+const bounty = factories.createBounty({ posterId: user.id, reward: '500.00' });
+const agent = factories.createAgent({ developerId: 'dev-123' });
 ```
 
-### Test Coverage
+Use our mock utilities:
 
-We aim for >80% coverage on critical paths, especially:
-- Payment system (Stripe escrow)
-- Authentication and authorization
-- Credential vault (encryption)
-- AI execution service
+```typescript
+import { testUtils } from './setup';
 
-## Code Style
+const req = testUtils.mockRequest({ body: { title: 'Test' } });
+const res = testUtils.mockResponse();
+const next = testUtils.mockNext();
+```
 
-- Use TypeScript for all new code
-- Follow existing patterns in the codebase
-- Use Zod for input validation
-- Handle errors gracefully with proper error messages
+## 📁 Project Structure
 
-## Pull Request Process
+```
+Agent-Bounty/
+├── client/                 # React frontend
+│   └── src/
+│       ├── components/     # UI components
+│       ├── pages/          # Route pages
+│       └── hooks/          # Custom hooks
+├── server/                 # Express backend
+│   ├── routes.ts           # All API endpoints (251 routes)
+│   ├── storage.ts          # Database operations (108 methods)
+│   ├── stripeService.ts    # Payment processing
+│   ├── webhookHandlers.ts  # Stripe webhooks
+│   ├── encryptedVault.ts   # Credential encryption
+│   ├── aiExecutionService.ts
+│   ├── sandboxRunner.ts    # QuickJS sandbox
+│   ├── verificationService.ts
+│   ├── reputationService.ts
+│   └── __tests__/          # Test files
+├── shared/
+│   └── schema.ts           # Drizzle schema (2,270 lines)
+└── RALPH_TASK.md           # Automated task tracking
+```
 
-1. Create a feature branch from `main`
-2. Make your changes
-3. Run `npm test` and ensure all tests pass
-4. Run `npm run test:coverage` to verify coverage
-5. Submit a pull request with a clear description of changes
+## 🔒 Security
 
-## Security
+- All user input is validated with Zod schemas
+- Credentials are encrypted with AES-256-GCM
+- Rate limiting on all endpoints
+- RBAC with 18 default permissions
+- JWT + session hybrid authentication
 
-- Never commit secrets or API keys
-- Sanitize user input to prevent XSS and SQL injection
-- Use the credential vault for sensitive data storage
-- Report security vulnerabilities privately
+## 💳 Payment Flow
 
-## Questions?
+1. Business creates bounty → `POST /api/bounties`
+2. Business funds bounty → `POST /api/bounties/:id/fund` → Stripe Checkout
+3. Stripe webhook confirms → bounty status = "funded"
+4. Agent submits solution → `POST /api/bounties/:id/submissions`
+5. AI verification → `POST /api/submissions/:id/verify`
+6. Business selects winner → `POST /api/bounties/:id/select-winner`
+7. Payment released → `POST /api/bounties/:id/release-payment`
 
-Open an issue for any questions about contributing.
+## 🤝 Pull Request Process
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Write tests for your changes
+4. Ensure all tests pass: `npm test`
+5. Commit with clear messages: `git commit -m "Add amazing feature"`
+6. Push to your fork: `git push origin feature/amazing-feature`
+7. Open a Pull Request
+
+## 📝 Code Style
+
+- TypeScript strict mode
+- ESLint + Prettier
+- Functional React components with hooks
+- Zod for runtime validation
+- Descriptive variable names
+
+## ❓ Questions?
+
+Open an issue or reach out to the maintainers.

@@ -1081,3 +1081,13 @@ Done. Created CONTRIBUTING.md with test instructions, all tests pass (177 tests)
 [2026-01-14 12:56:36] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 12:56:36] 🎯 Task: Update README.md with architecture overview...
 [2026-01-14 12:56:36] 🤖 Claude working (180s max)...
+Done. Created README.md with architecture overview including:
+- ASCII architecture diagram showing client/server/data layers
+- Key components breakdown (Client, Server, Shared)
+- Core entities table (Bounty, Agent, Submission, Review, Dispute)
+- Payment flow explanation (Stripe escrow)
+- Security features list
+- Getting started guide
+- Scripts reference
+
+All 976 tests pass. Task marked complete and committed.

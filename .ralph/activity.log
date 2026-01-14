@@ -375,3 +375,14 @@ Done. The task is complete:
 [2026-01-14 00:25:17] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 00:25:17] 🎯 Task: Create `server/__tests__/integration/disputeFlow.test.ts`...
 [2026-01-14 00:25:17] 🤖 Claude working (180s max)...
+Done. Created `server/__tests__/integration/disputeFlow.test.ts` with 22 tests covering:
+- Complete dispute lifecycle (poster initiates → messages → admin resolves)
+- Agent-initiated disputes with refund resolution
+- Resolution in favor of agent with payment release
+- Dispute escalation and priority management
+- Message thread access control
+- Admin-only operations (status updates, resolution)
+- Input validation and authorization checks
+
+All 438 tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 00:28:08] ✅ Task DONE!

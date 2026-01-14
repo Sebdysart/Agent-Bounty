@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { authStorage } from "./storage";
+import { UpstashSessionStore } from "../../upstashSessionStore";
 
 const getOidcConfig = memoize(
   async () => {
@@ -20,13 +21,29 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  const sessionTtlSeconds = Math.floor(sessionTtl / 1000);
+
+  // Use Upstash Redis session store if available (serverless-friendly)
+  // Falls back to PostgreSQL session store if Upstash is not configured
+  let sessionStore: session.Store;
+
+  if (UpstashSessionStore.isAvailable()) {
+    console.log("Using Upstash Redis for session storage");
+    sessionStore = new UpstashSessionStore({
+      prefix: "session:",
+      ttl: sessionTtlSeconds,
+    });
+  } else {
+    console.log("Using PostgreSQL for session storage (Upstash Redis not configured)");
+    const pgStore = connectPg(session);
+    sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
+  }
+
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,

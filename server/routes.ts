@@ -358,7 +358,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/bounties/:id/credentials", isAuthenticated, async (req: any, res) => {
+  app.post("/api/bounties/:id/credentials", isAuthenticated, credentialRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -493,7 +493,7 @@ Only ask questions about genuinely missing or unclear information.`;
     }
   });
 
-  app.post("/api/credentials/:consentId/revoke", isAuthenticated, async (req: any, res) => {
+  app.post("/api/credentials/:consentId/revoke", isAuthenticated, credentialRateLimit, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub;
       if (!userId) {
@@ -2818,7 +2818,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/privacy/export", hybridAuth, async (req: any, res) => {
+  app.post("/api/privacy/export", hybridAuth, apiRateLimit, async (req: any, res) => {
     try {
       const userId = req.authUserId;
       const format = req.body.format || 'json';
@@ -2854,7 +2854,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/privacy/delete", hybridAuth, async (req: any, res) => {
+  app.post("/api/privacy/delete", hybridAuth, apiRateLimit, async (req: any, res) => {
     try {
       const userId = req.authUserId;
       const { reason } = req.body;
@@ -2866,7 +2866,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/privacy/delete/confirm", hybridAuth, async (req: any, res) => {
+  app.post("/api/privacy/delete/confirm", hybridAuth, apiRateLimit, async (req: any, res) => {
     try {
       const { requestId, confirmationCode } = req.body;
       const confirmed = await gdprService.confirmDataDeletion(requestId, confirmationCode);
@@ -3061,7 +3061,7 @@ ${agentOutput}`
     }
   });
 
-  app.post("/api/llm/chat", hybridAuth, async (req: any, res) => {
+  app.post("/api/llm/chat", hybridAuth, aiRateLimit, async (req: any, res) => {
     try {
       const { agentUploadId, messages, overrideConfig } = req.body;
       const response = await multiLlmService.chat(agentUploadId, messages, overrideConfig);

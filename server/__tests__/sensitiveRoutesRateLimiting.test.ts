@@ -362,7 +362,7 @@ describe('Rate Limiter Middleware Availability', () => {
     } as any;
     const mockNext = vi.fn();
 
-    apiRateLimit(mockReq, mockRes, mockNext);
+    await apiRateLimit(mockReq, mockRes, mockNext);
 
     expect(mockRes.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 100);
   });
@@ -377,7 +377,7 @@ describe('Rate Limiter Middleware Availability', () => {
     } as any;
     const mockNext = vi.fn();
 
-    authRateLimit(mockReq, mockRes, mockNext);
+    await authRateLimit(mockReq, mockRes, mockNext);
 
     expect(mockRes.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 10);
   });
@@ -392,7 +392,7 @@ describe('Rate Limiter Middleware Availability', () => {
     } as any;
     const mockNext = vi.fn();
 
-    credentialRateLimit(mockReq, mockRes, mockNext);
+    await credentialRateLimit(mockReq, mockRes, mockNext);
 
     expect(mockRes.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 5);
   });
@@ -407,7 +407,7 @@ describe('Rate Limiter Middleware Availability', () => {
     } as any;
     const mockNext = vi.fn();
 
-    aiRateLimit(mockReq, mockRes, mockNext);
+    await aiRateLimit(mockReq, mockRes, mockNext);
 
     expect(mockRes.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 20);
   });
@@ -422,7 +422,7 @@ describe('Rate Limiter Middleware Availability', () => {
     } as any;
     const mockNext = vi.fn();
 
-    stripeRateLimit(mockReq, mockRes, mockNext);
+    await stripeRateLimit(mockReq, mockRes, mockNext);
 
     expect(mockRes.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 10);
   });

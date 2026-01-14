@@ -85,19 +85,19 @@ describe('RateLimitMiddleware', () => {
   });
 
   describe('rateLimit factory function', () => {
-    it('should create middleware that allows requests within limit', () => {
+    it('should create middleware that allows requests within limit', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 5 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
       expect(mockStatus).not.toHaveBeenCalled();
     });
 
-    it('should set rate limit headers on each request', () => {
+    it('should set rate limit headers on each request', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 10 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 10);
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 9);
@@ -107,39 +107,39 @@ describe('RateLimitMiddleware', () => {
       );
     });
 
-    it('should decrement remaining count on subsequent requests', () => {
+    it('should decrement remaining count on subsequent requests', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 5 });
 
       // First request
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 4);
 
       mockSetHeader.mockClear();
 
       // Second request
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 3);
     });
 
-    it('should return 429 when rate limit exceeded', () => {
+    it('should return 429 when rate limit exceeded', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
 
       // First two requests should pass
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockNext).toHaveBeenCalledTimes(2);
 
       mockNext.mockClear();
 
       // Third request should be rate limited
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many requests, please try again later'));
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should use custom message when provided', () => {
+    it('should use custom message when provided', async () => {
       const customMessage = 'Custom rate limit message';
       const middleware = rateLimit({
         windowMs: 60000,
@@ -148,19 +148,19 @@ describe('RateLimitMiddleware', () => {
       });
 
       // Exhaust rate limit
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError(customMessage));
     });
 
-    it('should reset rate limit after window expires', () => {
+    it('should reset rate limit after window expires', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
 
       // Exhaust rate limit
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
 
       mockStatus.mockClear();
@@ -170,32 +170,32 @@ describe('RateLimitMiddleware', () => {
       vi.advanceTimersByTime(61000);
 
       // Request should now succeed
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockNext).toHaveBeenCalled();
       expect(mockStatus).not.toHaveBeenCalled();
     });
 
-    it('should show 0 remaining when at or past limit', () => {
+    it('should show 0 remaining when at or past limit', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 1 });
 
       // Use up the limit
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       mockSetHeader.mockClear();
 
       // Exceed the limit
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 0);
     });
   });
 
   describe('user identification', () => {
-    it('should use session user ID when available', () => {
+    it('should use session user ID when available', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
       const sessionUserId = getUniqueId();
       (mockReq as any).user = { claims: { sub: sessionUserId } };
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       // Create a different request with same session user but different IP
       const otherReq = {
@@ -205,116 +205,116 @@ describe('RateLimitMiddleware', () => {
         path: uniquePath,
       };
 
-      middleware(otherReq as Request, mockRes as Response, mockNext);
-      middleware(otherReq as Request, mockRes as Response, mockNext);
+      await middleware(otherReq as Request, mockRes as Response, mockNext);
+      await middleware(otherReq as Request, mockRes as Response, mockNext);
 
       // Should be rate limited because same user
       expect(mockStatus).toHaveBeenCalledWith(429);
     });
 
-    it('should use JWT tokenPayload userId when session not available', () => {
+    it('should use JWT tokenPayload userId when session not available', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
       (mockReq as any).tokenPayload = { userId: getUniqueId() };
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
     });
 
-    it('should use IP address when no user identification available', () => {
+    it('should use IP address when no user identification available', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
     });
 
-    it('should use anonymous when no identification available', () => {
+    it('should use anonymous when no identification available', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
       mockReq.ip = undefined;
       // Use a unique path to isolate this test
       mockReq.path = `/anon/${getUniqueId()}`;
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
     });
 
-    it('should prefer session user over tokenPayload', () => {
+    it('should prefer session user over tokenPayload', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
       const sessionUserId = getUniqueId();
       (mockReq as any).user = { claims: { sub: sessionUserId } };
       (mockReq as any).tokenPayload = { userId: getUniqueId() };
 
       // Make requests that should be counted under session-user
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
     });
   });
 
   describe('path-based rate limiting', () => {
-    it('should track rate limits separately per path', () => {
+    it('should track rate limits separately per path', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
       const testPath1 = `/path1/${getUniqueId()}`;
       const testPath2 = `/path2/${getUniqueId()}`;
 
       // Two requests to first path
       mockReq.path = testPath1;
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockNext).toHaveBeenCalledTimes(2);
 
       mockNext.mockClear();
 
       // Request to second path should not be rate limited
       mockReq.path = testPath2;
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockNext).toHaveBeenCalled();
       expect(mockStatus).not.toHaveBeenCalled();
     });
   });
 
   describe('retryAfter calculation', () => {
-    it('should return correct retryAfter in seconds', () => {
+    it('should return correct retryAfter in seconds', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 1 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many requests, please try again later', 60));
     });
 
-    it('should calculate remaining time correctly mid-window', () => {
+    it('should calculate remaining time correctly mid-window', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 1 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       // Advance time by 30 seconds
       vi.advanceTimersByTime(30000);
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many requests, please try again later', 30));
     });
   });
 
   describe('preset rate limiters', () => {
-    it('apiRateLimit should allow 100 requests per minute', () => {
+    it('apiRateLimit should allow 100 requests per minute', async () => {
       // Use unique path for this test
       mockReq.path = `/api/${getUniqueId()}`;
 
       // Make 100 requests
       for (let i = 0; i < 100; i++) {
-        apiRateLimit(mockReq as Request, mockRes as Response, mockNext);
+        await apiRateLimit(mockReq as Request, mockRes as Response, mockNext);
       }
       expect(mockNext).toHaveBeenCalledTimes(100);
       expect(mockStatus).not.toHaveBeenCalled();
@@ -322,90 +322,90 @@ describe('RateLimitMiddleware', () => {
       mockNext.mockClear();
 
       // 101st request should be rate limited
-      apiRateLimit(mockReq as Request, mockRes as Response, mockNext);
+      await apiRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('API rate limit exceeded. Please wait before making more requests.'));
     });
 
-    it('authRateLimit should allow 10 requests per 15 minutes', () => {
+    it('authRateLimit should allow 10 requests per 15 minutes', async () => {
       mockReq.path = `/auth/${getUniqueId()}`;
 
       for (let i = 0; i < 10; i++) {
-        authRateLimit(mockReq as Request, mockRes as Response, mockNext);
+        await authRateLimit(mockReq as Request, mockRes as Response, mockNext);
       }
       expect(mockNext).toHaveBeenCalledTimes(10);
 
       mockNext.mockClear();
 
-      authRateLimit(mockReq as Request, mockRes as Response, mockNext);
+      await authRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many authentication attempts. Please try again later.'));
     });
 
-    it('credentialRateLimit should allow 5 requests per minute', () => {
+    it('credentialRateLimit should allow 5 requests per minute', async () => {
       mockReq.path = `/credentials/${getUniqueId()}`;
 
       for (let i = 0; i < 5; i++) {
-        credentialRateLimit(mockReq as Request, mockRes as Response, mockNext);
+        await credentialRateLimit(mockReq as Request, mockRes as Response, mockNext);
       }
       expect(mockNext).toHaveBeenCalledTimes(5);
 
       mockNext.mockClear();
 
-      credentialRateLimit(mockReq as Request, mockRes as Response, mockNext);
+      await credentialRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many credential access attempts. Please wait.'));
     });
 
-    it('aiRateLimit should allow 20 requests per minute', () => {
+    it('aiRateLimit should allow 20 requests per minute', async () => {
       mockReq.path = `/ai/${getUniqueId()}`;
 
       for (let i = 0; i < 20; i++) {
-        aiRateLimit(mockReq as Request, mockRes as Response, mockNext);
+        await aiRateLimit(mockReq as Request, mockRes as Response, mockNext);
       }
       expect(mockNext).toHaveBeenCalledTimes(20);
 
       mockNext.mockClear();
 
-      aiRateLimit(mockReq as Request, mockRes as Response, mockNext);
+      await aiRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('AI execution rate limit exceeded. Please wait.'));
     });
 
-    it('stripeRateLimit should allow 10 requests per minute', () => {
+    it('stripeRateLimit should allow 10 requests per minute', async () => {
       mockReq.path = `/stripe/${getUniqueId()}`;
 
       for (let i = 0; i < 10; i++) {
-        stripeRateLimit(mockReq as Request, mockRes as Response, mockNext);
+        await stripeRateLimit(mockReq as Request, mockRes as Response, mockNext);
       }
       expect(mockNext).toHaveBeenCalledTimes(10);
 
       mockNext.mockClear();
 
-      stripeRateLimit(mockReq as Request, mockRes as Response, mockNext);
+      await stripeRateLimit(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
       expect(mockJson).toHaveBeenCalledWith(expectedRateLimitError('Too many payment requests. Please wait.'));
     });
   });
 
   describe('edge cases', () => {
-    it('should handle concurrent requests correctly', () => {
+    it('should handle concurrent requests correctly', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 3 });
 
       // Simulate multiple concurrent requests
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockNext).toHaveBeenCalledTimes(3);
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 0);
     });
 
-    it('should handle very short window correctly', () => {
+    it('should handle very short window correctly', async () => {
       const middleware = rateLimit({ windowMs: 1000, maxRequests: 1 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockStatus).toHaveBeenCalledWith(429);
 
       mockStatus.mockClear();
@@ -414,29 +414,29 @@ describe('RateLimitMiddleware', () => {
       // Advance past window
       vi.advanceTimersByTime(1001);
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
       expect(mockNext).toHaveBeenCalled();
       expect(mockStatus).not.toHaveBeenCalled();
     });
 
-    it('should handle large maxRequests value', () => {
+    it('should handle large maxRequests value', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 1000 });
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 1000);
       expect(mockSetHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', 999);
     });
 
-    it('should handle requests with undefined path', () => {
+    it('should handle requests with undefined path', async () => {
       const middleware = rateLimit({ windowMs: 60000, maxRequests: 2 });
       mockReq.path = undefined as any;
       // Use unique IP to isolate this test
       mockReq.ip = getUniqueId();
 
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
-      middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
+      await middleware(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockStatus).toHaveBeenCalledWith(429);
     });

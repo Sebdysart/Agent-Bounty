@@ -187,7 +187,7 @@ export async function registerRoutes(
 
   app.get("/api/stats", hybridAuth, async (req: any, res) => {
     try {
-      const stats = await storage.getStats();
+      const stats = await dataCache.getStats(() => storage.getStats());
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -208,7 +208,7 @@ export async function registerRoutes(
 
   app.get("/api/bounties", async (req, res) => {
     try {
-      const bounties = await storage.getAllBounties();
+      const bounties = await dataCache.getBountyList(() => storage.getAllBounties());
       res.json(bounties);
     } catch (error) {
       console.error("Error fetching bounties:", error);
@@ -245,6 +245,7 @@ export async function registerRoutes(
       }
 
       const bounty = await storage.createBounty(parsed.data);
+      await dataCache.invalidateBounty();
       res.status(201).json(bounty);
     } catch (error) {
       console.error("Error creating bounty:", error);
@@ -628,8 +629,9 @@ Only ask questions about genuinely missing or unclear information.`;
       if (!bounty) {
         return sendNotFound(res, "Bounty not found", ErrorCode.BOUNTY_NOT_FOUND);
       }
-      
+
       await storage.addTimelineEvent(id, parsed.data.status, `Status changed to ${parsed.data.status}`);
+      await dataCache.invalidateBounty(id);
       res.json(bounty);
     } catch (error) {
       console.error("Error updating bounty status:", error);
@@ -639,7 +641,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/agents", async (req, res) => {
     try {
-      const agents = await storage.getAllAgents();
+      const agents = await dataCache.getTopAgents(1000, () => storage.getAllAgents());
       res.json(agents);
     } catch (error) {
       console.error("Error fetching agents:", error);
@@ -650,7 +652,7 @@ Only ask questions about genuinely missing or unclear information.`;
   app.get("/api/agents/top", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
-      const agents = await storage.getTopAgents(limit);
+      const agents = await dataCache.getTopAgents(limit, () => storage.getTopAgents(limit));
       res.json(agents);
     } catch (error) {
       console.error("Error fetching top agents:", error);
@@ -724,6 +726,7 @@ Only ask questions about genuinely missing or unclear information.`;
       }
 
       const agent = await storage.createAgent(parsed.data);
+      await dataCache.invalidateAgent();
       res.status(201).json(agent);
     } catch (error) {
       console.error("Error creating agent:", error);
@@ -1221,7 +1224,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/leaderboard", async (req, res) => {
     try {
-      const leaderboard = await storage.getAgentLeaderboard();
+      const leaderboard = await dataCache.getLeaderboard(() => storage.getAgentLeaderboard());
       res.json(leaderboard);
     } catch (error) {
       console.error("Error fetching leaderboard:", error);
@@ -1231,7 +1234,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/analytics", hybridAuth, async (req: any, res) => {
     try {
-      const analytics = await storage.getAnalytics();
+      const analytics = await dataCache.getAnalytics(() => storage.getAnalytics());
       res.json(analytics);
     } catch (error) {
       console.error("Error fetching analytics:", error);
@@ -1241,7 +1244,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/analytics/advanced", hybridAuth, async (req: any, res) => {
     try {
-      const advancedAnalytics = await storage.getAdvancedAnalytics();
+      const advancedAnalytics = await dataCache.getAdvancedAnalytics(() => storage.getAdvancedAnalytics());
       res.json(advancedAnalytics);
     } catch (error) {
       console.error("Error fetching advanced analytics:", error);
@@ -1251,7 +1254,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/analytics/agent-performance", hybridAuth, async (req: any, res) => {
     try {
-      const performance = await storage.getAgentPerformanceAnalytics();
+      const performance = await dataCache.getAgentPerformanceAnalytics(() => storage.getAgentPerformanceAnalytics());
       res.json(performance);
     } catch (error) {
       console.error("Error fetching agent performance:", error);
@@ -1261,7 +1264,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/analytics/roi", hybridAuth, async (req: any, res) => {
     try {
-      const roi = await storage.getROIAnalytics();
+      const roi = await dataCache.getROIAnalytics(() => storage.getROIAnalytics());
       res.json(roi);
     } catch (error) {
       console.error("Error fetching ROI analytics:", error);
@@ -1271,7 +1274,7 @@ Only ask questions about genuinely missing or unclear information.`;
 
   app.get("/api/analytics/benchmarks", hybridAuth, async (req: any, res) => {
     try {
-      const benchmarks = await storage.getBenchmarkAnalytics();
+      const benchmarks = await dataCache.getBenchmarkAnalytics(() => storage.getBenchmarkAnalytics());
       res.json(benchmarks);
     } catch (error) {
       console.error("Error fetching benchmarks:", error);

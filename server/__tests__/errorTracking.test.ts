@@ -5,6 +5,7 @@ import {
   captureMessage,
   getRecentErrors,
   clearRecentErrors,
+  resetConfig,
   setUser,
   clearUser,
   addBreadcrumb,
@@ -22,8 +23,9 @@ import type { Request, Response, NextFunction } from "express";
 
 describe("errorTracking", () => {
   beforeEach(() => {
-    clearRecentErrors();
-    // Reset to default config
+    // Full reset of state and config
+    resetConfig();
+    // Initialize with test defaults
     initErrorTracking({
       environment: "test",
       sampleRate: 1.0,
@@ -32,7 +34,7 @@ describe("errorTracking", () => {
   });
 
   afterEach(() => {
-    clearRecentErrors();
+    resetConfig();
   });
 
   describe("initErrorTracking", () => {
@@ -147,11 +149,20 @@ describe("errorTracking", () => {
     });
 
     it("respects sampling rate", () => {
-      initErrorTracking({ sampleRate: 0 });
+      // Mock Math.random to return a value that will be sampled out with low sample rate
+      const originalRandom = Math.random;
+      Math.random = () => 0.5; // Always returns 0.5
+
+      // Reset and re-init with 0 sampling (0.5 < 0 is false, so should be sampled out)
+      resetConfig();
+      initErrorTracking({ sampleRate: 0, environment: "test" });
 
       const eventId = captureException(new Error("Sampled out"));
       expect(eventId).toBeNull();
       expect(getRecentErrors()).toHaveLength(0);
+
+      // Restore original Math.random
+      Math.random = originalRandom;
     });
 
     it("allows beforeSend to modify events", () => {

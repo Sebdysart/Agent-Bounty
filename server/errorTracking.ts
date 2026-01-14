@@ -78,7 +78,15 @@ const MAX_STORED_ERRORS = 100;
  * it will automatically integrate with Sentry
  */
 export function initErrorTracking(userConfig: ErrorTrackingConfig = {}): void {
-  config = { ...config, ...userConfig };
+  // Apply user config with explicit defaults for undefined values
+  config = {
+    environment: userConfig.environment ?? config.environment,
+    release: userConfig.release ?? config.release,
+    sampleRate: userConfig.sampleRate ?? config.sampleRate,
+    beforeSend: userConfig.beforeSend ?? config.beforeSend,
+    ignoreErrors: userConfig.ignoreErrors ?? config.ignoreErrors,
+    dsn: userConfig.dsn ?? config.dsn,
+  };
 
   // Check for Sentry DSN in environment
   const dsn = userConfig.dsn || process.env.SENTRY_DSN;
@@ -126,7 +134,7 @@ function shouldIgnoreError(error: Error): boolean {
  * Apply sampling rate
  */
 function shouldSample(): boolean {
-  return Math.random() < (config.sampleRate || 1.0);
+  return Math.random() < (config.sampleRate ?? 1.0);
 }
 
 /**
@@ -290,6 +298,21 @@ export function getRecentErrors(): ErrorEvent[] {
  * Clear recent errors
  */
 export function clearRecentErrors(): void {
+  recentErrors.length = 0;
+}
+
+/**
+ * Reset configuration to defaults (useful for testing)
+ */
+export function resetConfig(): void {
+  config = {
+    environment: process.env.NODE_ENV || "development",
+    release: process.env.APP_VERSION || process.env.npm_package_version,
+    sampleRate: 1.0,
+    ignoreErrors: [],
+    dsn: undefined,
+    beforeSend: undefined,
+  };
   recentErrors.length = 0;
 }
 

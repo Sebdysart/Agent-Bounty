@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import { sendForbidden, sendInternalError, ErrorCode } from "./errorResponse";
 
 // Extend session type to include CSRF token
 declare module "express-session" {
@@ -64,25 +65,16 @@ export function validateCsrfToken(req: Request, res: Response, next: NextFunctio
   const requestToken = req.headers[CSRF_HEADER_NAME] as string || req.body?._csrf;
 
   if (!sessionToken) {
-    return res.status(403).json({
-      message: "CSRF validation failed: No session token",
-      code: "CSRF_NO_SESSION"
-    });
+    return sendForbidden(res, "CSRF validation failed: No session token", ErrorCode.CSRF_NO_SESSION);
   }
 
   if (!requestToken) {
-    return res.status(403).json({
-      message: "CSRF validation failed: No token provided",
-      code: "CSRF_TOKEN_MISSING"
-    });
+    return sendForbidden(res, "CSRF validation failed: No token provided", ErrorCode.CSRF_TOKEN_MISSING);
   }
 
   // Use timing-safe comparison to prevent timing attacks
   if (!timingSafeEqual(sessionToken, requestToken)) {
-    return res.status(403).json({
-      message: "CSRF validation failed: Token mismatch",
-      code: "CSRF_TOKEN_INVALID"
-    });
+    return sendForbidden(res, "CSRF validation failed: Token mismatch", ErrorCode.CSRF_TOKEN_INVALID);
   }
 
   next();
@@ -108,7 +100,7 @@ function timingSafeEqual(a: string, b: string): boolean {
  */
 export function getCsrfTokenHandler(req: Request, res: Response) {
   if (!req.session) {
-    return res.status(500).json({ message: "Session not available" });
+    return sendInternalError(res, "Session not available");
   }
 
   // Ensure token exists
@@ -116,7 +108,7 @@ export function getCsrfTokenHandler(req: Request, res: Response) {
     req.session.csrfToken = generateCsrfToken();
   }
 
-  res.json({ csrfToken: req.session.csrfToken });
+  res.json({ success: true, data: { csrfToken: req.session.csrfToken } });
 }
 
 /**

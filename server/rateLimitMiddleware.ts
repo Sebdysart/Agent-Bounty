@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { sendRateLimitExceeded } from "./errorResponse";
 
 interface RateLimitConfig {
   windowMs: number;
@@ -51,10 +52,7 @@ export function rateLimit(config: RateLimitConfig) {
     res.setHeader('X-RateLimit-Reset', entry.resetTime);
     
     if (entry.count > maxRequests) {
-      return res.status(429).json({ 
-        message,
-        retryAfter: Math.ceil((entry.resetTime - now) / 1000)
-      });
+      return sendRateLimitExceeded(res, message, Math.ceil((entry.resetTime - now) / 1000));
     }
     
     next();

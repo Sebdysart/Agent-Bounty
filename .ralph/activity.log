@@ -344,3 +344,11 @@ All 401 tests pass. Task marked complete in RALPH_TASK.md and committed.
 [2026-01-14 00:23:02] ⚠️ Retry 2/3
 [2026-01-14 00:23:02] 🎯 Task: Create `server/__tests__/integration/bountyLifecycle.test.ts...
 [2026-01-14 00:23:02] 🤖 Claude working (180s max)...
+Done. Created `server/__tests__/integration/bountyLifecycle.test.ts` with 15 tests covering:
+
+- **Complete flow**: create bounty → fund → submit → verify → select winner → release payment
+- **Cancelled flow**: create bounty → fund → cancel → refund  
+- **Failed submission flow**: create → fund → submit → reject → new submission
+- **Edge cases**: non-existent bounty, completed bounty, agent ownership, auto-release failures
+
+All tests passing. RALPH_TASK.md updated and committed.

@@ -396,3 +396,23 @@ All 438 tests pass. Task marked complete in RALPH_TASK.md and committed.
 [2026-01-14 00:28:22] 🤖 Claude working (180s max)...
 [2026-01-14 00:31:22] ⏰ Timeout - killing process
 [2026-01-14 00:31:22] ✅ Task DONE!
+[2026-01-14 00:31:24] 💤 Cooling down 10s...
+Done. Created `server/__tests__/integration/agentUpload.test.ts` with 29 tests covering the complete agent upload lifecycle:
+- Full flow: create → test → publish → marketplace listing (no-code, low-code, full-code agents)
+- Validation for upload types and requirements
+- Publishing prerequisites (tests and success rate)
+- Access control and ownership verification
+- Unpublish/delete workflows
+- Marketplace listing with filters
+
+All 467 tests pass.
+[2026-01-14 00:31:34] ⚠️ Low memory (474MB) - forcing cleanup
+[2026-01-14 00:31:34] 🧹 Cleaning up memory...
+[2026-01-14 00:31:47] 
+[2026-01-14 00:31:47] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 00:31:47] 📍 ITERATION 7/50 | ✅134 | ⏳19 | 💾474MB free
+[2026-01-14 00:31:47] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-14 00:31:47] 🎯 Task: Add input sanitization for all user-provided HTML/text...
+[2026-01-14 00:31:47] 🤖 Claude working (180s max)...
+[2026-01-14 00:34:47] ⏰ Timeout - killing process
+[2026-01-14 00:34:47] ⚠️ Not done - will retry

@@ -95,21 +95,47 @@ export const ticketCreateSchema = z.object({
 });
 
 // Sanitization helpers
+
+/**
+ * Escapes HTML entities to prevent XSS attacks
+ * Use this for any user-provided text that will be rendered in HTML
+ */
 export function sanitizeHtml(input: string): string {
+  if (typeof input !== 'string') return '';
   return input
+    .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#x27;")
-    .replace(/\//g, "&#x2F;");
+    .replace(/\//g, "&#x2F;")
+    .replace(/`/g, "&#x60;")
+    .replace(/=/g, "&#x3D;");
 }
 
+/**
+ * Strips HTML tags entirely (for plain text contexts)
+ */
+export function stripHtml(input: string): string {
+  if (typeof input !== 'string') return '';
+  return input.replace(/<[^>]*>/g, '');
+}
+
+/**
+ * Sanitizes input for safe database storage
+ * Removes null bytes and control characters
+ */
 export function sanitizeForDb(obj: Record<string, any>): Record<string, any> {
   const sanitized: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === "string") {
-      // Basic SQL injection prevention (already handled by Drizzle, but extra safety)
-      sanitized[key] = value.replace(/[\x00-\x1F\x7F]/g, "");
+      // Remove null bytes and control characters (except newlines/tabs)
+      sanitized[key] = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+    } else if (Array.isArray(value)) {
+      sanitized[key] = value.map(item =>
+        typeof item === 'object' && item !== null ? sanitizeForDb(item) :
+        typeof item === 'string' ? item.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") : item
+      );
     } else if (typeof value === "object" && value !== null) {
       sanitized[key] = sanitizeForDb(value);
     } else {
@@ -117,4 +143,62 @@ export function sanitizeForDb(obj: Record<string, any>): Record<string, any> {
     }
   }
   return sanitized;
+}
+
+/**
+ * Sanitizes user input text - strips dangerous patterns but preserves readability
+ * Use for titles, descriptions, comments, etc.
+ */
+export function sanitizeUserText(input: string): string {
+  if (typeof input !== 'string') return '';
+  return input
+    // Remove null bytes and most control characters
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Remove potential script injection patterns
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, 'data\u200B:')
+    .replace(/vbscript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    // Normalize whitespace
+    .trim();
+}
+
+/**
+ * Sanitizes an entire object's string fields recursively
+ */
+export function sanitizeObject<T extends Record<string, any>>(obj: T, htmlEscape: boolean = false): T {
+  const sanitized: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string") {
+      sanitized[key] = htmlEscape ? sanitizeHtml(sanitizeUserText(value)) : sanitizeUserText(value);
+    } else if (Array.isArray(value)) {
+      sanitized[key] = value.map(item => {
+        if (typeof item === 'string') {
+          return htmlEscape ? sanitizeHtml(sanitizeUserText(item)) : sanitizeUserText(item);
+        } else if (typeof item === 'object' && item !== null) {
+          return sanitizeObject(item, htmlEscape);
+        }
+        return item;
+      });
+    } else if (typeof value === "object" && value !== null) {
+      sanitized[key] = sanitizeObject(value, htmlEscape);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized as T;
+}
+
+/**
+ * Creates a Zod transformer that sanitizes string input
+ */
+export function sanitizedString() {
+  return z.string().transform(sanitizeUserText);
+}
+
+/**
+ * Creates a Zod transformer for HTML-safe string input
+ */
+export function htmlSafeString() {
+  return z.string().transform((val) => sanitizeHtml(sanitizeUserText(val)));
 }

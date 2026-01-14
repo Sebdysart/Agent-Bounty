@@ -918,3 +918,10 @@ Done. The task "Ensure no sensitive data in error messages" is complete:
 [2026-01-14 01:27:04] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 01:27:06] 🎯 Task: Add health check endpoint /api/health...
 [2026-01-14 01:27:06] 🤖 Claude working (180s max)...
+Done. Added health check endpoint at `/api/health` that returns:
+- `status: "healthy"`
+- `timestamp` (ISO string)
+- `uptime` (seconds)
+
+All 970 tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 01:29:32] ✅ Task DONE!

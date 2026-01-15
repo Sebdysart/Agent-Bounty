@@ -2831,3 +2831,5 @@ Task complete.
 4. RALPH_TASK.md updated to mark task `[x]`
 
 5. All changes committed (commit c40f59d and 528314a)
+Done. The cleanup job for orphaned files was already implemented in `server/r2CleanupJob.ts` with 12 passing tests. I marked the task complete in RALPH_TASK.md and committed.
+[2026-01-15 01:45:21] ✅ Task DONE!

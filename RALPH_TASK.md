@@ -83,7 +83,7 @@
 - [x] Configure health check endpoint
 - [x] Set up auto-scaling (min: 1, max: 5)
 - [x] Configure machine specs (shared-cpu-1x, 512MB)
-- [ ] Create fly.staging.toml for staging
+- [x] Create fly.staging.toml for staging
 - [ ] Create scripts/deploy.sh deployment script
 - [ ] Create scripts/secrets.sh for managing Fly secrets
 - [ ] Document all required environment variables

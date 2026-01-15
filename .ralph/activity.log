@@ -2161,3 +2161,13 @@ Done. I've:
 [2026-01-14 22:15:49] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:15:49] 🎯 Task: Migrate rate limiter storage to use Upstash when flag enable...
 [2026-01-14 22:15:49] 🤖 Claude working (180s max)...
+Done. Migrated rate limiter storage to use Upstash when `USE_UPSTASH_REDIS` flag is enabled:
+
+1. **Code change**: Refactored `checkRateLimitRedis()` in `server/rateLimitMiddleware.ts:33-67` to use `IRedisClient` interface methods (`incr`, `ttl`, `expire`) instead of getting the raw client via `getClient()`. This properly respects the feature flag through the proxy.
+
+2. **Tests**: All 41 test files (1236 tests) passed.
+
+3. **RALPH_TASK.md**: Marked the task complete.
+
+4. **Committed**: `8406fb2 Ralph #4: Migrate rate limiter storage to use Upstash when flag enabled`
+[2026-01-14 22:17:39] ✅ Task DONE!

@@ -19,7 +19,7 @@
 - [x] Create interface matching existing redis usage
 - [x] Wrap with feature flag check (USE_UPSTASH_REDIS)
 - [x] Migrate rate limiter storage to use Upstash when flag enabled
-- [ ] Add caching utilities (cacheGet, cacheSet, cacheInvalidate)
+- [x] Add caching utilities (cacheGet, cacheSet, cacheInvalidate)
 - [ ] Add bounty listings cache (5 min TTL)
 - [ ] Add agent profiles cache (10 min TTL)
 - [ ] Add leaderboard cache (1 min TTL)

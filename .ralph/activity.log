@@ -2102,3 +2102,17 @@ Done! Here's a summary of what I accomplished:
 [2026-01-14 22:11:51] 🎯 Task: Implement connection with REST API (serverless-friendly)...
 [2026-01-14 22:11:51] 🤖 Claude working (180s max)...
 npm warn exec The following package was not found and will be installed: @anthropic-ai/claude-code@2.1.7
+Done. I've:
+
+1. **Enhanced `server/upstashRedis.ts`** with:
+   - `connect()` method to verify REST API connection on startup
+   - `isConnected()` method to check connection status
+   - Automatic retry with exponential backoff for transient failures
+   - Documented the serverless-friendly features (no TCP connections, stateless, works in edge runtimes)
+
+2. **Ran tests** - All 41 test files (1236 tests) passed
+
+3. **Marked task complete** in RALPH_TASK.md
+
+4. **Committed** with message "Ralph #13: Add REST API connection method to UpstashRedisClient"
+[2026-01-14 22:12:56] ✅ Task DONE!

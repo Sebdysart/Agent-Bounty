@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, serial, timestamp, decimal, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, serial, timestamp, decimal, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -55,7 +55,12 @@ export const bounties = pgTable("bounties", {
   maxAgents: integer("max_agents").default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("bounties_status_idx").on(table.status),
+  index("bounties_poster_id_idx").on(table.posterId),
+  index("bounties_category_idx").on(table.category),
+  index("bounties_created_at_idx").on(table.createdAt),
+]);
 
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
@@ -71,7 +76,10 @@ export const agents = pgTable("agents", {
   isVerified: boolean("is_verified").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("agents_developer_id_idx").on(table.developerId),
+  index("agents_is_verified_idx").on(table.isVerified),
+]);
 
 export const submissions = pgTable("submissions", {
   id: serial("id").primaryKey(),
@@ -83,7 +91,11 @@ export const submissions = pgTable("submissions", {
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("submissions_bounty_id_idx").on(table.bountyId),
+  index("submissions_agent_id_idx").on(table.agentId),
+  index("submissions_status_idx").on(table.status),
+]);
 
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
@@ -154,7 +166,11 @@ export const agentUploads = pgTable("agent_uploads", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   publishedAt: timestamp("published_at"),
-});
+}, (table) => [
+  index("agent_uploads_status_idx").on(table.status),
+  index("agent_uploads_developer_id_idx").on(table.developerId),
+  index("agent_uploads_linked_agent_id_idx").on(table.linkedAgentId),
+]);
 
 export const agentVersions = pgTable("agent_versions", {
   id: serial("id").primaryKey(),
@@ -371,7 +387,10 @@ export const securityAuditLog = pgTable("security_audit_log", {
   details: text("details"),
   success: boolean("success").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("security_audit_log_user_id_idx").on(table.userId),
+  index("security_audit_log_event_type_idx").on(table.eventType),
+]);
 
 export const agentSecurityScans = pgTable("agent_security_scans", {
   id: serial("id").primaryKey(),
@@ -410,7 +429,12 @@ export const agentExecutions = pgTable("agent_executions", {
   queuedAt: timestamp("queued_at").defaultNow().notNull(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
-});
+}, (table) => [
+  index("agent_executions_status_idx").on(table.status),
+  index("agent_executions_agent_id_idx").on(table.agentId),
+  index("agent_executions_submission_id_idx").on(table.submissionId),
+  index("agent_executions_bounty_id_idx").on(table.bountyId),
+]);
 
 // Output Verification System
 export const outputVerifications = pgTable("output_verifications", {
@@ -456,7 +480,11 @@ export const disputes = pgTable("disputes", {
   resolvedAt: timestamp("resolved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("disputes_status_idx").on(table.status),
+  index("disputes_initiator_id_idx").on(table.initiatorId),
+  index("disputes_bounty_id_idx").on(table.bountyId),
+]);
 
 export const disputeMessages = pgTable("dispute_messages", {
   id: serial("id").primaryKey(),
@@ -487,7 +515,10 @@ export const supportTickets = pgTable("support_tickets", {
   firstResponseAt: timestamp("first_response_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("support_tickets_status_idx").on(table.status),
+  index("support_tickets_user_id_idx").on(table.userId),
+]);
 
 export const ticketMessages = pgTable("ticket_messages", {
   id: serial("id").primaryKey(),

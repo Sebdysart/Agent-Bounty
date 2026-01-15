@@ -2271,3 +2271,10 @@ Task marked complete in RALPH_TASK.md and committed.
 [2026-01-14 22:28:00] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:28:00] 🎯 Task: Add Redis health check to /api/health...
 [2026-01-14 22:28:00] 🤖 Claude working (180s max)...
+Done. The Redis health check was already implemented in `/api/health` at `routes.ts:138-165`. It:
+- Calls `upstashRedis.healthCheck()` 
+- Reports status (healthy/unhealthy/not_configured)
+- Includes latency and error info
+
+Tests pass (1270/1270). Task marked complete and committed.
+[2026-01-14 22:28:50] ✅ Task DONE!

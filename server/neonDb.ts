@@ -1,5 +1,7 @@
-import { neon, neonConfig, NeonQueryFunction } from "@neondatabase/serverless";
+import { neon, neonConfig, NeonQueryFunction, Pool } from "@neondatabase/serverless";
 import { drizzle, NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { drizzle as drizzlePool } from "drizzle-orm/neon-serverless";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as schema from "@shared/schema";
 
 /**
@@ -69,6 +71,8 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 class NeonDbClient {
   private sql: NeonQueryFunction<false, false> | null = null;
   private drizzleDb: NeonHttpDatabase<typeof schema> | null = null;
+  private pool: Pool | null = null;
+  private poolDrizzleDb: NeonDatabase<typeof schema> | null = null;
   private config: Required<NeonDbConfig>;
   private retryConfig: RetryConfig;
   private isConfigured = false;
@@ -81,7 +85,7 @@ class NeonDbClient {
   }
 
   /**
-   * Initialize the Neon client with HTTP configuration.
+   * Initialize the Neon client with HTTP and Pool configurations.
    */
   private initializeClient(): void {
     const connectionString = this.config.connectionString || process.env.DATABASE_URL;
@@ -94,11 +98,27 @@ class NeonDbClient {
     // Configure Neon for serverless usage
     neonConfig.fetchConnectionCache = this.config.enableConnectionCache;
 
-    // Create the SQL query function
+    // Create the SQL query function (HTTP-based, for simple queries)
     this.sql = neon(connectionString);
 
-    // Create the Drizzle instance
+    // Create the Drizzle instance for HTTP queries
     this.drizzleDb = drizzle(this.sql, { schema });
+
+    // Create connection pool with max 20 connections (for WebSocket-based queries)
+    this.pool = new Pool({
+      connectionString,
+      max: this.config.maxConnections, // Max 20 connections
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+
+    // Create Drizzle instance for pooled connections
+    this.poolDrizzleDb = drizzlePool(this.pool, { schema });
+
+    // Handle pool errors
+    this.pool.on("error", (err) => {
+      console.error("Neon pool error:", err);
+    });
 
     this.isConfigured = true;
   }
@@ -111,10 +131,25 @@ class NeonDbClient {
   }
 
   /**
-   * Get the Drizzle ORM instance for type-safe queries.
+   * Get the Drizzle ORM instance for type-safe queries (HTTP-based).
    */
   getDb(): NeonHttpDatabase<typeof schema> | null {
     return this.drizzleDb;
+  }
+
+  /**
+   * Get the connection pool for WebSocket-based queries.
+   */
+  getPool(): Pool | null {
+    return this.pool;
+  }
+
+  /**
+   * Get the pooled Drizzle ORM instance for type-safe queries (WebSocket-based).
+   * Use this for transactional queries or when you need persistent connections.
+   */
+  getPooledDb(): NeonDatabase<typeof schema> | null {
+    return this.poolDrizzleDb;
   }
 
   /**
@@ -302,18 +337,33 @@ class NeonDbClient {
 
   /**
    * Get database connection pool stats (for monitoring).
-   * Note: Neon serverless uses HTTP, so these are simulated metrics.
    */
   getPoolStats(): {
     maxConnections: number;
     connectionCacheEnabled: boolean;
     queryTimeoutMs: number;
+    totalConnections: number;
+    idleConnections: number;
+    waitingClients: number;
   } {
     return {
       maxConnections: this.config.maxConnections,
       connectionCacheEnabled: this.config.enableConnectionCache,
       queryTimeoutMs: this.config.queryTimeoutMs,
+      totalConnections: this.pool?.totalCount ?? 0,
+      idleConnections: this.pool?.idleCount ?? 0,
+      waitingClients: this.pool?.waitingCount ?? 0,
     };
+  }
+
+  /**
+   * Close the connection pool gracefully.
+   */
+  async close(): Promise<void> {
+    if (this.pool) {
+      await this.pool.end();
+      console.log("Neon connection pool closed");
+    }
   }
 }
 
@@ -323,6 +373,8 @@ class NeonDbClient {
 class NullNeonDbClient {
   getSql(): null { return null; }
   getDb(): null { return null; }
+  getPool(): null { return null; }
+  getPooledDb(): null { return null; }
   isAvailable(): boolean { return false; }
   isConnected(): boolean { return false; }
   async connect(): Promise<boolean> { return false; }
@@ -339,8 +391,9 @@ class NullNeonDbClient {
     throw new Error("Neon DB not available");
   }
   getPoolStats() {
-    return { maxConnections: 0, connectionCacheEnabled: false, queryTimeoutMs: 0 };
+    return { maxConnections: 0, connectionCacheEnabled: false, queryTimeoutMs: 0, totalConnections: 0, idleConnections: 0, waitingClients: 0 };
   }
+  async close(): Promise<void> {}
 }
 
 // Singleton instance
@@ -372,8 +425,23 @@ export function getNeonSql(): NeonQueryFunction<false, false> | null {
   return neonDbInstance.getSql();
 }
 
+/**
+ * Get the connection pool for WebSocket-based queries.
+ */
+export function getNeonPool(): Pool | null {
+  return neonDbInstance.getPool();
+}
+
+/**
+ * Get the pooled Drizzle ORM instance for type-safe queries.
+ * Use this for transactional queries or when you need persistent connections.
+ */
+export function getNeonPooledDb(): NeonDatabase<typeof schema> | null {
+  return neonDbInstance.getPooledDb();
+}
+
 // Export types and classes
-export { NeonDbClient, NullNeonDbClient };
+export { NeonDbClient, NullNeonDbClient, Pool };
 export type { NeonDbConfig, NeonHealthStatus, TimedQueryResult, RetryConfig };
 
 // Export the singleton instance

@@ -2178,3 +2178,10 @@ Done. Migrated rate limiter storage to use Upstash when `USE_UPSTASH_REDIS` flag
 [2026-01-14 22:17:50] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:17:50] 🎯 Task: Add caching utilities (cacheGet, cacheSet, cacheInvalidate)...
 [2026-01-14 22:17:50] 🤖 Claude working (180s max)...
+Done. Added caching utilities to `server/upstashRedis.ts`:
+- `cacheGet<T>(key, userId?)` - Get cached value
+- `cacheSet<T>(key, data, ttlSeconds?, tags?, userId?)` - Set with TTL/tags
+- `cacheInvalidate({key?, pattern?, tag?}, userId?)` - Invalidate by key/pattern/tag
+
+Uses Upstash Redis when `USE_UPSTASH_REDIS` flag is enabled, otherwise falls back to in-memory cache. All 1236 tests pass.
+[2026-01-14 22:19:21] ✅ Task DONE!

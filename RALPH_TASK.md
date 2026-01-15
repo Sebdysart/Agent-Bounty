@@ -78,11 +78,11 @@
 - [ ] Benchmark QuickJS vs Wasmtime performance
 
 ## PHASE 7: Fly.io Deployment Config
-- [ ] Create fly.toml with app configuration
+- [x] Create fly.toml with app configuration
 - [x] Create Dockerfile with multi-stage build
-- [ ] Configure health check endpoint
-- [ ] Set up auto-scaling (min: 1, max: 5)
-- [ ] Configure machine specs (shared-cpu-1x, 512MB)
+- [x] Configure health check endpoint
+- [x] Set up auto-scaling (min: 1, max: 5)
+- [x] Configure machine specs (shared-cpu-1x, 512MB)
 - [ ] Create fly.staging.toml for staging
 - [ ] Create scripts/deploy.sh deployment script
 - [ ] Create scripts/secrets.sh for managing Fly secrets

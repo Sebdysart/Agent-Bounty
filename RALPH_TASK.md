@@ -110,7 +110,7 @@
 
 ## PHASE 10: Documentation and Finalization
 - [x] Update README.md with new architecture diagram
-- [ ] Document all new environment variables
+- [x] Document all new environment variables
 - [x] Create docs/DEPLOYMENT.md for Fly.io guide
 - [ ] Create docs/ARCHITECTURE.md with system design
 - [ ] Update CONTRIBUTING.md with local dev setup

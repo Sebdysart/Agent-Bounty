@@ -267,6 +267,122 @@ export async function registerRoutes(
     }
   });
 
+  // Prometheus metrics endpoint - returns metrics in Prometheus text format
+  app.get("/api/metrics", async (_req, res) => {
+    const { upstashRedis } = await import("./upstashRedis");
+    const { upstashKafka, KAFKA_TOPICS } = await import("./upstashKafka");
+    const { r2Storage } = await import("./r2Storage");
+    const { getNeonClient } = await import("./neonDb");
+    const { WasmtimeSandbox } = await import("./wasmtimeSandbox");
+    const { featureFlags } = await import("./featureFlags");
+
+    // Run all health checks in parallel
+    const [redisHealth, kafkaHealth, r2Health, neonHealth] = await Promise.all([
+      upstashRedis.healthCheck(),
+      upstashKafka.healthCheck(),
+      r2Storage.healthCheck(),
+      getNeonClient().healthCheck(),
+    ]);
+
+    // Get memory info
+    const memUsage = process.memoryUsage();
+
+    // Get Wasmtime sandbox stats
+    const wasmtimeStats = WasmtimeSandbox.getWarmPoolStats();
+
+    // Get feature flags
+    const flags = featureFlags.getAllFlags();
+
+    // Build Prometheus format output
+    const lines: string[] = [];
+
+    // HELP and TYPE declarations with metrics
+    lines.push("# HELP agentbounty_up Whether the service is up (1) or down (0)");
+    lines.push("# TYPE agentbounty_up gauge");
+    lines.push("agentbounty_up 1");
+
+    // Component health status (1 = healthy, 0 = unhealthy)
+    lines.push("");
+    lines.push("# HELP agentbounty_component_healthy Component health status");
+    lines.push("# TYPE agentbounty_component_healthy gauge");
+    lines.push(`agentbounty_component_healthy{component="database"} ${neonHealth.connected ? 1 : 0}`);
+    lines.push(`agentbounty_component_healthy{component="redis"} ${redisHealth.connected ? 1 : 0}`);
+    lines.push(`agentbounty_component_healthy{component="kafka"} ${kafkaHealth.connected ? 1 : 0}`);
+    lines.push(`agentbounty_component_healthy{component="r2"} ${r2Health.connected ? 1 : 0}`);
+
+    // Component latency
+    lines.push("");
+    lines.push("# HELP agentbounty_component_latency_ms Component response latency in milliseconds");
+    lines.push("# TYPE agentbounty_component_latency_ms gauge");
+    if (neonHealth.latencyMs !== undefined) {
+      lines.push(`agentbounty_component_latency_ms{component="database"} ${neonHealth.latencyMs}`);
+    }
+    if (redisHealth.latencyMs !== undefined) {
+      lines.push(`agentbounty_component_latency_ms{component="redis"} ${redisHealth.latencyMs}`);
+    }
+    if (kafkaHealth.latencyMs !== undefined) {
+      lines.push(`agentbounty_component_latency_ms{component="kafka"} ${kafkaHealth.latencyMs}`);
+    }
+    if (r2Health.latencyMs !== undefined) {
+      lines.push(`agentbounty_component_latency_ms{component="r2"} ${r2Health.latencyMs}`);
+    }
+
+    // Memory metrics
+    lines.push("");
+    lines.push("# HELP agentbounty_memory_bytes Memory usage in bytes");
+    lines.push("# TYPE agentbounty_memory_bytes gauge");
+    lines.push(`agentbounty_memory_bytes{type="heap_used"} ${memUsage.heapUsed}`);
+    lines.push(`agentbounty_memory_bytes{type="heap_total"} ${memUsage.heapTotal}`);
+    lines.push(`agentbounty_memory_bytes{type="rss"} ${memUsage.rss}`);
+    lines.push(`agentbounty_memory_bytes{type="external"} ${memUsage.external}`);
+
+    // Wasmtime pool stats
+    lines.push("");
+    lines.push("# HELP agentbounty_wasmtime_pool_size Wasmtime warm pool size");
+    lines.push("# TYPE agentbounty_wasmtime_pool_size gauge");
+    lines.push(`agentbounty_wasmtime_pool_size ${wasmtimeStats.size}`);
+
+    lines.push("");
+    lines.push("# HELP agentbounty_wasmtime_pool_available Wasmtime available instances");
+    lines.push("# TYPE agentbounty_wasmtime_pool_available gauge");
+    lines.push(`agentbounty_wasmtime_pool_available ${wasmtimeStats.available}`);
+
+    lines.push("");
+    lines.push("# HELP agentbounty_wasmtime_pool_max Wasmtime pool max size");
+    lines.push("# TYPE agentbounty_wasmtime_pool_max gauge");
+    lines.push(`agentbounty_wasmtime_pool_max ${wasmtimeStats.maxSize}`);
+
+    // Feature flags as metrics
+    lines.push("");
+    lines.push("# HELP agentbounty_feature_flag_enabled Whether a feature flag is enabled");
+    lines.push("# TYPE agentbounty_feature_flag_enabled gauge");
+    for (const [name, value] of Object.entries(flags)) {
+      lines.push(`agentbounty_feature_flag_enabled{flag="${name}"} ${value ? 1 : 0}`);
+    }
+
+    // Kafka consumer lag
+    if (upstashKafka.isAvailable()) {
+      lines.push("");
+      lines.push("# HELP agentbounty_kafka_consumer_lag Kafka consumer lag per topic");
+      lines.push("# TYPE agentbounty_kafka_consumer_lag gauge");
+      for (const [key, topic] of Object.entries(KAFKA_TOPICS)) {
+        const lag = await upstashKafka.getConsumerLag(topic, "default-group");
+        if (lag !== null) {
+          lines.push(`agentbounty_kafka_consumer_lag{topic="${key}"} ${lag}`);
+        }
+      }
+    }
+
+    // Node.js info
+    lines.push("");
+    lines.push("# HELP agentbounty_nodejs_info Node.js version and platform info");
+    lines.push("# TYPE agentbounty_nodejs_info gauge");
+    lines.push(`agentbounty_nodejs_info{version="${process.version}",platform="${process.platform}",arch="${process.arch}"} 1`);
+
+    res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    res.send(lines.join("\n") + "\n");
+  });
+
   app.use(validateJWT);
 
   await seedDefaultPermissions();

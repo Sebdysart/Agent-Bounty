@@ -2311,3 +2311,18 @@ Done. Task completed:
 [2026-01-14 22:34:56] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:34:57] 🎯 Task: Create server/upstashKafka.ts producer/consumer wrapper...
 [2026-01-14 22:34:57] 🤖 Claude working (180s max)...
+Done. The task is complete:
+
+1. **Code written**: Enhanced `server/upstashKafka.ts` with:
+   - `IKafkaClient` interface for type-safe abstraction
+   - `NullKafkaClient` for when the feature flag is disabled
+   - `getKafkaClient()` function for feature-flag-based selection
+   - Proxy-based singleton that checks the flag on each operation
+   - Import of featureFlags for integration
+
+2. **Tests passed**: All 1283 tests pass. Added tests for `NullKafkaClient` and `getKafkaClient` with feature flag integration.
+
+3. **RALPH_TASK.md updated**: Marked `[x] Create server/upstashKafka.ts producer/consumer wrapper`
+
+4. **Committed**: `7da4bfe` - "Ralph #14: Add feature flag integration to upstashKafka wrapper"
+[2026-01-14 22:36:37] ✅ Task DONE!

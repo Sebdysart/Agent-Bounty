@@ -10,7 +10,7 @@
 - [x] Create GET /api/admin/flags to view current flags
 - [x] Create POST /api/admin/flags to toggle flags (admin only)
 - [ ] Log flag evaluations for debugging
-- [ ] Write tests for featureFlags.test.ts
+- [x] Write tests for featureFlags.test.ts
 
 ## PHASE 2: Upstash Redis Integration
 - [ ] Install @upstash/redis package

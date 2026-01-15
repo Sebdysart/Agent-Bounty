@@ -134,10 +134,17 @@ export async function registerRoutes(
     const { upstashRedis } = await import("./upstashRedis");
     const { upstashKafka, KAFKA_TOPICS } = await import("./upstashKafka");
     const { r2Storage } = await import("./r2Storage");
+    const { getNeonClient } = await import("./neonDb");
+    const { WasmtimeSandbox } = await import("./wasmtimeSandbox");
+    const { featureFlags } = await import("./featureFlags");
 
-    const redisHealth = await upstashRedis.healthCheck();
-    const kafkaHealth = await upstashKafka.healthCheck();
-    const r2Health = await r2Storage.healthCheck();
+    // Run all health checks in parallel
+    const [redisHealth, kafkaHealth, r2Health, neonHealth] = await Promise.all([
+      upstashRedis.healthCheck(),
+      upstashKafka.healthCheck(),
+      r2Storage.healthCheck(),
+      getNeonClient().healthCheck(),
+    ]);
 
     // Get consumer lag for each topic (returns null if not available)
     const kafkaLag: Record<string, number | null> = {};
@@ -147,17 +154,46 @@ export async function registerRoutes(
       }
     }
 
+    // Get Wasmtime sandbox status
+    const wasmtimePoolStats = WasmtimeSandbox.getWarmPoolStats();
+    const wasmtimeEnabled = featureFlags.isEnabled("USE_WASMTIME_SANDBOX");
+
+    // Get feature flags status
+    const flags = featureFlags.getAllFlags();
+
+    // Get memory usage
+    const memUsage = process.memoryUsage();
+    const memoryInfo = {
+      heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+      rssMB: Math.round(memUsage.rss / 1024 / 1024),
+      externalMB: Math.round(memUsage.external / 1024 / 1024),
+    };
+
+    // Determine component health
+    const neonClient = getNeonClient();
     const redisHealthy = redisHealth.connected || !upstashRedis.isAvailable();
     const kafkaHealthy = kafkaHealth.connected || !upstashKafka.isAvailable();
     const r2Healthy = r2Health.connected || !r2Storage.isAvailable();
-    const isHealthy = redisHealthy && kafkaHealthy && r2Healthy;
+    const neonHealthy = neonHealth.connected || !neonClient.isAvailable();
+
+    // Overall health: all configured services must be healthy
+    const isHealthy = redisHealthy && kafkaHealthy && r2Healthy && neonHealthy;
     const status = isHealthy ? "healthy" : "degraded";
 
     res.status(isHealthy ? 200 : 503).json({
       status,
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      version: process.env.npm_package_version || "unknown",
+      environment: process.env.NODE_ENV || "development",
       services: {
+        database: {
+          status: neonHealth.connected ? "healthy" : neonClient.isAvailable() ? "unhealthy" : "not_configured",
+          latencyMs: neonHealth.latencyMs,
+          error: neonHealth.error,
+          poolStats: neonClient.isAvailable() ? neonClient.getPoolStats() : null,
+        },
         redis: {
           status: redisHealth.connected ? "healthy" : upstashRedis.isAvailable() ? "unhealthy" : "not_configured",
           latencyMs: redisHealth.latencyMs,
@@ -174,6 +210,17 @@ export async function registerRoutes(
           latencyMs: r2Health.latencyMs,
           error: r2Health.error,
         },
+        wasmtime: {
+          enabled: wasmtimeEnabled,
+          poolStats: wasmtimePoolStats,
+        },
+      },
+      featureFlags: flags,
+      system: {
+        memory: memoryInfo,
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
       },
     });
   });

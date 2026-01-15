@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { UpstashRedisClient } from '../upstashRedis';
+import { UpstashRedisClient, NullRedisClient, cacheGet, cacheSet, cacheInvalidate, clearMemoryCache } from '../upstashRedis';
 
 // Mock the @upstash/redis module
 vi.mock('@upstash/redis', () => {
@@ -392,6 +392,243 @@ describe('UpstashRedisClient', () => {
 
       expect(result).toBe(false);
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('connect', () => {
+    it('should return true on successful ping', async () => {
+      mockRedis.ping.mockResolvedValue('PONG');
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const result = await client.connect();
+
+      expect(result).toBe(true);
+      expect(client.isConnected()).toBe(true);
+      consoleSpy.mockRestore();
+    });
+
+    it('should return false on ping failure', async () => {
+      mockRedis.ping.mockRejectedValue(new Error('Connection failed'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const result = await client.connect();
+
+      expect(result).toBe(false);
+      expect(client.isConnected()).toBe(false);
+      consoleSpy.mockRestore();
+    });
+
+    it('should return false when client not configured', async () => {
+      const unconfiguredClient = new UpstashRedisClient({});
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = await unconfiguredClient.connect();
+
+      expect(result).toBe(false);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('getClient', () => {
+    it('should return the underlying client when configured', () => {
+      expect(client.getClient()).not.toBeNull();
+    });
+
+    it('should return null when not configured', () => {
+      const unconfiguredClient = new UpstashRedisClient({});
+      expect(unconfiguredClient.getClient()).toBeNull();
+    });
+  });
+});
+
+describe('NullRedisClient', () => {
+  let nullClient: NullRedisClient;
+
+  beforeEach(() => {
+    nullClient = new NullRedisClient();
+  });
+
+  it('connect should return false', async () => {
+    expect(await nullClient.connect()).toBe(false);
+  });
+
+  it('isConnected should return false', () => {
+    expect(nullClient.isConnected()).toBe(false);
+  });
+
+  it('isAvailable should return false', () => {
+    expect(nullClient.isAvailable()).toBe(false);
+  });
+
+  it('getClient should return null', () => {
+    expect(nullClient.getClient()).toBeNull();
+  });
+
+  it('get should return null', async () => {
+    expect(await nullClient.get('any-key')).toBeNull();
+  });
+
+  it('set should return false', async () => {
+    expect(await nullClient.set('key', 'value')).toBe(false);
+  });
+
+  it('delete should return false', async () => {
+    expect(await nullClient.delete('key')).toBe(false);
+  });
+
+  it('deleteByPattern should return 0', async () => {
+    expect(await nullClient.deleteByPattern('*')).toBe(0);
+  });
+
+  it('getOrSet should call fetcher directly', async () => {
+    const fetcher = vi.fn().mockResolvedValue('fetched-value');
+    const result = await nullClient.getOrSet('key', fetcher);
+    expect(result).toBe('fetched-value');
+    expect(fetcher).toHaveBeenCalled();
+  });
+
+  it('mget should return array of nulls', async () => {
+    const result = await nullClient.mget(['key1', 'key2']);
+    expect(result).toEqual([null, null]);
+  });
+
+  it('incr should return 0', async () => {
+    expect(await nullClient.incr('key')).toBe(0);
+  });
+
+  it('incrWithExpiry should return 0', async () => {
+    expect(await nullClient.incrWithExpiry('key', 60)).toBe(0);
+  });
+
+  it('setNX should return false', async () => {
+    expect(await nullClient.setNX('key', 'value')).toBe(false);
+  });
+
+  it('exists should return false', async () => {
+    expect(await nullClient.exists('key')).toBe(false);
+  });
+
+  it('expire should return false', async () => {
+    expect(await nullClient.expire('key', 60)).toBe(false);
+  });
+
+  it('ttl should return -2', async () => {
+    expect(await nullClient.ttl('key')).toBe(-2);
+  });
+
+  it('healthCheck should return disabled status', async () => {
+    const result = await nullClient.healthCheck();
+    expect(result.connected).toBe(false);
+    expect(result.error).toContain('feature flag is disabled');
+  });
+
+  it('flushAll should return false', async () => {
+    expect(await nullClient.flushAll()).toBe(false);
+  });
+});
+
+describe('Cache Utilities (in-memory fallback)', () => {
+  beforeEach(() => {
+    clearMemoryCache();
+    // Mock featureFlags to disable Upstash Redis (use in-memory cache)
+    vi.doMock('../featureFlags', () => ({
+      featureFlags: {
+        isEnabled: () => false
+      }
+    }));
+  });
+
+  afterEach(() => {
+    clearMemoryCache();
+    vi.resetModules();
+  });
+
+  describe('cacheGet', () => {
+    it('should return null for non-existent key', async () => {
+      const result = await cacheGet('nonexistent');
+      expect(result).toBeNull();
+    });
+
+    it('should return cached value', async () => {
+      await cacheSet('test-key', { foo: 'bar' }, 300);
+      const result = await cacheGet('test-key');
+      expect(result).toEqual({ foo: 'bar' });
+    });
+
+    it('should return null for expired key', async () => {
+      // Set with very short TTL
+      await cacheSet('expiring-key', 'value', 0);
+      // Wait a tiny bit for expiry
+      await new Promise(resolve => setTimeout(resolve, 10));
+      const result = await cacheGet('expiring-key');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('cacheSet', () => {
+    it('should set a value', async () => {
+      const result = await cacheSet('new-key', 'new-value', 300);
+      expect(result).toBe(true);
+      expect(await cacheGet('new-key')).toBe('new-value');
+    });
+
+    it('should set value with default TTL', async () => {
+      const result = await cacheSet('default-ttl-key', 'value');
+      expect(result).toBe(true);
+      expect(await cacheGet('default-ttl-key')).toBe('value');
+    });
+
+    it('should set value with tags', async () => {
+      const result = await cacheSet('tagged-key', 'value', 300, ['tag1', 'tag2']);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('cacheInvalidate', () => {
+    beforeEach(async () => {
+      await cacheSet('user:1', 'user1', 300, ['users']);
+      await cacheSet('user:2', 'user2', 300, ['users']);
+      await cacheSet('product:1', 'product1', 300, ['products']);
+    });
+
+    it('should invalidate by specific key', async () => {
+      const count = await cacheInvalidate({ key: 'user:1' });
+      expect(count).toBe(1);
+      expect(await cacheGet('user:1')).toBeNull();
+      expect(await cacheGet('user:2')).toBe('user2');
+    });
+
+    it('should invalidate by pattern', async () => {
+      const count = await cacheInvalidate({ pattern: 'user:*' });
+      expect(count).toBe(2);
+      expect(await cacheGet('user:1')).toBeNull();
+      expect(await cacheGet('user:2')).toBeNull();
+      expect(await cacheGet('product:1')).toBe('product1');
+    });
+
+    it('should invalidate by tag', async () => {
+      const count = await cacheInvalidate({ tag: 'users' });
+      expect(count).toBe(2);
+      expect(await cacheGet('user:1')).toBeNull();
+      expect(await cacheGet('user:2')).toBeNull();
+      expect(await cacheGet('product:1')).toBe('product1');
+    });
+
+    it('should return 0 when nothing matches', async () => {
+      const count = await cacheInvalidate({ key: 'nonexistent' });
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('clearMemoryCache', () => {
+    it('should clear all cached values', async () => {
+      await cacheSet('key1', 'value1', 300);
+      await cacheSet('key2', 'value2', 300);
+
+      clearMemoryCache();
+
+      expect(await cacheGet('key1')).toBeNull();
+      expect(await cacheGet('key2')).toBeNull();
     });
   });
 });

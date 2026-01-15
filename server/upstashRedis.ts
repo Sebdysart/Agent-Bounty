@@ -19,19 +19,77 @@ interface RedisHealthStatus {
 /**
  * Upstash Redis client wrapper for serverless-friendly caching.
  * Uses REST API which is compatible with edge runtimes and serverless functions.
+ *
+ * Key features for serverless:
+ * - No persistent TCP connections (uses HTTP/REST)
+ * - Stateless - each request is independent
+ * - No connection pooling required
+ * - Works in edge runtimes (Cloudflare Workers, Vercel Edge, etc.)
  */
 class UpstashRedisClient {
   private client: Redis | null = null;
   private isConfigured = false;
+  private connectionVerified = false;
+  private config: UpstashRedisConfig | undefined;
 
   constructor(config?: UpstashRedisConfig) {
-    const url = config?.url || process.env.UPSTASH_REDIS_REST_URL;
-    const token = config?.token || process.env.UPSTASH_REDIS_REST_TOKEN;
+    this.config = config;
+    this.initializeClient();
+  }
+
+  /**
+   * Initialize the Redis client with REST API configuration
+   */
+  private initializeClient(): void {
+    const url = this.config?.url || process.env.UPSTASH_REDIS_REST_URL;
+    const token = this.config?.token || process.env.UPSTASH_REDIS_REST_TOKEN;
 
     if (url && token) {
-      this.client = new Redis({ url, token });
+      // Upstash Redis uses REST API by default - no TCP connection needed
+      // This makes it ideal for serverless/edge environments
+      this.client = new Redis({
+        url,
+        token,
+        // Automatic retry with exponential backoff for transient failures
+        retry: {
+          retries: 3,
+          backoff: (retryCount) => Math.min(Math.exp(retryCount) * 50, 1000)
+        }
+      });
       this.isConfigured = true;
     }
+  }
+
+  /**
+   * Connect to Upstash Redis and verify the connection.
+   * For serverless, this is optional since each request is stateless,
+   * but useful for startup validation.
+   */
+  async connect(): Promise<boolean> {
+    if (!this.client) {
+      console.warn('Upstash Redis not configured - missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN');
+      return false;
+    }
+
+    try {
+      const result = await this.client.ping();
+      this.connectionVerified = result === 'PONG';
+      if (this.connectionVerified) {
+        console.log('Upstash Redis connection verified via REST API');
+      }
+      return this.connectionVerified;
+    } catch (error) {
+      console.error('Failed to connect to Upstash Redis:', error);
+      this.connectionVerified = false;
+      return false;
+    }
+  }
+
+  /**
+   * Check if connection has been verified
+   */
+  isConnected(): boolean {
+    return this.connectionVerified;
   }
 
   /**

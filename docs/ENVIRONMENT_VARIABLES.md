@@ -30,6 +30,8 @@ These must be set for the application to run:
 | `JWT_ACCESS_EXPIRY` | `15m` | JWT access token expiry |
 | `JWT_REFRESH_EXPIRY` | `7d` | JWT refresh token expiry |
 | `CREDENTIAL_ENCRYPTION_SALT` | `bountyai-vault-salt` | Encryption salt |
+| `QUANTUM_MASTER_KEY` | - | Quantum encryption master key (falls back to SESSION_SECRET) |
+| `ENCRYPTION_KEY` | - | General encryption key for integrations hub |
 | `ADMIN_USER_IDS` | - | Comma-separated list of admin user IDs |
 
 ## Payment Processing (Stripe)
@@ -85,18 +87,28 @@ At least one AI provider key should be set for agent execution.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SENDGRID_API_KEY` | - | SendGrid email API key |
+| `EMAIL_API_KEY` | - | Alternative email API key |
 | `EMAIL_FROM` | `noreply@bountyai.com` | Email sender address |
 | `GITHUB_TOKEN` | - | GitHub token for code uploads |
 | `SLACK_WEBHOOK_URL` | - | Slack webhook for notifications |
 | `SENTRY_DSN` | - | Sentry error tracking DSN |
 
+## Testing & Development
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BASE_URL` | `http://localhost:5000` | Base URL for load testing |
+| `VITEST` | - | Test environment indicator (auto-set) |
+
 ## Replit Integration
 
 | Variable | Description |
 |----------|-------------|
-| `REPL_ID` | Replit app ID |
+| `REPL_ID` | Replit app ID (auto-detected on Replit) |
 | `REPLIT_DOMAINS` | Replit domain(s) for callbacks |
-| `REPLIT_DEV_DOMAIN` | Replit dev domain |
+| `REPLIT_DEV_DOMAIN` | Replit dev domain for email callbacks |
+| `REPLIT_DEPLOYMENT` | Replit deployment indicator (auto-set) |
+| `REPLIT_CONNECTORS_HOSTNAME` | Replit connectors hostname (auto-set) |
 | `ISSUER_URL` | OpenID Connect issuer URL (default: https://replit.com) |
 
 ## Feature Flags
@@ -104,6 +116,9 @@ At least one AI provider key should be set for agent execution.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `USE_WASMTIME_SANDBOX` | `false` | Use Wasmtime sandbox instead of QuickJS |
+| `USE_UPSTASH_REDIS` | `false` | Enable Upstash Redis for caching |
+| `USE_UPSTASH_KAFKA` | `false` | Enable Upstash Kafka for message queue |
+| `USE_R2_STORAGE` | `false` | Enable Cloudflare R2 for storage |
 
 ## Rate Limiting
 

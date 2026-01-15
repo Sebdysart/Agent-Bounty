@@ -51,7 +51,7 @@
 - [x] Add migration utility for existing DB blobs to R2
 - [x] Implement cleanup job for orphaned files
 - [x] Write tests for r2Storage.test.ts (mock S3 client)
-- [ ] Add R2 connectivity check to /api/health
+- [x] Add R2 connectivity check to /api/health
 
 ## PHASE 5: Neon PostgreSQL Optimization
 - [ ] Install @neondatabase/serverless driver

@@ -3,6 +3,7 @@ import { drizzle, NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { drizzle as drizzlePool } from "drizzle-orm/neon-serverless";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as schema from "@shared/schema";
+import { cacheGet, cacheSet, cacheInvalidate, getRedisClient } from "./upstashRedis";
 
 /**
  * Configuration for Neon serverless database connection.
@@ -33,6 +34,27 @@ interface TimedQueryResult<T> {
   data: T;
   durationMs: number;
   timedOut: boolean;
+}
+
+/**
+ * Cache configuration for query caching.
+ */
+interface QueryCacheConfig {
+  /** TTL in seconds for cached queries (default: 60) */
+  ttlSeconds?: number;
+  /** Tags for cache invalidation */
+  tags?: string[];
+  /** Skip cache read (force fresh query, but still update cache) */
+  bypassRead?: boolean;
+}
+
+/**
+ * Cached query result with metadata.
+ */
+interface CachedQueryResult<T> {
+  data: T;
+  fromCache: boolean;
+  durationMs: number;
 }
 
 /**
@@ -395,6 +417,171 @@ class NeonDbClient {
     };
   }
 
+  // ============================================================================
+  // Query Caching Integration with Upstash Redis
+  // ============================================================================
+
+  /**
+   * Generate a cache key for a query.
+   * Uses a hash of the query text and params for uniqueness.
+   */
+  private generateCacheKey(queryText: string, params?: unknown[]): string {
+    const paramsStr = params ? JSON.stringify(params) : "";
+    // Simple hash for cache key (not cryptographic, just for uniqueness)
+    let hash = 0;
+    const str = queryText + paramsStr;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return `neon:query:${Math.abs(hash).toString(36)}`;
+  }
+
+  /**
+   * Execute a cached query using Upstash Redis.
+   * If cached, returns from cache. Otherwise executes query and caches result.
+   *
+   * @param queryText - SQL query text
+   * @param params - Query parameters
+   * @param cacheConfig - Cache configuration
+   * @returns Query result with cache metadata
+   */
+  async cachedQuery<T = Record<string, unknown>>(
+    queryText: string,
+    params?: unknown[],
+    cacheConfig: QueryCacheConfig = {}
+  ): Promise<CachedQueryResult<T[]>> {
+    if (!this.sql) {
+      throw new Error("Neon DB client not configured");
+    }
+
+    const start = Date.now();
+    const cacheKey = this.generateCacheKey(queryText, params);
+    const { ttlSeconds = 60, tags = [], bypassRead = false } = cacheConfig;
+
+    // Check if Redis caching is available
+    const redisClient = getRedisClient();
+    const useCache = redisClient.isAvailable();
+
+    // Try to get from cache first (unless bypassing)
+    if (useCache && !bypassRead) {
+      const cached = await cacheGet<T[]>(cacheKey);
+      if (cached !== null) {
+        return {
+          data: cached,
+          fromCache: true,
+          durationMs: Date.now() - start,
+        };
+      }
+    }
+
+    // Execute the query
+    const data = await this.executeWithRetry(async () => {
+      if (params && params.length > 0) {
+        const result = await this.sql!(queryText, params);
+        return result as T[];
+      }
+      const result = await this.sql!`${queryText}`;
+      return result as T[];
+    });
+
+    // Cache the result if Redis is available
+    if (useCache) {
+      await cacheSet(cacheKey, data, ttlSeconds, tags);
+    }
+
+    return {
+      data,
+      fromCache: false,
+      durationMs: Date.now() - start,
+    };
+  }
+
+  /**
+   * Execute a query with caching using a fetcher function.
+   * This is useful for Drizzle queries or other async query functions.
+   *
+   * @param cacheKey - Unique cache key for this query
+   * @param fetcher - Async function that executes the query
+   * @param cacheConfig - Cache configuration
+   * @returns Query result with cache metadata
+   */
+  async cachedFetch<T>(
+    cacheKey: string,
+    fetcher: () => Promise<T>,
+    cacheConfig: QueryCacheConfig = {}
+  ): Promise<CachedQueryResult<T>> {
+    const start = Date.now();
+    const prefixedKey = `neon:${cacheKey}`;
+    const { ttlSeconds = 60, tags = [], bypassRead = false } = cacheConfig;
+
+    // Check if Redis caching is available
+    const redisClient = getRedisClient();
+    const useCache = redisClient.isAvailable();
+
+    // Try to get from cache first (unless bypassing)
+    if (useCache && !bypassRead) {
+      const cached = await cacheGet<T>(prefixedKey);
+      if (cached !== null) {
+        return {
+          data: cached,
+          fromCache: true,
+          durationMs: Date.now() - start,
+        };
+      }
+    }
+
+    // Execute the query
+    const data = await fetcher();
+
+    // Cache the result if Redis is available
+    if (useCache) {
+      await cacheSet(prefixedKey, data, ttlSeconds, tags);
+    }
+
+    return {
+      data,
+      fromCache: false,
+      durationMs: Date.now() - start,
+    };
+  }
+
+  /**
+   * Invalidate cached queries by key, pattern, or tag.
+   *
+   * @param options - Invalidation options
+   * @returns Number of cache entries invalidated
+   */
+  async invalidateCache(options: {
+    key?: string;
+    pattern?: string;
+    tag?: string;
+  }): Promise<number> {
+    // Prefix the key/pattern with neon namespace
+    const prefixedOptions: { key?: string; pattern?: string; tag?: string } = {};
+
+    if (options.key) {
+      prefixedOptions.key = `neon:${options.key}`;
+    }
+    if (options.pattern) {
+      prefixedOptions.pattern = `neon:${options.pattern}`;
+    }
+    if (options.tag) {
+      prefixedOptions.tag = options.tag;
+    }
+
+    return cacheInvalidate(prefixedOptions);
+  }
+
+  /**
+   * Invalidate all cached queries.
+   * Use with caution - this clears all Neon query cache entries.
+   */
+  async invalidateAllCache(): Promise<number> {
+    return cacheInvalidate({ pattern: "neon:*" });
+  }
+
   /**
    * Close the connection pool gracefully.
    */
@@ -433,6 +620,14 @@ class NullNeonDbClient {
   getPoolStats() {
     return { maxConnections: 0, connectionCacheEnabled: false, queryTimeoutMs: 0, totalConnections: 0, idleConnections: 0, waitingClients: 0 };
   }
+  async cachedQuery<T>(): Promise<CachedQueryResult<T[]>> {
+    throw new Error("Neon DB not available");
+  }
+  async cachedFetch<T>(): Promise<CachedQueryResult<T>> {
+    throw new Error("Neon DB not available");
+  }
+  async invalidateCache(): Promise<number> { return 0; }
+  async invalidateAllCache(): Promise<number> { return 0; }
   async close(): Promise<void> {}
 }
 
@@ -482,7 +677,7 @@ export function getNeonPooledDb(): NeonDatabase<typeof schema> | null {
 
 // Export types and classes
 export { NeonDbClient, NullNeonDbClient, Pool };
-export type { NeonDbConfig, NeonHealthStatus, TimedQueryResult, RetryConfig };
+export type { NeonDbConfig, NeonHealthStatus, TimedQueryResult, RetryConfig, QueryCacheConfig, CachedQueryResult };
 
 // Export the singleton instance
 export const neonDb = neonDbInstance;

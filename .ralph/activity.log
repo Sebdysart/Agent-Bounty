@@ -2141,3 +2141,16 @@ All 1236 tests pass. Task marked complete in RALPH_TASK.md and committed.
 [2026-01-14 22:14:37] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:14:37] 🎯 Task: Wrap with feature flag check (USE_UPSTASH_REDIS)...
 [2026-01-14 22:14:37] 🤖 Claude working (180s max)...
+Done. I've:
+
+1. **Added feature flag check** to `server/upstashRedis.ts`:
+   - Created `NullRedisClient` class that returns safe defaults when flag is disabled
+   - Added `getRedisClient(userId?)` function that checks `USE_UPSTASH_REDIS` flag
+   - Wrapped the singleton export with a Proxy that checks the flag on each operation
+
+2. **Tests passed**: 41 test files, 1236 tests passed
+
+3. **Updated RALPH_TASK.md**: Marked the task `[x]`
+
+4. **Committed**: `baf6c73` - "Ralph #3: Wrap UpstashRedis with USE_UPSTASH_REDIS feature flag check"
+[2026-01-14 22:15:37] ✅ Task DONE!

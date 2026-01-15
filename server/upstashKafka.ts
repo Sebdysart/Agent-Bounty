@@ -1620,7 +1620,8 @@ export class KafkaJobQueue {
 
     // Check singleton constraint
     if (options?.singletonKey) {
-      for (const job of this.jobStates.values()) {
+      const jobs = Array.from(this.jobStates.values());
+      for (const job of jobs) {
         if (job.singletonKey === options.singletonKey &&
             job.state !== 'completed' &&
             job.state !== 'failed' &&
@@ -1809,7 +1810,8 @@ export class KafkaJobQueue {
   async offWork(nameOrOptions: string | { id: string }): Promise<void> {
     if (typeof nameOrOptions === 'string') {
       // Stop all workers for this queue name
-      for (const [id, worker] of this.workers) {
+      const entries = Array.from(this.workers.entries());
+      for (const [id, worker] of entries) {
         if (id.includes(`worker-${nameOrOptions}-`)) {
           worker.stop();
           this.workers.delete(id);

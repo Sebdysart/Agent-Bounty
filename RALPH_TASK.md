@@ -35,7 +35,7 @@
 - [x] Create KafkaConsumer class with batch processing
 - [x] Implement dead-letter queue handler
 - [x] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
-- [ ] Create adapter matching pg-boss interface
+- [x] Create adapter matching pg-boss interface
 - [x] Wrap with feature flag (USE_UPSTASH_KAFKA)
 - [x] Add idempotency keys to prevent duplicate processing
 - [ ] Write tests for upstashKafka.test.ts (mock the API)

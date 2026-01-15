@@ -2254,3 +2254,13 @@ The task was already completed in a prior run. Both files were committed togethe
 - Cache invalidation on agent reviews
 
 All tests pass (1236 passing). The task is complete.
+Done. I added comprehensive tests for `upstashRedis.ts`:
+
+- **69 tests total** (was 35, added 34 new tests)
+- Tests for `NullRedisClient` (17 tests covering all interface methods)
+- Tests for cache utilities (`cacheGet`, `cacheSet`, `cacheInvalidate`, `clearMemoryCache`)
+- Tests for `connect()` and `getClient()` methods
+- All tests mock the `@upstash/redis` API
+
+Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 22:27:48] ✅ Task DONE!

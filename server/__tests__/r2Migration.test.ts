@@ -4,37 +4,49 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { R2MigrationService } from '../r2Migration';
+
+// Use vi.hoisted to create mock functions that can be used in vi.mock factories
+const {
+  mockIsAvailable,
+  mockUploadAgentCode,
+  mockExists,
+  mockDelete,
+  mockIsEnabled,
+  mockDbSelect,
+  mockDbUpdate,
+} = vi.hoisted(() => ({
+  mockIsAvailable: vi.fn(),
+  mockUploadAgentCode: vi.fn(),
+  mockExists: vi.fn(),
+  mockDelete: vi.fn(),
+  mockIsEnabled: vi.fn(),
+  mockDbSelect: vi.fn(),
+  mockDbUpdate: vi.fn(),
+}));
 
 // Mock r2Storage
-const mockR2Storage = {
-  isAvailable: vi.fn(),
-  uploadAgentCode: vi.fn(),
-  exists: vi.fn(),
-  delete: vi.fn(),
-};
-
 vi.mock('../r2Storage', () => ({
-  r2Storage: mockR2Storage,
+  r2Storage: {
+    isAvailable: mockIsAvailable,
+    uploadAgentCode: mockUploadAgentCode,
+    exists: mockExists,
+    delete: mockDelete,
+  },
 }));
 
 // Mock featureFlags
-const mockFeatureFlags = {
-  isEnabled: vi.fn(),
-};
-
 vi.mock('../featureFlags', () => ({
-  featureFlags: mockFeatureFlags,
+  featureFlags: {
+    isEnabled: mockIsEnabled,
+  },
 }));
 
 // Mock database
-const mockDb = {
-  select: vi.fn(),
-  update: vi.fn(),
-};
-
 vi.mock('../db', () => ({
-  db: mockDb,
+  db: {
+    select: mockDbSelect,
+    update: mockDbUpdate,
+  },
 }));
 
 // Mock drizzle-orm
@@ -56,6 +68,9 @@ vi.mock('@shared/schema', () => ({
   agentVersions: {},
 }));
 
+// Import after mocks are set up
+import { R2MigrationService } from '../r2Migration';
+
 describe('R2MigrationService', () => {
   let service: R2MigrationService;
 
@@ -64,8 +79,8 @@ describe('R2MigrationService', () => {
     service = new R2MigrationService();
 
     // Default mocks
-    mockFeatureFlags.isEnabled.mockReturnValue(false);
-    mockR2Storage.isAvailable.mockReturnValue(false);
+    mockIsEnabled.mockReturnValue(false);
+    mockIsAvailable.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -74,8 +89,8 @@ describe('R2MigrationService', () => {
 
   describe('canMigrate', () => {
     it('should return false when feature flag is not enabled', () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(false);
-      mockR2Storage.isAvailable.mockReturnValue(true);
+      mockIsEnabled.mockReturnValue(false);
+      mockIsAvailable.mockReturnValue(true);
 
       const result = service.canMigrate();
 
@@ -84,8 +99,8 @@ describe('R2MigrationService', () => {
     });
 
     it('should return false when R2 storage is not configured', () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(false);
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(false);
 
       const result = service.canMigrate();
 
@@ -94,8 +109,8 @@ describe('R2MigrationService', () => {
     });
 
     it('should return true when both flag is enabled and R2 is available', () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
 
       const result = service.canMigrate();
 
@@ -138,7 +153,7 @@ describe('R2MigrationService', () => {
 
   describe('getPendingMigrationCount', () => {
     it('should return 0 when migration is not possible', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockIsEnabled.mockReturnValue(false);
 
       const count = await service.getPendingMigrationCount();
 
@@ -146,8 +161,8 @@ describe('R2MigrationService', () => {
     });
 
     it('should return count of pending agents', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
 
       const mockFrom = vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue([
@@ -157,7 +172,7 @@ describe('R2MigrationService', () => {
         ]),
       });
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: mockFrom,
       });
 
@@ -169,7 +184,7 @@ describe('R2MigrationService', () => {
 
   describe('migrateAgent', () => {
     it('should return error when migration is not possible', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockIsEnabled.mockReturnValue(false);
 
       const result = await service.migrateAgent(1);
 
@@ -178,14 +193,14 @@ describe('R2MigrationService', () => {
     });
 
     it('should return error when agent not found', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
 
       const mockFrom = vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue([]),
       });
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: mockFrom,
       });
 
@@ -196,8 +211,8 @@ describe('R2MigrationService', () => {
     });
 
     it('should return success when agent is already migrated', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
 
       const mockFrom = vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue([
@@ -205,20 +220,20 @@ describe('R2MigrationService', () => {
         ]),
       });
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: mockFrom,
       });
 
       const result = await service.migrateAgent(1);
 
       expect(result.success).toBe(true);
-      expect(mockR2Storage.uploadAgentCode).not.toHaveBeenCalled();
+      expect(mockUploadAgentCode).not.toHaveBeenCalled();
     });
 
     it('should migrate agent with code in configJson', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.uploadAgentCode.mockResolvedValue({
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
+      mockUploadAgentCode.mockResolvedValue({
         success: true,
         key: 'agents/1/source.js',
       });
@@ -228,7 +243,7 @@ describe('R2MigrationService', () => {
         where: mockWhere.mockResolvedValue([{ id: 1 }]),
       });
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             {
@@ -240,26 +255,26 @@ describe('R2MigrationService', () => {
         }),
       });
 
-      mockDb.update.mockReturnValue({
+      mockDbUpdate.mockReturnValue({
         set: mockSet,
       });
 
       const result = await service.migrateAgent(1);
 
       expect(result.success).toBe(true);
-      expect(mockR2Storage.uploadAgentCode).toHaveBeenCalledWith('1', 'console.log("hello")');
+      expect(mockUploadAgentCode).toHaveBeenCalledWith('1', 'console.log("hello")');
     });
 
     it('should handle upload failure', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.uploadAgentCode.mockResolvedValue({
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
+      mockUploadAgentCode.mockResolvedValue({
         success: false,
         key: 'agents/1/source.js',
         error: 'Upload failed',
       });
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             {
@@ -280,25 +295,25 @@ describe('R2MigrationService', () => {
 
   describe('migrateAll', () => {
     it('should return error when migration is not possible', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockIsEnabled.mockReturnValue(false);
 
       const result = await service.migrateAll();
 
       expect(result.success).toBe(false);
       expect(result.errors.length).toBe(1);
-      expect(result.errors[0].error).toContain('Cannot migrate');
+      expect(result.errors[0].error).toContain('feature flag is not enabled');
     });
 
     it('should migrate all pending agents', async () => {
-      mockFeatureFlags.isEnabled.mockReturnValue(true);
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.uploadAgentCode.mockResolvedValue({
+      mockIsEnabled.mockReturnValue(true);
+      mockIsAvailable.mockReturnValue(true);
+      mockUploadAgentCode.mockResolvedValue({
         success: true,
         key: 'agents/1/source.js',
       });
 
       let selectCallCount = 0;
-      mockDb.select.mockImplementation(() => ({
+      mockDbSelect.mockImplementation(() => ({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockImplementation(() => {
             selectCallCount++;
@@ -319,7 +334,7 @@ describe('R2MigrationService', () => {
       }));
 
       const mockWhere = vi.fn().mockResolvedValue([{ id: 1 }]);
-      mockDb.update.mockReturnValue({
+      mockDbUpdate.mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: mockWhere,
         }),
@@ -335,7 +350,7 @@ describe('R2MigrationService', () => {
 
   describe('verifyMigration', () => {
     it('should return not found when agent does not exist', async () => {
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
@@ -348,7 +363,7 @@ describe('R2MigrationService', () => {
     });
 
     it('should return not migrated when agent has no R2 key', async () => {
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([{ id: 1, r2CodeKey: null }]),
         }),
@@ -361,9 +376,9 @@ describe('R2MigrationService', () => {
     });
 
     it('should verify R2 file exists', async () => {
-      mockR2Storage.exists.mockResolvedValue(true);
+      mockExists.mockResolvedValue(true);
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             { id: 1, r2CodeKey: 'agents/1/source.js' },
@@ -381,7 +396,7 @@ describe('R2MigrationService', () => {
 
   describe('rollbackMigration', () => {
     it('should return error when agent not found', async () => {
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
@@ -394,7 +409,7 @@ describe('R2MigrationService', () => {
     });
 
     it('should return success when no R2 key to rollback', async () => {
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([{ id: 1, r2CodeKey: null }]),
         }),
@@ -406,10 +421,10 @@ describe('R2MigrationService', () => {
     });
 
     it('should delete R2 file and clear key', async () => {
-      mockR2Storage.isAvailable.mockReturnValue(true);
-      mockR2Storage.delete.mockResolvedValue(true);
+      mockIsAvailable.mockReturnValue(true);
+      mockDelete.mockResolvedValue(true);
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             { id: 1, r2CodeKey: 'agents/1/source.js' },
@@ -418,7 +433,7 @@ describe('R2MigrationService', () => {
       });
 
       const mockWhere = vi.fn().mockResolvedValue([{ id: 1 }]);
-      mockDb.update.mockReturnValue({
+      mockDbUpdate.mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: mockWhere,
         }),
@@ -427,29 +442,40 @@ describe('R2MigrationService', () => {
       const result = await service.rollbackMigration(1);
 
       expect(result.success).toBe(true);
-      expect(mockR2Storage.delete).toHaveBeenCalledWith('agents/1/source.js');
+      expect(mockDelete).toHaveBeenCalledWith('agents/1/source.js');
     });
   });
 
   describe('getStatistics', () => {
     it('should return migration statistics', async () => {
-      const mockSelectResults = [
-        [{ count: 100 }], // total
-        [{ id: 1 }, { id: 2 }], // migrated (2)
-        [{ id: 3 }, { id: 4 }, { id: 5 }], // pending (3)
-        [{ id: 6 }], // without code (1)
-        // Total agents query
-        [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }],
-      ];
-
+      // Mock returns a sequence of results for each DB call
+      // The function makes 5 db.select() calls:
+      // 1. totalResult (with from - returns array to destructure)
+      // 2. migratedAgents (with from.where)
+      // 3. pendingAgents (with from.where)
+      // 4. withoutCodeAgents (with from.where)
+      // 5. allAgents (with from only)
       let callIndex = 0;
-      mockDb.select.mockImplementation(() => ({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockImplementation(() => {
-            const result = mockSelectResults[callIndex];
-            callIndex++;
-            return Promise.resolve(result || []);
-          }),
+      mockDbSelect.mockImplementation(() => ({
+        from: vi.fn().mockImplementation(() => {
+          callIndex++;
+          const mockData = {
+            1: [{ count: 100 }], // totalResult
+            2: [{ id: 1 }, { id: 2 }], // migrated
+            3: [{ id: 3 }, { id: 4 }, { id: 5 }], // pending
+            4: [{ id: 6 }], // without code
+            5: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }], // all
+          };
+          const result = mockData[callIndex as keyof typeof mockData] || [];
+
+          // Some calls don't use .where()
+          if (callIndex === 1 || callIndex === 5) {
+            return Promise.resolve(result);
+          }
+          // Others use .where()
+          return {
+            where: vi.fn().mockResolvedValue(result),
+          };
         }),
       }));
 
@@ -464,11 +490,11 @@ describe('R2MigrationService', () => {
 
   describe('verifyAllMigrations', () => {
     it('should verify all migrated agents', async () => {
-      mockR2Storage.exists
+      mockExists
         .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(false);
 
-      mockDb.select.mockReturnValue({
+      mockDbSelect.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             { id: 1, r2CodeKey: 'agents/1/source.js' },

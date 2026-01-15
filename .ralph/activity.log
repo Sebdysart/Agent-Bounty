@@ -1968,3 +1968,10 @@ Done. I've completed the task:
 [2026-01-14 21:21:18] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 21:21:18] 🎯 Task: Create POST /api/admin/flags to toggle flags (admin only)...
 [2026-01-14 21:21:18] 🤖 Claude working (180s max)...
+Done. Created the POST `/api/admin/flags` endpoint with:
+- Admin-only access via `requireAdmin` middleware
+- Zod validation for `flagName` (required), `enabled` and `rolloutPercentage` (optional)
+- 404 response for unknown flags
+- Returns updated flags state
+- Added tests for the new endpoint
+[2026-01-14 21:23:04] ✅ Task DONE!

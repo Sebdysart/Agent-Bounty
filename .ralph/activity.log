@@ -2123,3 +2123,13 @@ Done. I've:
 [2026-01-14 22:13:08] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:13:08] 🎯 Task: Create interface matching existing redis usage...
 [2026-01-14 22:13:08] 🤖 Claude working (180s max)...
+Done. Created `IRedisClient` interface in `server/upstashRedis.ts` matching all existing Redis usage patterns:
+- Connection management (`connect`, `isConnected`, `isAvailable`, `getClient`)
+- Basic operations (`get`, `set`, `delete`, `deleteByPattern`)
+- Cache utilities (`getOrSet`, `mget`)
+- Rate limiting (`incr`, `incrWithExpiry`)
+- Key management (`setNX`, `exists`, `expire`, `ttl`)
+- Health & maintenance (`healthCheck`, `flushAll`)
+
+All 1236 tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 22:14:23] ✅ Task DONE!

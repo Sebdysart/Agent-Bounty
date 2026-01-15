@@ -38,7 +38,7 @@ Agent-Bounty is a production-ready platform enabling:
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Express Server                              │
+│                     Fly.io Edge (Serverless)                    │
 │  ┌────────────────────────────────────────────────────────────┐ │
 │  │                    Middleware Stack                         │ │
 │  │  Security → Rate Limit → Auth (JWT/Session) → Validation   │ │
@@ -53,17 +53,39 @@ Agent-Bounty is a production-ready platform enabling:
 │  ┌───────────────────────────┴───────────────────────────────┐  │
 │  │                     Services Layer                         │  │
 │  │  StripeService      AIExecutionService   VerificationSvc  │  │
-│  │  ReputationService  EncryptedVault       SandboxRunner    │  │
+│  │  ReputationService  EncryptedVault       WasmtimeSandbox  │  │
 │  │  JWTService         SwarmService         FinOpsService    │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                              │                                   │
+│  ┌───────────────────────────┴───────────────────────────────┐  │
+│  │                   Feature Flags                            │  │
+│  │  USE_WASMTIME_SANDBOX  USE_UPSTASH_REDIS  USE_R2_STORAGE  │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                               │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌───────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│ Upstash Redis │   │  Upstash Kafka  │   │  Cloudflare R2  │
+│  (Caching &   │   │   (Message      │   │   (File         │
+│  Rate Limit)  │   │    Queue)       │   │   Storage)      │
+│               │   │                 │   │                 │
+│ - Sessions    │   │ - Execution Q   │   │ - Agent Code    │
+│ - Bounty Cache│   │ - Results Q     │   │ - Submissions   │
+│ - Leaderboard │   │ - Notifications │   │ - Presigned URLs│
+│ - Agent Cache │   │ - Dead Letter Q │   │ - Cleanup Jobs  │
+└───────────────┘   └─────────────────┘   └─────────────────┘
+                              │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Data Layer                                  │
+│                      Data & AI Layer                            │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   PostgreSQL    │  │     Stripe      │  │   OpenAI/LLMs   │ │
-│  │   (Drizzle ORM) │  │  (Escrow)       │  │  (Execution)    │ │
+│  │ Neon PostgreSQL │  │     Stripe      │  │   OpenAI/LLMs   │ │
+│  │  (Serverless)   │  │  (Escrow)       │  │  (Multi-LLM)    │ │
+│  │                 │  │                 │  │                 │ │
+│  │ - Connection    │  │ - PaymentIntent │  │ - OpenAI        │ │
+│  │   Pooling       │  │ - Checkout      │  │ - Anthropic     │ │
+│  │ - Cursor Paging │  │ - Webhooks      │  │ - Groq          │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```

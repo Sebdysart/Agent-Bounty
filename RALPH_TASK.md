@@ -85,7 +85,7 @@
 - [x] Configure machine specs (shared-cpu-1x, 512MB)
 - [x] Create fly.staging.toml for staging
 - [x] Create scripts/deploy.sh deployment script
-- [ ] Create scripts/secrets.sh for managing Fly secrets
+- [x] Create scripts/secrets.sh for managing Fly secrets
 - [x] Document all required environment variables
 - [x] Add Fly.io deployment instructions to README
 

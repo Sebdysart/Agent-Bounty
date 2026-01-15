@@ -47,7 +47,7 @@
 - [x] Configure S3 client with R2 endpoint format
 - [x] Implement file operations (upload, download, delete, presignedUrl, list)
 - [x] Create agent-specific helpers (uploadAgentCode, downloadAgentCode)
-- [ ] Wrap with feature flag (USE_R2_STORAGE)
+- [x] Wrap with feature flag (USE_R2_STORAGE)
 - [ ] Add migration utility for existing DB blobs to R2
 - [ ] Implement cleanup job for orphaned files
 - [ ] Write tests for r2Storage.test.ts (mock S3 client)

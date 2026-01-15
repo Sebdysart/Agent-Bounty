@@ -6,17 +6,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Use vi.hoisted to create mock that can be used in vi.mock factories
-const { mockR2Storage } = vi.hoisted(() => ({
+const { mockR2Storage, mockFeatureFlags } = vi.hoisted(() => ({
   mockR2Storage: {
     isAvailable: vi.fn(),
     uploadAgentCode: vi.fn(),
     downloadAgentCode: vi.fn(),
     deleteAgentCode: vi.fn(),
   },
+  mockFeatureFlags: {
+    isEnabled: vi.fn(),
+  },
 }));
 
 vi.mock('../r2Storage', () => ({
   r2Storage: mockR2Storage,
+}));
+
+vi.mock('../featureFlags', () => ({
+  featureFlags: mockFeatureFlags,
 }));
 
 // Mock drizzle-orm
@@ -61,6 +68,9 @@ describe('AgentCodeService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Default: feature flag is enabled
+    mockFeatureFlags.isEnabled.mockReturnValue(true);
+
     // Setup default mock chains
     mockDbFrom.mockReturnValue({ where: mockDbWhere });
     mockDbWhere.mockResolvedValue([]);
@@ -100,7 +110,18 @@ describe('AgentCodeService', () => {
       const result = await agentCodeService.storeCode(123, 'code');
 
       expect(result.success).toBe(true);
-      expect(result.error).toBe('R2 not configured, code stored in database');
+      expect(result.error).toBe('R2 storage disabled or not configured, code stored in database');
+      expect(mockR2Storage.uploadAgentCode).not.toHaveBeenCalled();
+    });
+
+    it('should return success with warning when feature flag is disabled', async () => {
+      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockR2Storage.isAvailable.mockReturnValue(true);
+
+      const result = await agentCodeService.storeCode(123, 'code');
+
+      expect(result.success).toBe(true);
+      expect(result.error).toBe('R2 storage disabled or not configured, code stored in database');
       expect(mockR2Storage.uploadAgentCode).not.toHaveBeenCalled();
     });
 
@@ -159,6 +180,24 @@ describe('AgentCodeService', () => {
         prompt: null,
         uploadType: 'full_code',
       }]);
+      mockR2Storage.isAvailable.mockReturnValue(true);
+
+      const result = await agentCodeService.getCode(123);
+
+      expect(result.success).toBe(true);
+      expect(result.code).toBe('db-code');
+      expect(result.source).toBe('db');
+      expect(mockR2Storage.downloadAgentCode).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to DB when feature flag is disabled even with r2CodeKey', async () => {
+      mockDbWhere.mockResolvedValue([{
+        r2CodeKey: 'agents/123/source.js',
+        configJson: 'db-code',
+        prompt: null,
+        uploadType: 'full_code',
+      }]);
+      mockFeatureFlags.isEnabled.mockReturnValue(false);
       mockR2Storage.isAvailable.mockReturnValue(true);
 
       const result = await agentCodeService.getCode(123);
@@ -239,6 +278,16 @@ describe('AgentCodeService', () => {
       expect(mockR2Storage.deleteAgentCode).not.toHaveBeenCalled();
     });
 
+    it('should return true when feature flag is disabled', async () => {
+      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockR2Storage.isAvailable.mockReturnValue(true);
+
+      const result = await agentCodeService.deleteCode(123);
+
+      expect(result).toBe(true);
+      expect(mockR2Storage.deleteAgentCode).not.toHaveBeenCalled();
+    });
+
     it('should return true when no r2CodeKey exists', async () => {
       mockDbWhere.mockResolvedValue([{ r2CodeKey: null }]);
       mockR2Storage.isAvailable.mockReturnValue(true);
@@ -312,13 +361,32 @@ describe('AgentCodeService', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should return false when feature flag is disabled', async () => {
+      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockR2Storage.isAvailable.mockReturnValue(true);
+
+      const result = await agentCodeService.migrateToR2(123);
+
+      expect(result).toBe(false);
+    });
   });
 
   describe('isR2Available', () => {
-    it('should return R2 availability status', () => {
+    it('should return true when feature flag enabled and R2 available', () => {
+      mockFeatureFlags.isEnabled.mockReturnValue(true);
       mockR2Storage.isAvailable.mockReturnValue(true);
       expect(agentCodeService.isR2Available()).toBe(true);
+    });
 
+    it('should return false when feature flag is disabled', () => {
+      mockFeatureFlags.isEnabled.mockReturnValue(false);
+      mockR2Storage.isAvailable.mockReturnValue(true);
+      expect(agentCodeService.isR2Available()).toBe(false);
+    });
+
+    it('should return false when R2 is not available', () => {
+      mockFeatureFlags.isEnabled.mockReturnValue(true);
       mockR2Storage.isAvailable.mockReturnValue(false);
       expect(agentCodeService.isR2Available()).toBe(false);
     });

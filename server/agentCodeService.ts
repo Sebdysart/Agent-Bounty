@@ -6,6 +6,7 @@
  */
 
 import { r2Storage } from './r2Storage';
+import { featureFlags } from './featureFlags';
 import { db } from './db';
 import { agentUploads } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -33,11 +34,11 @@ class AgentCodeService {
    * For full_code agents, this moves code from configJson to R2.
    */
   async storeCode(agentUploadId: number, code: string): Promise<StoreCodeResult> {
-    if (!r2Storage.isAvailable()) {
-      // R2 not configured - code stays in DB
+    if (!featureFlags.isEnabled('USE_R2_STORAGE') || !r2Storage.isAvailable()) {
+      // R2 not enabled or not configured - code stays in DB
       return {
         success: true,
-        error: 'R2 not configured, code stored in database',
+        error: 'R2 storage disabled or not configured, code stored in database',
       };
     }
 
@@ -97,8 +98,8 @@ class AgentCodeService {
         };
       }
 
-      // Try R2 first if we have a key
-      if (upload.r2CodeKey && r2Storage.isAvailable()) {
+      // Try R2 first if we have a key and R2 storage is enabled
+      if (upload.r2CodeKey && featureFlags.isEnabled('USE_R2_STORAGE') && r2Storage.isAvailable()) {
         const code = await r2Storage.downloadAgentCode(agentUploadId.toString());
         if (code) {
           return {
@@ -141,7 +142,7 @@ class AgentCodeService {
    * Delete agent code from R2.
    */
   async deleteCode(agentUploadId: number): Promise<boolean> {
-    if (!r2Storage.isAvailable()) {
+    if (!featureFlags.isEnabled('USE_R2_STORAGE') || !r2Storage.isAvailable()) {
       return true;
     }
 
@@ -181,7 +182,7 @@ class AgentCodeService {
    * Returns true if migration was successful or not needed.
    */
   async migrateToR2(agentUploadId: number): Promise<boolean> {
-    if (!r2Storage.isAvailable()) {
+    if (!featureFlags.isEnabled('USE_R2_STORAGE') || !r2Storage.isAvailable()) {
       return false;
     }
 
@@ -223,10 +224,10 @@ class AgentCodeService {
   }
 
   /**
-   * Check if R2 storage is available for agent code.
+   * Check if R2 storage is enabled and available for agent code.
    */
   isR2Available(): boolean {
-    return r2Storage.isAvailable();
+    return featureFlags.isEnabled('USE_R2_STORAGE') && r2Storage.isAvailable();
   }
 }
 

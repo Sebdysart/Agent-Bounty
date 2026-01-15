@@ -8,7 +8,11 @@ interface RequestMetrics {
   buckets: Map<number, number>; // histogram buckets
   errorCount: number; // 4xx and 5xx responses
   statusCodes: Map<number, number>; // count per status code
+  durations: number[]; // individual durations for percentile calculation
 }
+
+// Maximum number of duration samples to keep per endpoint (for memory efficiency)
+const MAX_DURATION_SAMPLES = 10000;
 
 interface EndpointKey {
   method: string;
@@ -43,6 +47,7 @@ function initMetrics(): RequestMetrics {
     buckets,
     errorCount: 0,
     statusCodes: new Map<number, number>(),
+    durations: [],
   };
 }
 
@@ -57,6 +62,17 @@ function recordDuration(key: string, durationMs: number): void {
   metrics.totalDurationMs += durationMs;
   metrics.minDurationMs = Math.min(metrics.minDurationMs, durationMs);
   metrics.maxDurationMs = Math.max(metrics.maxDurationMs, durationMs);
+
+  // Store duration for percentile calculation (with memory limit)
+  if (metrics.durations.length < MAX_DURATION_SAMPLES) {
+    metrics.durations.push(durationMs);
+  } else {
+    // Reservoir sampling: randomly replace an existing sample
+    const idx = Math.floor(Math.random() * metrics.count);
+    if (idx < MAX_DURATION_SAMPLES) {
+      metrics.durations[idx] = durationMs;
+    }
+  }
 
   // Update histogram buckets
   for (const bucket of HISTOGRAM_BUCKETS) {
@@ -106,6 +122,26 @@ export function requestDurationMiddleware(req: Request, res: Response, next: Nex
   });
 
   next();
+}
+
+/**
+ * Internal percentile calculation helper
+ */
+function calculatePercentileInternal(sortedArr: number[], percentile: number): number {
+  if (sortedArr.length === 0) return 0;
+  if (sortedArr.length === 1) return sortedArr[0];
+
+  const idx = (percentile / 100) * (sortedArr.length - 1);
+  const lower = Math.floor(idx);
+  const upper = Math.ceil(idx);
+
+  if (lower === upper) {
+    return sortedArr[lower];
+  }
+
+  // Linear interpolation
+  const weight = idx - lower;
+  return sortedArr[lower] * (1 - weight) + sortedArr[upper] * weight;
 }
 
 /**
@@ -170,6 +206,40 @@ export function getRequestDurationMetrics(): string {
     const [method, path] = key.split(":");
     const avg = metrics.count > 0 ? metrics.totalDurationMs / metrics.count : 0;
     lines.push(`agentbounty_http_request_duration_avg_ms{method="${method}",path="${path}"} ${avg.toFixed(3)}`);
+  }
+
+  // Percentile metrics (p50, p95, p99)
+  lines.push("");
+  lines.push("# HELP agentbounty_http_request_duration_p50_ms 50th percentile (median) response time");
+  lines.push("# TYPE agentbounty_http_request_duration_p50_ms gauge");
+  for (const [key, metrics] of endpointMetrics) {
+    if (metrics.durations.length === 0) continue;
+    const [method, path] = key.split(":");
+    const sorted = [...metrics.durations].sort((a, b) => a - b);
+    const p50 = calculatePercentileInternal(sorted, 50);
+    lines.push(`agentbounty_http_request_duration_p50_ms{method="${method}",path="${path}"} ${p50.toFixed(3)}`);
+  }
+
+  lines.push("");
+  lines.push("# HELP agentbounty_http_request_duration_p95_ms 95th percentile response time");
+  lines.push("# TYPE agentbounty_http_request_duration_p95_ms gauge");
+  for (const [key, metrics] of endpointMetrics) {
+    if (metrics.durations.length === 0) continue;
+    const [method, path] = key.split(":");
+    const sorted = [...metrics.durations].sort((a, b) => a - b);
+    const p95 = calculatePercentileInternal(sorted, 95);
+    lines.push(`agentbounty_http_request_duration_p95_ms{method="${method}",path="${path}"} ${p95.toFixed(3)}`);
+  }
+
+  lines.push("");
+  lines.push("# HELP agentbounty_http_request_duration_p99_ms 99th percentile response time");
+  lines.push("# TYPE agentbounty_http_request_duration_p99_ms gauge");
+  for (const [key, metrics] of endpointMetrics) {
+    if (metrics.durations.length === 0) continue;
+    const [method, path] = key.split(":");
+    const sorted = [...metrics.durations].sort((a, b) => a - b);
+    const p99 = calculatePercentileInternal(sorted, 99);
+    lines.push(`agentbounty_http_request_duration_p99_ms{method="${method}",path="${path}"} ${p99.toFixed(3)}`);
   }
 
   // Error count per endpoint
@@ -255,4 +325,53 @@ export function getAllErrorRates(): Array<{ method: string; path: string; errorR
     });
   }
   return results.sort((a, b) => b.errorRate - a.errorRate);
+}
+
+export interface PercentileMetrics {
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
+/**
+ * Get p50, p95, p99 response times for a specific endpoint
+ */
+export function getEndpointPercentiles(method: string, path: string): PercentileMetrics | undefined {
+  const metrics = getEndpointMetrics(method, path);
+  if (!metrics || metrics.durations.length === 0) {
+    return undefined;
+  }
+
+  const sorted = [...metrics.durations].sort((a, b) => a - b);
+  return {
+    p50: calculatePercentileInternal(sorted, 50),
+    p95: calculatePercentileInternal(sorted, 95),
+    p99: calculatePercentileInternal(sorted, 99),
+  };
+}
+
+/**
+ * Get p50, p95, p99 response times for all endpoints
+ */
+export function getAllPercentiles(): Array<{ method: string; path: string; percentiles: PercentileMetrics; count: number }> {
+  const results: Array<{ method: string; path: string; percentiles: PercentileMetrics; count: number }> = [];
+
+  for (const [key, metrics] of endpointMetrics) {
+    if (metrics.durations.length === 0) continue;
+
+    const [method, path] = key.split(":");
+    const sorted = [...metrics.durations].sort((a, b) => a - b);
+    results.push({
+      method,
+      path,
+      percentiles: {
+        p50: calculatePercentileInternal(sorted, 50),
+        p95: calculatePercentileInternal(sorted, 95),
+        p99: calculatePercentileInternal(sorted, 99),
+      },
+      count: metrics.count,
+    });
+  }
+
+  return results.sort((a, b) => b.percentiles.p99 - a.percentiles.p99);
 }

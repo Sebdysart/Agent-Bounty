@@ -14,7 +14,7 @@
 
 ## PHASE 2: Upstash Redis Integration
 - [x] Install @upstash/redis package
-- [ ] Create server/upstashRedis.ts client wrapper
+- [x] Create server/upstashRedis.ts client wrapper
 - [ ] Implement connection with REST API (serverless-friendly)
 - [ ] Create interface matching existing redis usage
 - [ ] Wrap with feature flag check (USE_UPSTASH_REDIS)

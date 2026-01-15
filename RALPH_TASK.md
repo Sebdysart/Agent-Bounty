@@ -36,8 +36,8 @@
 - [x] Implement dead-letter queue handler
 - [x] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
 - [ ] Create adapter matching pg-boss interface
-- [ ] Wrap with feature flag (USE_UPSTASH_KAFKA)
-- [ ] Add idempotency keys to prevent duplicate processing
+- [x] Wrap with feature flag (USE_UPSTASH_KAFKA)
+- [x] Add idempotency keys to prevent duplicate processing
 - [ ] Write tests for upstashKafka.test.ts (mock the API)
 - [ ] Add Kafka health check to /api/health
 

@@ -2202,3 +2202,12 @@ Done. The bounty listings cache was already implemented with 5-minute TTL in `da
 [2026-01-14 22:20:46] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:20:46] 🎯 Task: Add agent profiles cache (10 min TTL)...
 [2026-01-14 22:20:46] 🤖 Claude working (180s max)...
+Done. Added agent profiles cache (10 min TTL):
+
+- Integrated `dataCache.getAgent()` into `/api/agents/:id` route (server/routes.ts:722)
+- Integrated `dataCache.getAgent()` into `/api/agents/:id/stats` route (server/routes.ts:745)
+- The cache uses the existing `dataCache.getAgent()` method with 600s (10 min) TTL
+- All 1236 tests pass
+- Marked task complete in RALPH_TASK.md
+- Committed as `a87c8e2`
+[2026-01-14 22:22:11] ✅ Task DONE!

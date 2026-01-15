@@ -1982,3 +1982,14 @@ Done. Created the POST `/api/admin/flags` endpoint with:
 [2026-01-14 21:23:15] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 21:23:15] 🎯 Task: Write tests for featureFlags.test.ts...
 [2026-01-14 21:23:15] 🤖 Claude working (180s max)...
+Done. Created `server/__tests__/featureFlags.test.ts` with 37 tests covering:
+- `isEnabled` (default, enabled, user overrides)
+- `setEnabled` and `setRolloutPercentage`
+- Rollout percentage behavior (0%, 50%, 100%)
+- User overrides (set, remove, precedence)
+- `getAllFlags` and `getFlag`
+- Evaluation logging
+- `registerFlag` and `reset`
+
+All tests pass. Task marked complete in RALPH_TASK.md and committed.
+[2026-01-14 21:24:30] ✅ Task DONE!

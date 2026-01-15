@@ -4041,3 +4041,6 @@ Task complete. The "Document cost per 1000 executions" task was already finished
 [2026-01-15 13:05:12] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-15 13:05:12] 🎯 Task: Create docs/ARCHITECTURE.md with system design...
 [2026-01-15 13:05:12] 🤖 Claude working (180s max)...
+Task complete. Tests passed (exit code 0), changes committed as `8f447c2`.
+[2026-01-15 13:08:13] ⏰ Timeout - killing process
+[2026-01-15 13:08:13] ✅ Task DONE!

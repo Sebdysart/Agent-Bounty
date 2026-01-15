@@ -2,7 +2,7 @@
 ## Mission: Migrate Agent-Bounty to serverless bootstrap stack
 
 ## PHASE 1: Feature Flags Foundation
-- [ ] Create server/featureFlags.ts with simple flag system
+- [x] Create server/featureFlags.ts with simple flag system
 - [ ] Implement in-memory flag storage with defaults
 - [ ] Add flags: USE_WASMTIME_SANDBOX, USE_UPSTASH_REDIS, USE_UPSTASH_KAFKA, USE_R2_STORAGE
 - [ ] Implement percentage-based rollout (0-100%)

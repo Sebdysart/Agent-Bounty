@@ -28,7 +28,7 @@
 - [x] Add Redis health check to /api/health
 
 ## PHASE 3: Upstash Kafka Queue Migration
-- [ ] Install @upstash/kafka package
+- [x] Install @upstash/kafka package
 - [ ] Create server/upstashKafka.ts producer/consumer wrapper
 - [ ] Define message types for topics (execution, results, notifications)
 - [ ] Create KafkaProducer class with retry logic

@@ -34,7 +34,7 @@
 - [x] Create KafkaProducer class with retry logic
 - [ ] Create KafkaConsumer class with batch processing
 - [x] Implement dead-letter queue handler
-- [ ] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
+- [x] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
 - [ ] Create adapter matching pg-boss interface
 - [ ] Wrap with feature flag (USE_UPSTASH_KAFKA)
 - [ ] Add idempotency keys to prevent duplicate processing

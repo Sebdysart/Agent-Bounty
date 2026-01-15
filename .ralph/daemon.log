@@ -1082,3 +1082,15 @@
 [2026-01-15 02:14:38] 🤖 Claude working (180s max)...
 ./.cursor/ralph-scripts/ralph-loop.sh: line 49: 37308 Killed: 9               nice -n 10 npx @anthropic-ai/claude-code --print --dangerously-skip-permissions < /tmp/ralph_prompt.txt >> '.ralph/activity.log' 2>&1
 [2026-01-15 02:15:23] ⚠️ Not done - will retry
+[main 6e61bb2] Ralph #22: Add connection retry logic with exponential backof
+ 5 files changed, 135 insertions(+)
+[2026-01-15 02:15:24] 💤 Cooling down 10s...
+[2026-01-15 02:15:34] 
+[2026-01-15 02:15:34] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-15 02:15:34] 📍 ITERATION 23/100 | ✅39 | ⏳58 | 💾505MB free
+[2026-01-15 02:15:34] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[2026-01-15 02:15:35] ⚠️ Retry 2/3
+[2026-01-15 02:15:35] 🎯 Task: Add connection retry logic with exponential backoff...
+[2026-01-15 02:15:35] 🤖 Claude working (180s max)...
+[2026-01-15 02:18:35] ⏰ Timeout - killing process
+[2026-01-15 02:18:35] ⚠️ Not done - will retry

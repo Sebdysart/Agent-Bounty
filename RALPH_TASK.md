@@ -86,7 +86,7 @@
 - [x] Create fly.staging.toml for staging
 - [x] Create scripts/deploy.sh deployment script
 - [ ] Create scripts/secrets.sh for managing Fly secrets
-- [ ] Document all required environment variables
+- [x] Document all required environment variables
 - [x] Add Fly.io deployment instructions to README
 
 ## PHASE 8: Enhanced Health and Monitoring

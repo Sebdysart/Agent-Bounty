@@ -29,7 +29,7 @@
 
 ## PHASE 3: Upstash Kafka Queue Migration
 - [x] Install @upstash/kafka package
-- [ ] Create server/upstashKafka.ts producer/consumer wrapper
+- [x] Create server/upstashKafka.ts producer/consumer wrapper
 - [ ] Define message types for topics (execution, results, notifications)
 - [ ] Create KafkaProducer class with retry logic
 - [ ] Create KafkaConsumer class with batch processing

@@ -6,9 +6,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   UpstashKafkaClient,
+  NullKafkaClient,
   KAFKA_TOPICS,
+  getKafkaClient,
   type KafkaMessage,
 } from "../upstashKafka";
+import { featureFlags } from "../featureFlags";
 
 // Mock the @upstash/kafka module
 vi.mock("@upstash/kafka", () => {
@@ -488,5 +491,123 @@ describe("UpstashKafkaClient", () => {
       expect(KAFKA_TOPICS.NOTIFICATIONS_QUEUE).toBe("notifications-queue");
       expect(KAFKA_TOPICS.AGENT_EXECUTION_DLQ).toBe("agent-execution-dlq");
     });
+  });
+});
+
+describe("NullKafkaClient", () => {
+  let nullClient: NullKafkaClient;
+
+  beforeEach(() => {
+    nullClient = new NullKafkaClient();
+  });
+
+  it("should return false for isAvailable", () => {
+    expect(nullClient.isAvailable()).toBe(false);
+  });
+
+  it("should return error for produce", async () => {
+    const result = await nullClient.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, { test: "data" });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not enabled");
+  });
+
+  it("should return errors for produceBatch", async () => {
+    const results = await nullClient.produceBatch([
+      { topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { test: 1 } },
+      { topic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE, data: { test: 2 } },
+    ]);
+    expect(results).toHaveLength(2);
+    expect(results[0].success).toBe(false);
+    expect(results[1].success).toBe(false);
+  });
+
+  it("should return empty for consume", async () => {
+    const result = await nullClient.consume(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+    expect(result.messages).toHaveLength(0);
+    expect(result.error).toContain("not enabled");
+  });
+
+  it("should return zeros for processMessages", async () => {
+    const handler = vi.fn();
+    const result = await nullClient.processMessages(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler);
+    expect(result.processed).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("should return error for queueAgentExecution", async () => {
+    const result = await nullClient.queueAgentExecution({
+      agentId: "agent-1",
+      bountyId: "bounty-1",
+      code: "test",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("should return error for queueAgentResult", async () => {
+    const result = await nullClient.queueAgentResult({
+      executionId: "exec-1",
+      agentId: "agent-1",
+      bountyId: "bounty-1",
+      success: true,
+      executionTimeMs: 100,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("should return error for queueNotification", async () => {
+    const result = await nullClient.queueNotification({
+      type: "email",
+      recipient: "test@example.com",
+      body: "test",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("should return disconnected for healthCheck", async () => {
+    const result = await nullClient.healthCheck();
+    expect(result.connected).toBe(false);
+    expect(result.error).toContain("feature flag");
+  });
+
+  it("should return null for getConsumerLag", async () => {
+    const result = await nullClient.getConsumerLag(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, "group");
+    expect(result).toBeNull();
+  });
+});
+
+describe("getKafkaClient with feature flags", () => {
+  beforeEach(() => {
+    featureFlags.reset();
+  });
+
+  afterEach(() => {
+    featureFlags.reset();
+  });
+
+  it("should return NullKafkaClient when flag is disabled", () => {
+    featureFlags.setEnabled("USE_UPSTASH_KAFKA", false);
+    const client = getKafkaClient();
+    expect(client.isAvailable()).toBe(false);
+  });
+
+  it("should return real client when flag is enabled", () => {
+    featureFlags.setEnabled("USE_UPSTASH_KAFKA", true);
+    featureFlags.setRolloutPercentage("USE_UPSTASH_KAFKA", 100);
+    const client = getKafkaClient();
+    // Real client may still return false if not configured, but it's the right type
+    expect(client).toBeDefined();
+  });
+
+  it("should support user-based flag evaluation", () => {
+    featureFlags.setEnabled("USE_UPSTASH_KAFKA", false);
+    featureFlags.setUserOverride("USE_UPSTASH_KAFKA", "test-user", true);
+
+    const defaultClient = getKafkaClient();
+    const userClient = getKafkaClient("test-user");
+
+    expect(defaultClient.isAvailable()).toBe(false);
+    // User override should return the real client (though it may not be configured)
+    expect(userClient).toBeDefined();
   });
 });

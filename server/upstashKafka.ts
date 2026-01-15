@@ -1,4 +1,5 @@
 import { Kafka, Producer, Consumer } from "@upstash/kafka";
+import { featureFlags } from "./featureFlags";
 
 // Topic definitions for the queue system
 export const KAFKA_TOPICS = {
@@ -361,15 +362,106 @@ class UpstashKafkaClient {
   }
 }
 
-// Singleton instance for the application
-export const upstashKafka = new UpstashKafkaClient();
+/**
+ * Interface for Kafka operations.
+ * Allows for feature flag-based switching between real and null implementations.
+ */
+export interface IKafkaClient {
+  isAvailable(): boolean;
+  produce<T>(topic: KafkaTopic, data: T, options?: { idempotencyKey?: string; retryCount?: number }): Promise<ProduceResult>;
+  produceBatch<T>(messages: Array<{ topic: KafkaTopic; data: T; idempotencyKey?: string }>): Promise<ProduceResult[]>;
+  consume<T>(topic: KafkaTopic, options?: { groupId?: string; instanceId?: string; maxMessages?: number }): Promise<ConsumeResult<T>>;
+  processMessages<T>(topic: KafkaTopic, handler: (message: KafkaMessage<T>) => Promise<void>, options?: { groupId?: string; instanceId?: string; maxMessages?: number }): Promise<{ processed: number; failed: number; errors: string[] }>;
+  sendToDLQ<T>(originalMessage: KafkaMessage<T>, errorReason: string): Promise<ProduceResult>;
+  queueAgentExecution(jobData: { agentId: string; bountyId: string; code: string; testCases?: unknown[]; metadata?: Record<string, unknown> }): Promise<ProduceResult>;
+  queueAgentResult(resultData: { executionId: string; agentId: string; bountyId: string; success: boolean; output?: unknown; error?: string; executionTimeMs: number }): Promise<ProduceResult>;
+  queueNotification(notification: { type: "email" | "webhook" | "alert"; recipient: string; subject?: string; body: string; metadata?: Record<string, unknown> }): Promise<ProduceResult>;
+  healthCheck(): Promise<KafkaHealthStatus>;
+  getConsumerLag(topic: KafkaTopic, groupId: string): Promise<number | null>;
+}
+
+/**
+ * Null implementation of IKafkaClient that returns safe defaults.
+ * Used when USE_UPSTASH_KAFKA feature flag is disabled.
+ */
+class NullKafkaClient implements IKafkaClient {
+  isAvailable(): boolean { return false; }
+
+  async produce<T>(_topic: KafkaTopic, _data: T, _options?: { idempotencyKey?: string; retryCount?: number }): Promise<ProduceResult> {
+    return { success: false, topic: _topic, error: "Kafka client not enabled (USE_UPSTASH_KAFKA flag is disabled)" };
+  }
+
+  async produceBatch<T>(_messages: Array<{ topic: KafkaTopic; data: T; idempotencyKey?: string }>): Promise<ProduceResult[]> {
+    return _messages.map(m => ({ success: false, topic: m.topic, error: "Kafka client not enabled" }));
+  }
+
+  async consume<T>(_topic: KafkaTopic, _options?: { groupId?: string; instanceId?: string; maxMessages?: number }): Promise<ConsumeResult<T>> {
+    return { messages: [], error: "Kafka client not enabled" };
+  }
+
+  async processMessages<T>(_topic: KafkaTopic, _handler: (message: KafkaMessage<T>) => Promise<void>, _options?: { groupId?: string; instanceId?: string; maxMessages?: number }): Promise<{ processed: number; failed: number; errors: string[] }> {
+    return { processed: 0, failed: 0, errors: [] };
+  }
+
+  async sendToDLQ<T>(_originalMessage: KafkaMessage<T>, _errorReason: string): Promise<ProduceResult> {
+    return { success: false, topic: KAFKA_TOPICS.AGENT_EXECUTION_DLQ, error: "Kafka client not enabled" };
+  }
+
+  async queueAgentExecution(_jobData: { agentId: string; bountyId: string; code: string; testCases?: unknown[]; metadata?: Record<string, unknown> }): Promise<ProduceResult> {
+    return { success: false, topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, error: "Kafka client not enabled" };
+  }
+
+  async queueAgentResult(_resultData: { executionId: string; agentId: string; bountyId: string; success: boolean; output?: unknown; error?: string; executionTimeMs: number }): Promise<ProduceResult> {
+    return { success: false, topic: KAFKA_TOPICS.AGENT_RESULTS_QUEUE, error: "Kafka client not enabled" };
+  }
+
+  async queueNotification(_notification: { type: "email" | "webhook" | "alert"; recipient: string; subject?: string; body: string; metadata?: Record<string, unknown> }): Promise<ProduceResult> {
+    return { success: false, topic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE, error: "Kafka client not enabled" };
+  }
+
+  async healthCheck(): Promise<KafkaHealthStatus> {
+    return { connected: false, latencyMs: 0, error: "USE_UPSTASH_KAFKA feature flag is disabled" };
+  }
+
+  async getConsumerLag(_topic: KafkaTopic, _groupId: string): Promise<number | null> {
+    return null;
+  }
+}
+
+// Internal singleton instances
+const upstashKafkaInstance = new UpstashKafkaClient();
+const nullKafkaInstance = new NullKafkaClient();
+
+/**
+ * Get the Kafka client based on the USE_UPSTASH_KAFKA feature flag.
+ * Returns the real Upstash client when enabled, or a null implementation when disabled.
+ */
+export function getKafkaClient(userId?: string): IKafkaClient {
+  if (featureFlags.isEnabled("USE_UPSTASH_KAFKA", userId)) {
+    return upstashKafkaInstance;
+  }
+  return nullKafkaInstance;
+}
+
+// Singleton instance for the application (checks feature flag on each operation)
+export const upstashKafka: IKafkaClient = new Proxy({} as IKafkaClient, {
+  get(_target, prop: keyof IKafkaClient) {
+    const client = getKafkaClient();
+    const value = client[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
+});
 
 // Export class for testing/custom instances
-export { UpstashKafkaClient };
+export { UpstashKafkaClient, NullKafkaClient };
 export type {
   UpstashKafkaConfig,
   KafkaMessage,
   ProduceResult,
   ConsumeResult,
   KafkaHealthStatus,
+  IKafkaClient,
 };

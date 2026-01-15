@@ -1398,3 +1398,6 @@
 [2026-01-15 03:17:18] 🤖 Claude working (180s max)...
 [2026-01-15 03:20:19] ⏰ Timeout - killing process
 [2026-01-15 03:20:19] ✅ Task DONE!
+[main 8d6fb98] Ralph #51: Add memory limits (configurable: 128MB-512MB)
+ 3 files changed, 30 insertions(+), 8 deletions(-)
+[2026-01-15 03:20:20] 💤 Cooling down 10s...

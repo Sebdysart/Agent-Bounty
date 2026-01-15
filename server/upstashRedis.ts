@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { featureFlags } from "./featureFlags";
 
 interface UpstashRedisConfig {
   url?: string;
@@ -412,9 +413,62 @@ class UpstashRedisClient implements IRedisClient {
   }
 }
 
-// Singleton instance for the application
-export const upstashRedis: IRedisClient = new UpstashRedisClient();
+/**
+ * Null implementation of IRedisClient that returns safe defaults.
+ * Used when USE_UPSTASH_REDIS feature flag is disabled.
+ */
+class NullRedisClient implements IRedisClient {
+  async connect(): Promise<boolean> { return false; }
+  isConnected(): boolean { return false; }
+  isAvailable(): boolean { return false; }
+  getClient(): Redis | null { return null; }
+  async get<T>(_key: string): Promise<T | null> { return null; }
+  async set<T>(_key: string, _data: T, _ttlSeconds?: number, _tags?: string[]): Promise<boolean> { return false; }
+  async delete(_key: string): Promise<boolean> { return false; }
+  async deleteByPattern(_pattern: string): Promise<number> { return 0; }
+  async getOrSet<T>(_key: string, fetcher: () => Promise<T>, _ttlSeconds?: number, _tags?: string[]): Promise<T> {
+    return fetcher();
+  }
+  async mget<T>(keys: string[]): Promise<(T | null)[]> { return keys.map(() => null); }
+  async incr(_key: string): Promise<number> { return 0; }
+  async incrWithExpiry(_key: string, _ttlSeconds: number): Promise<number> { return 0; }
+  async setNX(_key: string, _value: string, _ttlSeconds?: number): Promise<boolean> { return false; }
+  async exists(_key: string): Promise<boolean> { return false; }
+  async expire(_key: string, _ttlSeconds: number): Promise<boolean> { return false; }
+  async ttl(_key: string): Promise<number> { return -2; }
+  async healthCheck(): Promise<RedisHealthStatus> {
+    return { connected: false, latencyMs: 0, error: "USE_UPSTASH_REDIS feature flag is disabled" };
+  }
+  async flushAll(): Promise<boolean> { return false; }
+}
+
+// Internal singleton instances
+const upstashRedisInstance = new UpstashRedisClient();
+const nullRedisInstance = new NullRedisClient();
+
+/**
+ * Get the Redis client based on the USE_UPSTASH_REDIS feature flag.
+ * Returns the real Upstash client when enabled, or a null implementation when disabled.
+ */
+export function getRedisClient(userId?: string): IRedisClient {
+  if (featureFlags.isEnabled("USE_UPSTASH_REDIS", userId)) {
+    return upstashRedisInstance;
+  }
+  return nullRedisInstance;
+}
+
+// Singleton instance for the application (checks feature flag on each operation)
+export const upstashRedis: IRedisClient = new Proxy({} as IRedisClient, {
+  get(_target, prop: keyof IRedisClient) {
+    const client = getRedisClient();
+    const value = client[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
+});
 
 // Export class for testing/custom instances
-export { UpstashRedisClient };
+export { UpstashRedisClient, NullRedisClient };
 export type { UpstashRedisConfig, RedisHealthStatus, IRedisClient };

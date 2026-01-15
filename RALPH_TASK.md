@@ -17,7 +17,7 @@
 - [x] Create server/upstashRedis.ts client wrapper
 - [x] Implement connection with REST API (serverless-friendly)
 - [x] Create interface matching existing redis usage
-- [ ] Wrap with feature flag check (USE_UPSTASH_REDIS)
+- [x] Wrap with feature flag check (USE_UPSTASH_REDIS)
 - [ ] Migrate rate limiter storage to use Upstash when flag enabled
 - [ ] Add caching utilities (cacheGet, cacheSet, cacheInvalidate)
 - [ ] Add bounty listings cache (5 min TTL)

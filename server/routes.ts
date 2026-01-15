@@ -810,13 +810,15 @@ Only ask questions about genuinely missing or unclear information.`;
       }
 
       const submission = await storage.createSubmission(parsed.data);
-      
+
       const allSubmissions = await storage.getSubmissionsByBounty(bountyId);
       if (allSubmissions.length === 1) {
         await storage.updateBountyStatus(bountyId, "in_progress");
         await storage.addTimelineEvent(bountyId, "in_progress", "First agent started working on this bounty");
       }
 
+      await dataCache.invalidateBounty(bountyId);
+      await dataCache.invalidateRecentActivity();
       res.status(201).json(submission);
     } catch (error) {
       console.error("Error creating submission:", error);
@@ -852,7 +854,9 @@ Only ask questions about genuinely missing or unclear information.`;
       if (!submission) {
         return sendNotFound(res, "Submission not found", ErrorCode.SUBMISSION_NOT_FOUND);
       }
-      
+
+      await dataCache.invalidateBounty(existingSubmission.bountyId);
+      await dataCache.invalidateRecentActivity();
       res.json(submission);
     } catch (error) {
       console.error("Error updating submission:", error);
@@ -886,6 +890,9 @@ Only ask questions about genuinely missing or unclear information.`;
       }
 
       const review = await storage.createReview(parsed.data);
+      await dataCache.invalidateBounty(submission.bountyId);
+      await dataCache.invalidateAgent(submission.agentId);
+      await dataCache.invalidateLeaderboard();
       res.status(201).json(review);
     } catch (error) {
       console.error("Error creating review:", error);
@@ -1094,12 +1101,16 @@ Only ask questions about genuinely missing or unclear information.`;
         }
       }
 
-      res.json({ 
-        success: true, 
-        bounty: updated, 
+      await dataCache.invalidateBounty(bountyId);
+      await dataCache.invalidateAgent(submission.agentId);
+      await dataCache.invalidateLeaderboard();
+      await dataCache.invalidateRecentActivity();
+      res.json({
+        success: true,
+        bounty: updated,
         paymentReleased,
-        message: paymentReleased 
-          ? "Winner selected and payment released successfully" 
+        message: paymentReleased
+          ? "Winner selected and payment released successfully"
           : "Winner selected successfully. Payment release pending."
       });
     } catch (error) {
@@ -1138,6 +1149,9 @@ Only ask questions about genuinely missing or unclear information.`;
       await storage.updateBountyPaymentStatus(bountyId, "released");
       await storage.addTimelineEvent(bountyId, "payment_released", "Payment released to winning agent");
 
+      await dataCache.invalidateBounty(bountyId);
+      await dataCache.invalidateStats();
+      await dataCache.invalidateRecentActivity();
       res.json({ success: true, message: "Payment released successfully" });
     } catch (error) {
       console.error("Error releasing payment:", error);
@@ -1176,6 +1190,9 @@ Only ask questions about genuinely missing or unclear information.`;
       await storage.updateBountyStatus(bountyId, "cancelled");
       await storage.addTimelineEvent(bountyId, "refunded", "Bounty cancelled and payment refunded");
 
+      await dataCache.invalidateBounty(bountyId);
+      await dataCache.invalidateStats();
+      await dataCache.invalidateRecentActivity();
       res.json({ success: true, message: "Payment refunded successfully" });
     } catch (error) {
       console.error("Error refunding payment:", error);
@@ -1556,6 +1573,7 @@ ${agentOutput}`
         }
       }
 
+      await dataCache.invalidateAgentUploads();
       res.status(201).json(upload);
     } catch (error) {
       console.error("Error creating agent upload:", error);
@@ -1587,6 +1605,7 @@ ${agentOutput}`
         }
       }
 
+      await dataCache.invalidateAgentUploads();
       res.json(updated);
     } catch (error) {
       console.error("Error updating agent upload:", error);
@@ -1615,6 +1634,7 @@ ${agentOutput}`
       }
 
       await storage.deleteAgentUpload(id);
+      await dataCache.invalidateAgentUploads();
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting agent upload:", error);
@@ -1637,6 +1657,7 @@ ${agentOutput}`
         return sendForbidden(res, "Not authorized");
       }
       const updated = await storage.updateAgentUploadStatus(id, "pending_review");
+      await dataCache.invalidateAgentUploads();
       res.json(updated);
     } catch (error) {
       console.error("Error submitting agent:", error);
@@ -1662,10 +1683,12 @@ ${agentOutput}`
         return sendBadRequest(res, "Agent must pass testing before publishing");
       }
       const updated = await storage.updateAgentUploadStatus(id, "published");
-      wsService.broadcastUserNotification(userId, "agent_published", 
+      wsService.broadcastUserNotification(userId, "agent_published",
         `Your agent "${existing.name}" is now live on the marketplace!`,
         { agentUploadId: id }
       );
+      await dataCache.invalidateAgentUploads();
+      await dataCache.invalidateAgent();
       res.json(updated);
     } catch (error) {
       console.error("Error publishing agent:", error);
@@ -1944,9 +1967,10 @@ ${agentOutput}`
       const existingListing = await storage.getAgentListing(id);
       if (existingListing) {
         const updated = await storage.updateAgentListing(id, req.body);
+        await dataCache.invalidateAgentUploads();
         return res.json(updated);
       }
-      
+
       const parsed = insertAgentListingSchema.safeParse({
         agentUploadId: id,
         title: req.body.title || existing.name,
@@ -1957,6 +1981,7 @@ ${agentOutput}`
         return sendValidationError(res, "Invalid listing data", parsed.error.errors);
       }
       const listing = await storage.createAgentListing(parsed.data);
+      await dataCache.invalidateAgentUploads();
       res.status(201).json(listing);
     } catch (error) {
       console.error("Error creating listing:", error);
@@ -1999,14 +2024,15 @@ ${agentOutput}`
       }
       
       const review = await storage.createAgentReview(parsed.data);
-      
+
       if (existing.developerId !== userId) {
-        wsService.broadcastUserNotification(existing.developerId, "review_received", 
+        wsService.broadcastUserNotification(existing.developerId, "review_received",
           `Your agent "${existing.name}" received a ${req.body.rating}-star review!`,
           { agentUploadId: id, reviewId: review.id, rating: req.body.rating }
         );
       }
-      
+
+      await dataCache.invalidateAgentUploads();
       res.status(201).json(review);
     } catch (error) {
       console.error("Error creating review:", error);

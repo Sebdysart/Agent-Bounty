@@ -23,7 +23,7 @@
 - [x] Add bounty listings cache (5 min TTL)
 - [x] Add agent profiles cache (10 min TTL)
 - [x] Add leaderboard cache (1 min TTL)
-- [ ] Implement cache invalidation on data updates
+- [x] Implement cache invalidation on data updates
 - [ ] Write tests for upstashRedis.test.ts (mock the API)
 - [ ] Add Redis health check to /api/health
 

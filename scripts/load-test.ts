@@ -183,6 +183,21 @@ const tests: LoadTestConfig[] = [
     connections: 50,
     duration: 10,
   },
+  // Agent execution tests - 50 concurrent
+  {
+    name: 'Agent Executions (50 concurrent)',
+    url: `${BASE_URL}/api/agents/execute`,
+    method: 'POST',
+    connections: 50,
+    duration: 15,
+    body: JSON.stringify({
+      code: 'const result = 2 + 2; console.log("Result:", result); ({ success: true, value: result });',
+      input: { testId: 'load-test' },
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  },
   // Sustained load test - 10 minutes (600 seconds)
   {
     name: 'Health Check (Sustained 10min)',

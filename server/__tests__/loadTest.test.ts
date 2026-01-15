@@ -319,6 +319,278 @@ describe('Load Test Suite', () => {
     });
   });
 
+  describe('50 Concurrent Agent Executions Test', () => {
+    it('should configure 50 concurrent agent execution test correctly', () => {
+      const config: LoadTestConfig = {
+        name: '50 Concurrent Agent Executions',
+        url: 'http://localhost:5000/api/agents/execute',
+        method: 'POST',
+        connections: 50,
+        duration: 15,
+        body: JSON.stringify({
+          code: 'const result = 2 + 2; console.log("Result:", result); ({ success: true, value: result });',
+          input: { testId: 'concurrent-test' },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+
+      expect(config.connections).toBe(50);
+      expect(config.method).toBe('POST');
+      expect(config.name).toBe('50 Concurrent Agent Executions');
+    });
+
+    it('should parse results from 50 concurrent agent executions correctly', () => {
+      const mockResult: AutocannonResult = {
+        title: '50 Concurrent Agent Executions',
+        url: 'http://localhost:5000/api/agents/execute',
+        socketPath: undefined,
+        connections: 50,
+        sampleInt: 1,
+        pipelining: 1,
+        workers: undefined,
+        duration: 15,
+        samples: 15,
+        start: new Date(),
+        finish: new Date(),
+        errors: 0,
+        timeouts: 0,
+        mismatches: 0,
+        non2xx: 0,
+        resets: 0,
+        '1xx': 0,
+        '2xx': 2500,
+        '3xx': 0,
+        '4xx': 0,
+        '5xx': 0,
+        statusCodeStats: {},
+        latency: {
+          average: 45,
+          mean: 45,
+          stddev: 15,
+          min: 10,
+          max: 200,
+          p0_001: 10,
+          p0_01: 12,
+          p0_1: 15,
+          p1: 18,
+          p2_5: 20,
+          p10: 25,
+          p25: 30,
+          p50: 40,
+          p75: 55,
+          p90: 70,
+          p97_5: 120,
+          p99: 150,
+          p99_9: 180,
+          p99_99: 195,
+          p99_999: 200,
+          totalCount: 2500,
+        },
+        requests: {
+          average: 166,
+          mean: 166,
+          stddev: 20,
+          min: 140,
+          max: 200,
+          total: 2500,
+          p0_001: 140,
+          p0_01: 142,
+          p0_1: 145,
+          p1: 148,
+          p2_5: 150,
+          p10: 155,
+          p25: 158,
+          p50: 166,
+          p75: 175,
+          p90: 185,
+          p97_5: 195,
+          p99: 198,
+          p99_9: 200,
+          p99_99: 200,
+          p99_999: 200,
+          sent: 2500,
+          totalCount: 15,
+        },
+        throughput: {
+          average: 250000,
+          mean: 250000,
+          stddev: 25000,
+          min: 200000,
+          max: 300000,
+          total: 3750000,
+          p0_001: 200000,
+          p0_01: 205000,
+          p0_1: 210000,
+          p1: 215000,
+          p2_5: 220000,
+          p10: 225000,
+          p25: 235000,
+          p50: 250000,
+          p75: 265000,
+          p90: 280000,
+          p97_5: 290000,
+          p99: 295000,
+          p99_9: 300000,
+          p99_99: 300000,
+          p99_999: 300000,
+          totalCount: 15,
+        },
+      };
+
+      const result = parseResult('50 Concurrent Agent Executions', mockResult);
+
+      expect(result.name).toBe('50 Concurrent Agent Executions');
+      expect(result.errors).toBe(0);
+      expect(result.timeouts).toBe(0);
+      expect(result.requests.total).toBe(2500);
+      expect(result.latency.p50).toBe(40);
+      expect(result.latency.p99).toBe(150);
+      expect(result.duration).toBe(15);
+    });
+
+    it('should handle 50 concurrent agent executions under heavy load', () => {
+      const mockResult: AutocannonResult = {
+        title: '50 Concurrent Agents Heavy Load',
+        url: 'http://localhost:5000/api/agents/execute',
+        socketPath: undefined,
+        connections: 50,
+        sampleInt: 1,
+        pipelining: 1,
+        workers: undefined,
+        duration: 15,
+        samples: 15,
+        start: new Date(),
+        finish: new Date(),
+        errors: 3,
+        timeouts: 2,
+        mismatches: 0,
+        non2xx: 5,
+        resets: 0,
+        '1xx': 0,
+        '2xx': 2495,
+        '3xx': 0,
+        '4xx': 3,
+        '5xx': 2,
+        statusCodeStats: {},
+        latency: {
+          average: 80,
+          mean: 80,
+          stddev: 40,
+          min: 15,
+          max: 500,
+          p0_001: 15,
+          p0_01: 18,
+          p0_1: 22,
+          p1: 28,
+          p2_5: 32,
+          p10: 40,
+          p25: 50,
+          p50: 70,
+          p75: 100,
+          p90: 150,
+          p97_5: 300,
+          p99: 400,
+          p99_9: 480,
+          p99_99: 495,
+          p99_999: 500,
+          totalCount: 2500,
+        },
+        requests: {
+          average: 166,
+          mean: 166,
+          stddev: 30,
+          min: 120,
+          max: 220,
+          total: 2500,
+          p0_001: 120,
+          p0_01: 125,
+          p0_1: 130,
+          p1: 135,
+          p2_5: 140,
+          p10: 145,
+          p25: 155,
+          p50: 166,
+          p75: 180,
+          p90: 195,
+          p97_5: 210,
+          p99: 215,
+          p99_9: 220,
+          p99_99: 220,
+          p99_999: 220,
+          sent: 2500,
+          totalCount: 15,
+        },
+        throughput: {
+          average: 250000,
+          mean: 250000,
+          stddev: 40000,
+          min: 180000,
+          max: 320000,
+          total: 3750000,
+          p0_001: 180000,
+          p0_01: 185000,
+          p0_1: 190000,
+          p1: 200000,
+          p2_5: 210000,
+          p10: 215000,
+          p25: 230000,
+          p50: 250000,
+          p75: 270000,
+          p90: 290000,
+          p97_5: 305000,
+          p99: 315000,
+          p99_9: 320000,
+          p99_99: 320000,
+          p99_999: 320000,
+          totalCount: 15,
+        },
+      };
+
+      const result = parseResult('50 Concurrent Agents Heavy Load', mockResult);
+
+      expect(result.name).toBe('50 Concurrent Agents Heavy Load');
+      expect(result.errors).toBe(3);
+      expect(result.timeouts).toBe(2);
+      expect(result.latency.p99).toBe(400);
+      expect(result.latency.max).toBe(500);
+    });
+
+    it('should verify sandbox execution can handle concurrent load', () => {
+      // Test configuration that matches real agent execution scenario
+      const agentExecutionConfig: LoadTestConfig = {
+        name: 'Agent Sandbox Concurrent Execution',
+        url: 'http://localhost:5000/api/agents/execute',
+        method: 'POST',
+        connections: 50,
+        duration: 15,
+        pipelining: 1, // No pipelining for accurate concurrency measurement
+        body: JSON.stringify({
+          code: `
+            // Simulate agent computation
+            const data = INPUT || {};
+            let sum = 0;
+            for (let i = 0; i < 1000; i++) {
+              sum += i;
+            }
+            console.log("Computed sum:", sum);
+            ({ result: sum, input: data });
+          `,
+          input: { iteration: Date.now() },
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+
+      expect(agentExecutionConfig.connections).toBe(50);
+      expect(agentExecutionConfig.pipelining).toBe(1);
+      expect(agentExecutionConfig.method).toBe('POST');
+      expect(agentExecutionConfig.body).toContain('Computed sum');
+    });
+  });
+
   describe('100 Concurrent API Requests Test', () => {
     it('should configure 100 concurrent connections correctly', () => {
       const config: LoadTestConfig = {

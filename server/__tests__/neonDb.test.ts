@@ -249,6 +249,68 @@ describe('NeonDbClient', () => {
     });
   });
 
+  describe('connectWithRetry', () => {
+    it('should connect successfully on first attempt', async () => {
+      mockSql.mockResolvedValue([{ connected: 1 }]);
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const result = await client.connectWithRetry(3);
+
+      expect(result).toBe(true);
+      expect(client.isConnected()).toBe(true);
+      expect(mockSql).toHaveBeenCalledTimes(1);
+      consoleSpy.mockRestore();
+    });
+
+    it('should retry on transient connection error', async () => {
+      mockSql
+        .mockRejectedValueOnce(new Error('Connection timeout'))
+        .mockResolvedValue([{ connected: 1 }]);
+
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const result = await client.connectWithRetry(3);
+
+      expect(result).toBe(true);
+      expect(client.isConnected()).toBe(true);
+      expect(mockSql).toHaveBeenCalledTimes(2);
+      consoleWarnSpy.mockRestore();
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should fail after max retries', async () => {
+      mockSql.mockRejectedValue(new Error('Connection refused'));
+
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const result = await client.connectWithRetry(2);
+
+      expect(result).toBe(false);
+      expect(client.isConnected()).toBe(false);
+      expect(mockSql).toHaveBeenCalledTimes(3); // Initial + 2 retries
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should use exponential backoff between retries', async () => {
+      mockSql.mockRejectedValue(new Error('Connection timeout'));
+
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const start = Date.now();
+      await client.connectWithRetry(1); // 1 retry = 2 attempts, ~1s delay
+      const duration = Date.now() - start;
+
+      // Should have at least 1s delay (initial delay) but we use a lower bound to account for timing variations
+      expect(duration).toBeGreaterThanOrEqual(900);
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
   describe('getPoolStats', () => {
     it('should return pool statistics', () => {
       const stats = client.getPoolStats();

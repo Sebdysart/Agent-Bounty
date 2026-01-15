@@ -190,6 +190,45 @@ class NeonDbClient {
   }
 
   /**
+   * Connect with exponential backoff retry logic.
+   * Useful for initial connection attempts where the database may be cold-starting.
+   */
+  async connectWithRetry(retries: number = this.retryConfig.maxRetries): Promise<boolean> {
+    if (!this.sql) {
+      console.warn("Neon DB not configured - cannot connect");
+      return false;
+    }
+
+    let delay = this.retryConfig.initialDelayMs;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const result = await this.sql`SELECT 1 as connected`;
+        this.connectionVerified = Array.isArray(result) && result.length > 0;
+        if (this.connectionVerified) {
+          console.log(`Neon serverless database connection verified (attempt ${attempt + 1})`);
+          return true;
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        if (attempt < retries) {
+          console.warn(
+            `Neon connection failed (attempt ${attempt + 1}/${retries + 1}), retrying in ${delay}ms: ${errorMessage}`
+          );
+          await this.sleep(delay);
+          delay = Math.min(delay * 2, this.retryConfig.maxDelayMs);
+        } else {
+          console.error(`Neon connection failed after ${retries + 1} attempts: ${errorMessage}`);
+        }
+      }
+    }
+
+    this.connectionVerified = false;
+    return false;
+  }
+
+  /**
    * Execute a query with retry logic and exponential backoff.
    */
   async executeWithRetry<T>(
@@ -378,6 +417,7 @@ class NullNeonDbClient {
   isAvailable(): boolean { return false; }
   isConnected(): boolean { return false; }
   async connect(): Promise<boolean> { return false; }
+  async connectWithRetry(): Promise<boolean> { return false; }
   async executeWithRetry<T>(): Promise<T> {
     throw new Error("Neon DB not available");
   }

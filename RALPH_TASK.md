@@ -44,7 +44,7 @@
 ## PHASE 4: Cloudflare R2 Storage
 - [ ] Install @aws-sdk/client-s3 package (R2 is S3-compatible)
 - [ ] Create server/r2Storage.ts client
-- [ ] Configure S3 client with R2 endpoint format
+- [x] Configure S3 client with R2 endpoint format
 - [ ] Implement file operations (upload, download, delete, presignedUrl, list)
 - [ ] Create agent-specific helpers (uploadAgentCode, downloadAgentCode)
 - [ ] Wrap with feature flag (USE_R2_STORAGE)

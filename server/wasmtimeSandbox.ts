@@ -41,9 +41,12 @@
  * ### Implementation Recommendation
  * For production: Use @bytecodealliance/jco with Javy for JS compilation
  * For serverless: Consider Node.js built-in WASI or fallback to QuickJS
- * Current implementation: Simulated execution with QuickJS fallback
+ * Current implementation: Uses Node.js WebAssembly API with LRU caching
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import type { SandboxConfig, SandboxResult } from './sandboxRunner';
 
 // Bounty tier configurations for resource limits
@@ -109,6 +112,391 @@ interface WasmtimeInstance {
   createdAt: number;
   lastUsedAt: number;
   inUse: boolean;
+}
+
+/**
+ * Cached WASM module entry
+ */
+interface CachedWasmModule {
+  module: WebAssembly.Module;
+  hash: string;
+  size: number;
+  createdAt: number;
+  lastAccessedAt: number;
+  accessCount: number;
+}
+
+/**
+ * WasmModuleCache provides LRU caching for compiled WebAssembly modules.
+ * Improves performance by avoiding recompilation of the same WASM code.
+ *
+ * Features:
+ * - LRU eviction based on last access time
+ * - Configurable maximum cache size (in bytes)
+ * - Configurable maximum number of entries
+ * - Content-addressable via SHA256 hash
+ * - Statistics for monitoring cache effectiveness
+ */
+export class WasmModuleCache {
+  private cache: Map<string, CachedWasmModule> = new Map();
+  private readonly maxCacheSizeBytes: number;
+  private readonly maxEntries: number;
+  private currentSizeBytes: number = 0;
+  private hits: number = 0;
+  private misses: number = 0;
+
+  constructor(maxCacheSizeBytes: number = 100 * 1024 * 1024, maxEntries: number = 100) {
+    this.maxCacheSizeBytes = maxCacheSizeBytes;
+    this.maxEntries = maxEntries;
+  }
+
+  /**
+   * Compute SHA256 hash of WASM bytecode for cache key
+   */
+  private computeHash(wasmBytes: Uint8Array): string {
+    return crypto.createHash('sha256').update(wasmBytes).digest('hex');
+  }
+
+  /**
+   * Get a compiled module from cache if available
+   */
+  get(wasmBytes: Uint8Array): WebAssembly.Module | null {
+    const hash = this.computeHash(wasmBytes);
+    const entry = this.cache.get(hash);
+
+    if (entry) {
+      entry.lastAccessedAt = Date.now();
+      entry.accessCount++;
+      this.hits++;
+      return entry.module;
+    }
+
+    this.misses++;
+    return null;
+  }
+
+  /**
+   * Get a module by its hash directly (for pre-computed hashes)
+   */
+  getByHash(hash: string): WebAssembly.Module | null {
+    const entry = this.cache.get(hash);
+
+    if (entry) {
+      entry.lastAccessedAt = Date.now();
+      entry.accessCount++;
+      this.hits++;
+      return entry.module;
+    }
+
+    this.misses++;
+    return null;
+  }
+
+  /**
+   * Store a compiled module in the cache
+   */
+  set(wasmBytes: Uint8Array, module: WebAssembly.Module): string {
+    const hash = this.computeHash(wasmBytes);
+    const size = wasmBytes.length;
+
+    // Don't cache if single module exceeds max size
+    if (size > this.maxCacheSizeBytes) {
+      return hash;
+    }
+
+    // Evict entries if needed to make room
+    this.evictIfNeeded(size);
+
+    const entry: CachedWasmModule = {
+      module,
+      hash,
+      size,
+      createdAt: Date.now(),
+      lastAccessedAt: Date.now(),
+      accessCount: 1,
+    };
+
+    this.cache.set(hash, entry);
+    this.currentSizeBytes += size;
+
+    return hash;
+  }
+
+  /**
+   * Store a module with a pre-computed hash
+   */
+  setWithHash(hash: string, module: WebAssembly.Module, size: number): void {
+    if (this.cache.has(hash)) {
+      return;
+    }
+
+    if (size > this.maxCacheSizeBytes) {
+      return;
+    }
+
+    this.evictIfNeeded(size);
+
+    const entry: CachedWasmModule = {
+      module,
+      hash,
+      size,
+      createdAt: Date.now(),
+      lastAccessedAt: Date.now(),
+      accessCount: 1,
+    };
+
+    this.cache.set(hash, entry);
+    this.currentSizeBytes += size;
+  }
+
+  /**
+   * Evict least recently used entries to make room for new entry
+   */
+  private evictIfNeeded(newEntrySize: number): void {
+    // Check entry count limit
+    while (this.cache.size >= this.maxEntries) {
+      this.evictLRU();
+    }
+
+    // Check size limit
+    while (this.currentSizeBytes + newEntrySize > this.maxCacheSizeBytes && this.cache.size > 0) {
+      this.evictLRU();
+    }
+  }
+
+  /**
+   * Evict the least recently used entry
+   */
+  private evictLRU(): void {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+
+    for (const [key, entry] of this.cache) {
+      if (entry.lastAccessedAt < oldestTime) {
+        oldestTime = entry.lastAccessedAt;
+        oldestKey = key;
+      }
+    }
+
+    if (oldestKey) {
+      const entry = this.cache.get(oldestKey);
+      if (entry) {
+        this.currentSizeBytes -= entry.size;
+        this.cache.delete(oldestKey);
+      }
+    }
+  }
+
+  /**
+   * Check if a module is cached (by bytecode)
+   */
+  has(wasmBytes: Uint8Array): boolean {
+    const hash = this.computeHash(wasmBytes);
+    return this.cache.has(hash);
+  }
+
+  /**
+   * Check if a module is cached (by hash)
+   */
+  hasByHash(hash: string): boolean {
+    return this.cache.has(hash);
+  }
+
+  /**
+   * Remove a module from cache
+   */
+  delete(wasmBytes: Uint8Array): boolean {
+    const hash = this.computeHash(wasmBytes);
+    return this.deleteByHash(hash);
+  }
+
+  /**
+   * Remove a module from cache by hash
+   */
+  deleteByHash(hash: string): boolean {
+    const entry = this.cache.get(hash);
+    if (entry) {
+      this.currentSizeBytes -= entry.size;
+      return this.cache.delete(hash);
+    }
+    return false;
+  }
+
+  /**
+   * Clear the entire cache
+   */
+  clear(): void {
+    this.cache.clear();
+    this.currentSizeBytes = 0;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getStats(): {
+    entries: number;
+    sizeBytes: number;
+    maxSizeBytes: number;
+    maxEntries: number;
+    hits: number;
+    misses: number;
+    hitRate: number;
+  } {
+    const totalRequests = this.hits + this.misses;
+    return {
+      entries: this.cache.size,
+      sizeBytes: this.currentSizeBytes,
+      maxSizeBytes: this.maxCacheSizeBytes,
+      maxEntries: this.maxEntries,
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: totalRequests > 0 ? this.hits / totalRequests : 0,
+    };
+  }
+
+  /**
+   * Get detailed information about cached modules
+   */
+  getEntries(): Array<{
+    hash: string;
+    size: number;
+    createdAt: number;
+    lastAccessedAt: number;
+    accessCount: number;
+  }> {
+    return Array.from(this.cache.values()).map((entry) => ({
+      hash: entry.hash,
+      size: entry.size,
+      createdAt: entry.createdAt,
+      lastAccessedAt: entry.lastAccessedAt,
+      accessCount: entry.accessCount,
+    }));
+  }
+}
+
+/**
+ * WasmModuleLoader handles loading and compiling WASM modules from various sources.
+ * Integrates with WasmModuleCache for efficient caching.
+ */
+export class WasmModuleLoader {
+  private cache: WasmModuleCache;
+
+  constructor(cache?: WasmModuleCache) {
+    this.cache = cache || new WasmModuleCache();
+  }
+
+  /**
+   * Load and compile a WASM module from raw bytes
+   */
+  async loadFromBytes(wasmBytes: Uint8Array): Promise<WebAssembly.Module> {
+    // Check cache first
+    const cached = this.cache.get(wasmBytes);
+    if (cached) {
+      return cached;
+    }
+
+    // Compile the module
+    const module = await WebAssembly.compile(wasmBytes);
+
+    // Cache the compiled module
+    this.cache.set(wasmBytes, module);
+
+    return module;
+  }
+
+  /**
+   * Load and compile a WASM module from a file path
+   */
+  async loadFromFile(filePath: string): Promise<WebAssembly.Module> {
+    const absolutePath = path.resolve(filePath);
+    const wasmBytes = new Uint8Array(fs.readFileSync(absolutePath));
+    return this.loadFromBytes(wasmBytes);
+  }
+
+  /**
+   * Load and compile a WASM module from a URL (for browser/fetch environments)
+   */
+  async loadFromUrl(url: string): Promise<WebAssembly.Module> {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch WASM from ${url}: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const wasmBytes = new Uint8Array(arrayBuffer);
+    return this.loadFromBytes(wasmBytes);
+  }
+
+  /**
+   * Load and compile a WASM module from a base64-encoded string
+   */
+  async loadFromBase64(base64: string): Promise<WebAssembly.Module> {
+    const binaryString = Buffer.from(base64, 'base64');
+    const wasmBytes = new Uint8Array(binaryString);
+    return this.loadFromBytes(wasmBytes);
+  }
+
+  /**
+   * Synchronously compile a WASM module (for small modules)
+   */
+  loadFromBytesSync(wasmBytes: Uint8Array): WebAssembly.Module {
+    // Check cache first
+    const cached = this.cache.get(wasmBytes);
+    if (cached) {
+      return cached;
+    }
+
+    // Compile synchronously
+    const module = new WebAssembly.Module(wasmBytes);
+
+    // Cache the compiled module
+    this.cache.set(wasmBytes, module);
+
+    return module;
+  }
+
+  /**
+   * Pre-compile and cache multiple modules
+   */
+  async preloadModules(sources: Array<{ name: string; bytes: Uint8Array }>): Promise<Map<string, string>> {
+    const results = new Map<string, string>();
+
+    for (const source of sources) {
+      try {
+        const module = await this.loadFromBytes(source.bytes);
+        const hash = crypto.createHash('sha256').update(source.bytes).digest('hex');
+        results.set(source.name, hash);
+      } catch (error) {
+        console.error(`Failed to preload module ${source.name}:`, error);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Instantiate a module with imports
+   */
+  async instantiate(
+    wasmBytes: Uint8Array,
+    imports: WebAssembly.Imports = {}
+  ): Promise<WebAssembly.Instance> {
+    const module = await this.loadFromBytes(wasmBytes);
+    return WebAssembly.instantiate(module, imports);
+  }
+
+  /**
+   * Get the underlying cache
+   */
+  getCache(): WasmModuleCache {
+    return this.cache;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    return this.cache.getStats();
+  }
 }
 
 /**
@@ -247,6 +635,8 @@ export class WasmtimeSandbox {
   private logs: string[] = [];
   private errors: string[] = [];
   private static warmPool: WarmPoolManager | null = null;
+  private static moduleCache: WasmModuleCache | null = null;
+  private static moduleLoader: WasmModuleLoader | null = null;
   private lastFuelMetering: FuelMeteringResult | null = null;
 
   constructor(config: Partial<WasmtimeSandboxConfig> = {}) {
@@ -283,6 +673,71 @@ export class WasmtimeSandbox {
       WasmtimeSandbox.warmPool.stop();
       WasmtimeSandbox.warmPool = null;
     }
+  }
+
+  /**
+   * Initialize the WASM module cache (call once at application startup)
+   */
+  static initializeModuleCache(maxSizeBytes: number = 100 * 1024 * 1024, maxEntries: number = 100): void {
+    if (!WasmtimeSandbox.moduleCache) {
+      WasmtimeSandbox.moduleCache = new WasmModuleCache(maxSizeBytes, maxEntries);
+      WasmtimeSandbox.moduleLoader = new WasmModuleLoader(WasmtimeSandbox.moduleCache);
+    }
+  }
+
+  /**
+   * Shutdown the module cache (call at application shutdown)
+   */
+  static shutdownModuleCache(): void {
+    if (WasmtimeSandbox.moduleCache) {
+      WasmtimeSandbox.moduleCache.clear();
+      WasmtimeSandbox.moduleCache = null;
+      WasmtimeSandbox.moduleLoader = null;
+    }
+  }
+
+  /**
+   * Get the WASM module loader (initializes if needed)
+   */
+  static getModuleLoader(): WasmModuleLoader {
+    if (!WasmtimeSandbox.moduleLoader) {
+      WasmtimeSandbox.initializeModuleCache();
+    }
+    return WasmtimeSandbox.moduleLoader!;
+  }
+
+  /**
+   * Get WASM module cache statistics
+   */
+  static getModuleCacheStats(): ReturnType<WasmModuleCache['getStats']> | null {
+    return WasmtimeSandbox.moduleCache?.getStats() ?? null;
+  }
+
+  /**
+   * Load a WASM module from bytes (with caching)
+   */
+  static async loadWasmModule(wasmBytes: Uint8Array): Promise<WebAssembly.Module> {
+    const loader = WasmtimeSandbox.getModuleLoader();
+    return loader.loadFromBytes(wasmBytes);
+  }
+
+  /**
+   * Load a WASM module from a file path (with caching)
+   */
+  static async loadWasmModuleFromFile(filePath: string): Promise<WebAssembly.Module> {
+    const loader = WasmtimeSandbox.getModuleLoader();
+    return loader.loadFromFile(filePath);
+  }
+
+  /**
+   * Instantiate a WASM module with imports
+   */
+  static async instantiateWasmModule(
+    wasmBytes: Uint8Array,
+    imports: WebAssembly.Imports = {}
+  ): Promise<WebAssembly.Instance> {
+    const loader = WasmtimeSandbox.getModuleLoader();
+    return loader.instantiate(wasmBytes, imports);
   }
 
   /**

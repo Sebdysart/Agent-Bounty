@@ -206,6 +206,80 @@ See `/api/docs` when server is running, or view [openapi.json](./openapi.json).
 | GET | `/api/health` | Health check |
 | GET | `/api/ready` | Readiness check |
 
+## 🚀 Fly.io Deployment
+
+### Prerequisites
+
+1. Install the Fly CLI:
+   ```bash
+   curl -L https://fly.io/install.sh | sh
+   ```
+
+2. Login to Fly.io:
+   ```bash
+   fly auth login
+   ```
+
+3. Create the app (first time only):
+   ```bash
+   fly apps create agent-bounty
+   ```
+
+### Set Secrets
+
+Required secrets must be configured before deployment:
+
+```bash
+# Check which secrets are set
+./scripts/secrets.sh check
+
+# Set secrets interactively
+./scripts/secrets.sh set
+
+# Or set from your local .env file
+./scripts/secrets.sh set-from-env
+```
+
+**Required secrets:**
+- `DATABASE_URL` - Neon PostgreSQL connection string
+- `SESSION_SECRET` - Session encryption key (32+ chars)
+- `CREDENTIAL_ENCRYPTION_KEY` - Vault encryption key (32 chars)
+- `STRIPE_SECRET_KEY` - Stripe API secret key
+- `STRIPE_PUBLISHABLE_KEY` - Stripe publishable key
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+- `OPENAI_API_KEY` - OpenAI API key
+
+### Deploy
+
+```bash
+# Deploy to production
+./scripts/deploy.sh
+
+# Deploy to staging
+./scripts/deploy.sh --staging
+
+# Skip tests (not recommended)
+./scripts/deploy.sh --skip-tests
+```
+
+### URLs
+
+- **Production:** https://agent-bounty.fly.dev
+- **Staging:** https://agent-bounty-staging.fly.dev
+
+### Monitoring
+
+```bash
+# View app status
+fly status
+
+# View logs
+fly logs
+
+# SSH into running machine
+fly ssh console
+```
+
 ## 🤝 Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and test instructions.

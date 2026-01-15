@@ -281,5 +281,7 @@ async function main(): Promise<void> {
 // Export for testing
 export { runLoadTest, parseResult, LoadTestConfig, TestResult };
 
-// Run if called directly
-main().catch(console.error);
+// Run if called directly (not in test environment)
+if (process.env.VITEST !== 'true' && process.env.NODE_ENV !== 'test') {
+  main().catch(console.error);
+}

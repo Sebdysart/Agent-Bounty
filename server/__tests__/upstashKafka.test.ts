@@ -9,6 +9,7 @@ import {
   NullKafkaClient,
   KafkaProducer,
   KafkaConsumer,
+  DeadLetterQueueHandler,
   KAFKA_TOPICS,
   getKafkaClient,
   type KafkaMessage,
@@ -17,6 +18,7 @@ import {
   type NotificationMessage,
   type DeadLetterMessage,
   type BatchProcessResult,
+  type DLQMessage,
 } from "../upstashKafka";
 import { featureFlags } from "../featureFlags";
 
@@ -1387,6 +1389,421 @@ describe("KafkaProducer", () => {
           headers: [{ key: "x-test", value: "value" }],
         })
       );
+    });
+  });
+});
+
+describe("DeadLetterQueueHandler", () => {
+  let handler: DeadLetterQueueHandler;
+  let mockConsumer: { consume: ReturnType<typeof vi.fn> };
+  let mockProducer: { produce: ReturnType<typeof vi.fn> };
+
+  const createDLQMessage = (id: string, originalTopic: string, failedAt: number, errorReason: string) => {
+    const dlqData: DeadLetterMessage = {
+      originalMessage: {
+        id: `orig-${id}`,
+        topic: originalTopic as typeof KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        data: { test: "data", id },
+        timestamp: failedAt - 1000,
+        retryCount: 5,
+      },
+      errorReason,
+      failedAt,
+      originalTopic: originalTopic as typeof KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+    };
+
+    return {
+      value: JSON.stringify({
+        id: `dlq-${id}`,
+        topic: KAFKA_TOPICS.AGENT_EXECUTION_DLQ,
+        data: dlqData,
+        timestamp: failedAt,
+      }),
+    };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-14T12:00:00Z"));
+
+    handler = new DeadLetterQueueHandler({
+      url: "https://mock-kafka.upstash.io",
+      username: "mock-username",
+      password: "mock-password",
+      groupId: "test-dlq-group",
+      instanceId: "test-dlq-instance",
+    });
+
+    const internalHandler = handler as unknown as {
+      consumer: typeof mockConsumer;
+      producer: typeof mockProducer;
+    };
+    mockConsumer = internalHandler.consumer;
+    mockProducer = internalHandler.producer;
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  describe("isReady", () => {
+    it("should return true when configured", () => {
+      expect(handler.isReady()).toBe(true);
+    });
+
+    it("should return false when not configured", () => {
+      const unconfiguredHandler = new DeadLetterQueueHandler({});
+      expect(unconfiguredHandler.isReady()).toBe(false);
+    });
+  });
+
+  describe("fetchMessages", () => {
+    it("should fetch messages from DLQ", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 5000, "Error 1"),
+        createDLQMessage("2", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 3000, "Error 2"),
+      ]);
+
+      const result = await handler.fetchMessages();
+
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[0].id).toBe("dlq-1");
+      expect(result.messages[0].errorReason).toBe("Error 1");
+      expect(result.messages[1].id).toBe("dlq-2");
+    });
+
+    it("should respect maxMessages option", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error 1"),
+        createDLQMessage("2", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error 2"),
+        createDLQMessage("3", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error 3"),
+      ]);
+
+      const result = await handler.fetchMessages({ maxMessages: 2 });
+
+      expect(result.messages).toHaveLength(2);
+    });
+
+    it("should return error when not configured", async () => {
+      const unconfiguredHandler = new DeadLetterQueueHandler({});
+
+      const result = await unconfiguredHandler.fetchMessages();
+
+      expect(result.messages).toHaveLength(0);
+      expect(result.error).toBe("DLQ handler not configured");
+    });
+
+    it("should handle consume errors", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockConsumer.consume.mockRejectedValue(new Error("Connection failed"));
+
+      const result = await handler.fetchMessages();
+
+      expect(result.messages).toHaveLength(0);
+      expect(result.error).toBe("Connection failed");
+      consoleSpy.mockRestore();
+    });
+
+    it("should skip invalid JSON messages", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        { value: "invalid-json" },
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error 1"),
+      ]);
+
+      const result = await handler.fetchMessages();
+
+      expect(result.messages).toHaveLength(1);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("replayMessage", () => {
+    it("should replay a message to its original topic", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const dlqMessage: DLQMessage = {
+        id: "dlq-1",
+        originalMessage: {
+          id: "orig-1",
+          topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+          data: { test: "data" },
+          timestamp: Date.now() - 5000,
+          retryCount: 5,
+        },
+        errorReason: "Processing failed",
+        failedAt: Date.now() - 3000,
+        originalTopic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+      };
+
+      const result = await handler.replayMessage(dlqMessage);
+
+      expect(result.success).toBe(true);
+      expect(mockProducer.produce).toHaveBeenCalledWith(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        expect.any(String)
+      );
+
+      // Verify retry count is reset
+      const replayedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(replayedMessage.retryCount).toBe(0);
+    });
+
+    it("should return error when not configured", async () => {
+      const unconfiguredHandler = new DeadLetterQueueHandler({});
+
+      const dlqMessage: DLQMessage = {
+        id: "dlq-1",
+        originalMessage: {
+          id: "orig-1",
+          topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+          data: { test: "data" },
+          timestamp: Date.now(),
+        },
+        errorReason: "Error",
+        failedAt: Date.now(),
+        originalTopic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+      };
+
+      const result = await unconfiguredHandler.replayMessage(dlqMessage);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("DLQ handler not configured");
+    });
+
+    it("should handle replay errors", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockProducer.produce.mockRejectedValue(new Error("Produce failed"));
+
+      const dlqMessage: DLQMessage = {
+        id: "dlq-1",
+        originalMessage: {
+          id: "orig-1",
+          topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+          data: { test: "data" },
+          timestamp: Date.now(),
+        },
+        errorReason: "Error",
+        failedAt: Date.now(),
+        originalTopic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+      };
+
+      const result = await handler.replayMessage(dlqMessage);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Produce failed");
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("replayMessages", () => {
+    it("should replay multiple messages", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const messages: DLQMessage[] = [
+        {
+          id: "dlq-1",
+          originalMessage: { id: "orig-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() },
+          errorReason: "Error 1",
+          failedAt: Date.now(),
+          originalTopic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        },
+        {
+          id: "dlq-2",
+          originalMessage: { id: "orig-2", topic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE, data: { n: 2 }, timestamp: Date.now() },
+          errorReason: "Error 2",
+          failedAt: Date.now(),
+          originalTopic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE,
+        },
+      ];
+
+      const result = await handler.replayMessages(messages);
+
+      expect(result.replayed).toBe(2);
+      expect(result.deleted).toBe(0);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should track errors for failed replays", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockProducer.produce
+        .mockResolvedValueOnce({ partition: 0, offset: "123" })
+        .mockRejectedValueOnce(new Error("Failed"));
+
+      const messages: DLQMessage[] = [
+        {
+          id: "dlq-1",
+          originalMessage: { id: "orig-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() },
+          errorReason: "Error 1",
+          failedAt: Date.now(),
+          originalTopic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        },
+        {
+          id: "dlq-2",
+          originalMessage: { id: "orig-2", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 2 }, timestamp: Date.now() },
+          errorReason: "Error 2",
+          failedAt: Date.now(),
+          originalTopic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        },
+      ];
+
+      const result = await handler.replayMessages(messages);
+
+      expect(result.replayed).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].messageId).toBe("dlq-2");
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("replayByTopic", () => {
+    it("should replay messages filtered by topic", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error 1"),
+        createDLQMessage("2", KAFKA_TOPICS.NOTIFICATIONS_QUEUE, now, "Error 2"),
+        createDLQMessage("3", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error 3"),
+      ]);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const result = await handler.replayByTopic(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+
+      expect(result.replayed).toBe(2);
+    });
+  });
+
+  describe("replayByTimeWindow", () => {
+    it("should replay messages within time window", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 10000, "Error 1"),
+        createDLQMessage("2", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 5000, "Error 2"),
+        createDLQMessage("3", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 1000, "Error 3"),
+      ]);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const result = await handler.replayByTimeWindow(now - 8000, now - 2000);
+
+      expect(result.replayed).toBe(1); // Only message 2 falls in window
+    });
+  });
+
+  describe("getStats", () => {
+    it("should return DLQ statistics", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 10000, "Timeout"),
+        createDLQMessage("2", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 5000, "Network error"),
+        createDLQMessage("3", KAFKA_TOPICS.NOTIFICATIONS_QUEUE, now - 2000, "Timeout"),
+      ]);
+
+      const stats = await handler.getStats();
+
+      expect(stats.totalMessages).toBe(3);
+      expect(stats.byTopic[KAFKA_TOPICS.AGENT_EXECUTION_QUEUE]).toBe(2);
+      expect(stats.byTopic[KAFKA_TOPICS.NOTIFICATIONS_QUEUE]).toBe(1);
+      expect(stats.byErrorReason["Timeout"]).toBe(2);
+      expect(stats.byErrorReason["Network error"]).toBe(1);
+      expect(stats.oldestMessageAge).toBeGreaterThan(stats.newestMessageAge!);
+    });
+
+    it("should handle empty DLQ", async () => {
+      mockConsumer.consume.mockResolvedValue([]);
+
+      const stats = await handler.getStats();
+
+      expect(stats.totalMessages).toBe(0);
+      expect(stats.oldestMessageAge).toBeUndefined();
+      expect(stats.newestMessageAge).toBeUndefined();
+      expect(stats.byTopic).toEqual({});
+      expect(stats.byErrorReason).toEqual({});
+    });
+  });
+
+  describe("processMessages", () => {
+    it("should process messages with custom handler", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Timeout"),
+        createDLQMessage("2", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Network error"),
+        createDLQMessage("3", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Invalid data"),
+      ]);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const customHandler = vi.fn()
+        .mockResolvedValueOnce("replay")
+        .mockResolvedValueOnce("skip")
+        .mockResolvedValueOnce("delete");
+
+      const result = await handler.processMessages(customHandler);
+
+      expect(result.replayed).toBe(1);
+      expect(result.deleted).toBe(1);
+      expect(result.errors).toHaveLength(0);
+      expect(customHandler).toHaveBeenCalledTimes(3);
+    });
+
+    it("should handle errors in custom handler", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error"),
+      ]);
+
+      const customHandler = vi.fn().mockRejectedValue(new Error("Handler failed"));
+
+      const result = await handler.processMessages(customHandler);
+
+      expect(result.replayed).toBe(0);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].error).toBe("Handler failed");
+    });
+  });
+
+  describe("checkAlertThresholds", () => {
+    it("should alert when message count exceeds threshold", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error"),
+        createDLQMessage("2", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error"),
+        createDLQMessage("3", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now, "Error"),
+      ]);
+
+      const result = await handler.checkAlertThresholds({ maxMessages: 2 });
+
+      expect(result.alert).toBe(true);
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0]).toContain("3 messages");
+    });
+
+    it("should alert when oldest message exceeds age threshold", async () => {
+      const now = Date.now();
+      const oldTime = now - 2 * 60 * 60 * 1000; // 2 hours ago
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, oldTime, "Error"),
+      ]);
+
+      const result = await handler.checkAlertThresholds({ maxAgeMs: 1 * 60 * 60 * 1000 }); // 1 hour threshold
+
+      expect(result.alert).toBe(true);
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0]).toContain("old");
+    });
+
+    it("should not alert when thresholds not exceeded", async () => {
+      const now = Date.now();
+      mockConsumer.consume.mockResolvedValue([
+        createDLQMessage("1", KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, now - 1000, "Error"),
+      ]);
+
+      const result = await handler.checkAlertThresholds({ maxMessages: 10, maxAgeMs: 60 * 60 * 1000 });
+
+      expect(result.alert).toBe(false);
+      expect(result.reasons).toHaveLength(0);
     });
   });
 });

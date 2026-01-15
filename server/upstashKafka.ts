@@ -1042,5 +1042,328 @@ export class KafkaConsumer {
   }
 }
 
+// ============================================================================
+// DeadLetterQueueHandler Class
+// ============================================================================
+
+export interface DLQHandlerConfig {
+  url?: string;
+  username?: string;
+  password?: string;
+  groupId?: string;
+  instanceId?: string;
+}
+
+export interface DLQMessage<T = unknown> {
+  id: string;
+  originalMessage: KafkaMessage<T>;
+  errorReason: string;
+  failedAt: number;
+  originalTopic: KafkaTopic;
+}
+
+export interface DLQProcessResult {
+  replayed: number;
+  deleted: number;
+  errors: Array<{ messageId: string; error: string }>;
+}
+
+export interface DLQStats {
+  totalMessages: number;
+  oldestMessageAge?: number;
+  newestMessageAge?: number;
+  byTopic: Record<string, number>;
+  byErrorReason: Record<string, number>;
+}
+
+/**
+ * Dedicated Dead-Letter Queue Handler for processing failed messages.
+ * Provides functionality to inspect, replay, and delete DLQ messages.
+ */
+export class DeadLetterQueueHandler {
+  private kafka: Kafka | null = null;
+  private consumer: Consumer | null = null;
+  private producer: Producer | null = null;
+  private isConfigured = false;
+  private groupId: string;
+  private instanceId: string;
+
+  constructor(config?: DLQHandlerConfig) {
+    const url = config?.url || process.env.UPSTASH_KAFKA_REST_URL;
+    const username = config?.username || process.env.UPSTASH_KAFKA_REST_USERNAME;
+    const password = config?.password || process.env.UPSTASH_KAFKA_REST_PASSWORD;
+
+    this.groupId = config?.groupId || "dlq-handler-group";
+    this.instanceId = config?.instanceId || `dlq-handler-${Date.now()}`;
+
+    if (url && username && password) {
+      this.kafka = new Kafka({ url, username, password });
+      this.consumer = this.kafka.consumer();
+      this.producer = this.kafka.producer();
+      this.isConfigured = true;
+    }
+  }
+
+  /**
+   * Check if the handler is configured and ready
+   */
+  isReady(): boolean {
+    return this.isConfigured && this.consumer !== null && this.producer !== null;
+  }
+
+  /**
+   * Fetch messages from the dead-letter queue
+   */
+  async fetchMessages<T = unknown>(
+    options?: { maxMessages?: number }
+  ): Promise<{ messages: DLQMessage<T>[]; error?: string }> {
+    if (!this.consumer) {
+      return { messages: [], error: "DLQ handler not configured" };
+    }
+
+    try {
+      const result = await this.consumer.consume({
+        consumerGroupId: this.groupId,
+        instanceId: this.instanceId,
+        topics: [KAFKA_TOPICS.AGENT_EXECUTION_DLQ],
+        autoOffsetReset: "earliest",
+      });
+
+      const messages: DLQMessage<T>[] = [];
+      const maxMessages = options?.maxMessages ?? 100;
+
+      for (const msg of result) {
+        try {
+          const parsed = JSON.parse(msg.value) as KafkaMessage<DeadLetterMessage<T>>;
+          const dlqData = parsed.data;
+
+          messages.push({
+            id: parsed.id,
+            originalMessage: dlqData.originalMessage,
+            errorReason: dlqData.errorReason,
+            failedAt: dlqData.failedAt,
+            originalTopic: dlqData.originalTopic,
+          });
+
+          if (messages.length >= maxMessages) {
+            break;
+          }
+        } catch (parseError) {
+          console.error("DeadLetterQueueHandler: Failed to parse message:", parseError);
+        }
+      }
+
+      return { messages };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("DeadLetterQueueHandler: fetch error:", errorMessage);
+      return { messages: [], error: errorMessage };
+    }
+  }
+
+  /**
+   * Replay a single message back to its original topic
+   */
+  async replayMessage<T = unknown>(message: DLQMessage<T>): Promise<{ success: boolean; error?: string }> {
+    if (!this.producer) {
+      return { success: false, error: "DLQ handler not configured" };
+    }
+
+    try {
+      // Reset retry count when replaying
+      const replayedMessage: KafkaMessage<T> = {
+        ...message.originalMessage,
+        retryCount: 0,
+        timestamp: Date.now(),
+      };
+
+      await this.producer.produce(
+        message.originalTopic,
+        JSON.stringify(replayedMessage)
+      );
+
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("DeadLetterQueueHandler: replay error:", errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Replay multiple messages back to their original topics
+   */
+  async replayMessages<T = unknown>(
+    messages: DLQMessage<T>[]
+  ): Promise<DLQProcessResult> {
+    let replayed = 0;
+    const errors: Array<{ messageId: string; error: string }> = [];
+
+    for (const message of messages) {
+      const result = await this.replayMessage(message);
+      if (result.success) {
+        replayed++;
+      } else {
+        errors.push({ messageId: message.id, error: result.error || "Unknown error" });
+      }
+    }
+
+    return { replayed, deleted: 0, errors };
+  }
+
+  /**
+   * Replay all messages that match a filter criteria
+   */
+  async replayFiltered<T = unknown>(
+    filter: (message: DLQMessage<T>) => boolean,
+    options?: { maxMessages?: number }
+  ): Promise<DLQProcessResult> {
+    const { messages, error } = await this.fetchMessages<T>(options);
+
+    if (error) {
+      return { replayed: 0, deleted: 0, errors: [{ messageId: "fetch", error }] };
+    }
+
+    const filtered = messages.filter(filter);
+    return this.replayMessages(filtered);
+  }
+
+  /**
+   * Replay messages from a specific original topic
+   */
+  async replayByTopic<T = unknown>(
+    topic: KafkaTopic,
+    options?: { maxMessages?: number }
+  ): Promise<DLQProcessResult> {
+    return this.replayFiltered<T>(
+      (msg) => msg.originalTopic === topic,
+      options
+    );
+  }
+
+  /**
+   * Replay messages that failed within a specific time window
+   */
+  async replayByTimeWindow<T = unknown>(
+    startTime: number,
+    endTime: number,
+    options?: { maxMessages?: number }
+  ): Promise<DLQProcessResult> {
+    return this.replayFiltered<T>(
+      (msg) => msg.failedAt >= startTime && msg.failedAt <= endTime,
+      options
+    );
+  }
+
+  /**
+   * Get statistics about messages in the DLQ
+   */
+  async getStats(options?: { maxMessages?: number }): Promise<DLQStats> {
+    const { messages } = await this.fetchMessages(options);
+
+    const now = Date.now();
+    const byTopic: Record<string, number> = {};
+    const byErrorReason: Record<string, number> = {};
+    let oldestAge: number | undefined;
+    let newestAge: number | undefined;
+
+    for (const msg of messages) {
+      // Count by topic
+      byTopic[msg.originalTopic] = (byTopic[msg.originalTopic] || 0) + 1;
+
+      // Count by error reason (truncate long errors)
+      const reasonKey = msg.errorReason.substring(0, 100);
+      byErrorReason[reasonKey] = (byErrorReason[reasonKey] || 0) + 1;
+
+      // Track age
+      const age = now - msg.failedAt;
+      if (oldestAge === undefined || age > oldestAge) {
+        oldestAge = age;
+      }
+      if (newestAge === undefined || age < newestAge) {
+        newestAge = age;
+      }
+    }
+
+    return {
+      totalMessages: messages.length,
+      oldestMessageAge: oldestAge,
+      newestMessageAge: newestAge,
+      byTopic,
+      byErrorReason,
+    };
+  }
+
+  /**
+   * Process DLQ messages with a custom handler.
+   * Allows inspection and decision-making per message.
+   */
+  async processMessages<T = unknown>(
+    handler: (message: DLQMessage<T>) => Promise<"replay" | "skip" | "delete">,
+    options?: { maxMessages?: number }
+  ): Promise<DLQProcessResult> {
+    const { messages, error } = await this.fetchMessages<T>(options);
+
+    if (error) {
+      return { replayed: 0, deleted: 0, errors: [{ messageId: "fetch", error }] };
+    }
+
+    let replayed = 0;
+    let deleted = 0;
+    const errors: Array<{ messageId: string; error: string }> = [];
+
+    for (const message of messages) {
+      try {
+        const action = await handler(message);
+
+        if (action === "replay") {
+          const result = await this.replayMessage(message);
+          if (result.success) {
+            replayed++;
+          } else {
+            errors.push({ messageId: message.id, error: result.error || "Replay failed" });
+          }
+        } else if (action === "delete") {
+          // In Kafka, messages are not explicitly deleted but consumed.
+          // The offset commit handles "deletion" by not reprocessing.
+          deleted++;
+        }
+        // "skip" does nothing
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        errors.push({ messageId: message.id, error: errorMessage });
+      }
+    }
+
+    return { replayed, deleted, errors };
+  }
+
+  /**
+   * Create an alert for DLQ messages exceeding thresholds
+   */
+  async checkAlertThresholds(thresholds: {
+    maxMessages?: number;
+    maxAgeMs?: number;
+  }): Promise<{ alert: boolean; reasons: string[] }> {
+    const stats = await this.getStats();
+    const reasons: string[] = [];
+
+    if (thresholds.maxMessages && stats.totalMessages > thresholds.maxMessages) {
+      reasons.push(`DLQ has ${stats.totalMessages} messages (threshold: ${thresholds.maxMessages})`);
+    }
+
+    if (thresholds.maxAgeMs && stats.oldestMessageAge && stats.oldestMessageAge > thresholds.maxAgeMs) {
+      const ageHours = Math.round(stats.oldestMessageAge / (1000 * 60 * 60));
+      const thresholdHours = Math.round(thresholds.maxAgeMs / (1000 * 60 * 60));
+      reasons.push(`Oldest DLQ message is ${ageHours}h old (threshold: ${thresholdHours}h)`);
+    }
+
+    return {
+      alert: reasons.length > 0,
+      reasons,
+    };
+  }
+}
+
 // Export class for testing/custom instances
 export { UpstashKafkaClient, NullKafkaClient };

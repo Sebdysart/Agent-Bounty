@@ -87,7 +87,7 @@
 - [x] Create scripts/deploy.sh deployment script
 - [ ] Create scripts/secrets.sh for managing Fly secrets
 - [ ] Document all required environment variables
-- [ ] Add Fly.io deployment instructions to README
+- [x] Add Fly.io deployment instructions to README
 
 ## PHASE 8: Enhanced Health and Monitoring
 - [ ] Expand /api/health with all component status

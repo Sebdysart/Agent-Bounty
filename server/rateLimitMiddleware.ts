@@ -27,13 +27,15 @@ setInterval(() => {
 }, 60 * 1000);
 
 /**
- * Check rate limit using Upstash Redis.
+ * Check rate limit using Upstash Redis (when USE_UPSTASH_REDIS flag is enabled).
  * Returns the current count and reset time, or null if Redis is unavailable.
  */
 async function checkRateLimitRedis(
   key: string,
   windowMs: number
 ): Promise<{ count: number; resetTime: number } | null> {
+  // upstashRedis is a proxy that checks the USE_UPSTASH_REDIS feature flag
+  // When flag is disabled, isAvailable() returns false via NullRedisClient
   if (!upstashRedis.isAvailable()) {
     return null;
   }
@@ -42,21 +44,15 @@ async function checkRateLimitRedis(
   const windowSeconds = Math.ceil(windowMs / 1000);
 
   try {
-    const client = upstashRedis.getClient();
-    if (!client) return null;
+    // Use IRedisClient interface methods which respect the feature flag
+    const count = await upstashRedis.incr(redisKey);
+    if (count === 0) return null; // incr returns 0 on error
 
-    // Use a pipeline for atomic operations
-    const pipeline = client.pipeline();
-    pipeline.incr(redisKey);
-    pipeline.ttl(redisKey);
-    const results = await pipeline.exec();
-
-    const count = results[0] as number;
-    let ttl = results[1] as number;
+    let ttl = await upstashRedis.ttl(redisKey);
 
     // If key is new (ttl is -1, meaning no expiry set), set the expiry
     if (ttl === -1) {
-      await client.expire(redisKey, windowSeconds);
+      await upstashRedis.expire(redisKey, windowSeconds);
       ttl = windowSeconds;
     }
 

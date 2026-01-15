@@ -109,7 +109,7 @@
 - [x] Document cost per 1000 executions
 
 ## PHASE 10: Documentation and Finalization
-- [ ] Update README.md with new architecture diagram
+- [x] Update README.md with new architecture diagram
 - [ ] Document all new environment variables
 - [ ] Create docs/DEPLOYMENT.md for Fly.io guide
 - [ ] Create docs/ARCHITECTURE.md with system design

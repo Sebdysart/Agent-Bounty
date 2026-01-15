@@ -17,6 +17,50 @@ interface RedisHealthStatus {
 }
 
 /**
+ * Interface matching existing Redis usage patterns in the codebase.
+ * This interface abstracts the Redis operations used by:
+ * - rateLimitMiddleware.ts (incr, expire, ttl, pipeline)
+ * - dataCache.ts (get, set, delete, deleteByPattern, getOrSet)
+ * - upstashSessionStore.ts (get, set, delete, expire, scan, mget)
+ */
+export interface IRedisClient {
+  // Connection management
+  connect(): Promise<boolean>;
+  isConnected(): boolean;
+  isAvailable(): boolean;
+  getClient(): Redis | null;
+
+  // Basic operations
+  get<T>(key: string): Promise<T | null>;
+  set<T>(key: string, data: T, ttlSeconds?: number, tags?: string[]): Promise<boolean>;
+  delete(key: string): Promise<boolean>;
+  deleteByPattern(pattern: string): Promise<number>;
+
+  // Cache utilities
+  getOrSet<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    ttlSeconds?: number,
+    tags?: string[]
+  ): Promise<T>;
+  mget<T>(keys: string[]): Promise<(T | null)[]>;
+
+  // Rate limiting operations
+  incr(key: string): Promise<number>;
+  incrWithExpiry(key: string, ttlSeconds: number): Promise<number>;
+
+  // Key management
+  setNX(key: string, value: string, ttlSeconds?: number): Promise<boolean>;
+  exists(key: string): Promise<boolean>;
+  expire(key: string, ttlSeconds: number): Promise<boolean>;
+  ttl(key: string): Promise<number>;
+
+  // Health & maintenance
+  healthCheck(): Promise<RedisHealthStatus>;
+  flushAll(): Promise<boolean>;
+}
+
+/**
  * Upstash Redis client wrapper for serverless-friendly caching.
  * Uses REST API which is compatible with edge runtimes and serverless functions.
  *
@@ -26,7 +70,7 @@ interface RedisHealthStatus {
  * - No connection pooling required
  * - Works in edge runtimes (Cloudflare Workers, Vercel Edge, etc.)
  */
-class UpstashRedisClient {
+class UpstashRedisClient implements IRedisClient {
   private client: Redis | null = null;
   private isConfigured = false;
   private connectionVerified = false;
@@ -369,8 +413,8 @@ class UpstashRedisClient {
 }
 
 // Singleton instance for the application
-export const upstashRedis = new UpstashRedisClient();
+export const upstashRedis: IRedisClient = new UpstashRedisClient();
 
 // Export class for testing/custom instances
 export { UpstashRedisClient };
-export type { UpstashRedisConfig, RedisHealthStatus };
+export type { UpstashRedisConfig, RedisHealthStatus, IRedisClient };

@@ -16,7 +16,7 @@
 - [x] Install @upstash/redis package
 - [x] Create server/upstashRedis.ts client wrapper
 - [x] Implement connection with REST API (serverless-friendly)
-- [ ] Create interface matching existing redis usage
+- [x] Create interface matching existing redis usage
 - [ ] Wrap with feature flag check (USE_UPSTASH_REDIS)
 - [ ] Migrate rate limiter storage to use Upstash when flag enabled
 - [ ] Add caching utilities (cacheGet, cacheSet, cacheInvalidate)

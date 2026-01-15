@@ -8,7 +8,7 @@
 - [ ] Implement percentage-based rollout (0-100%)
 - [ ] Add user-based overrides for testing
 - [x] Create GET /api/admin/flags to view current flags
-- [ ] Create POST /api/admin/flags to toggle flags (admin only)
+- [x] Create POST /api/admin/flags to toggle flags (admin only)
 - [ ] Log flag evaluations for debugging
 - [ ] Write tests for featureFlags.test.ts
 

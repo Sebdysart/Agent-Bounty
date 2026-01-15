@@ -2733,6 +2733,47 @@ ${agentOutput}`
     }
   });
 
+  // Toggle feature flags (admin only)
+  const toggleFlagSchema = z.object({
+    flagName: z.string(),
+    enabled: z.boolean().optional(),
+    rolloutPercentage: z.number().min(0).max(100).optional(),
+  });
+
+  app.post("/api/admin/flags", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const parsed = toggleFlagSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.errors });
+      }
+
+      const { flagName, enabled, rolloutPercentage } = parsed.data;
+
+      // Check if flag exists
+      const existingFlag = featureFlags.getFlag(flagName);
+      if (!existingFlag) {
+        return res.status(404).json({ message: `Flag '${flagName}' not found` });
+      }
+
+      // Update enabled state if provided
+      if (enabled !== undefined) {
+        featureFlags.setEnabled(flagName, enabled);
+      }
+
+      // Update rollout percentage if provided
+      if (rolloutPercentage !== undefined) {
+        featureFlags.setRolloutPercentage(flagName, rolloutPercentage);
+      }
+
+      // Return updated flags
+      const flags = featureFlags.getAllFlags();
+      res.json(flags);
+    } catch (error) {
+      console.error("Error toggling feature flag:", error);
+      sendInternalError(res, "Failed to toggle feature flag");
+    }
+  });
+
   const approveRejectSchema = z.object({
     reason: z.string().optional(),
   });

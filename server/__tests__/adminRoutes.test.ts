@@ -93,6 +93,17 @@ describe('Admin Routes Security', () => {
       });
     });
 
+    app.post('/api/admin/flags', isAuthenticated, localRequireAdmin, async (req: any, res) => {
+      const { flagName, enabled, rolloutPercentage } = req.body;
+      if (!flagName) {
+        return res.status(400).json({ message: 'Invalid request body' });
+      }
+      res.json({
+        USE_WASMTIME_SANDBOX: { enabled: enabled ?? false, rolloutPercentage: rolloutPercentage ?? 0, description: 'Use Wasmtime', overrideCount: 0 },
+        USE_UPSTASH_REDIS: { enabled: false, rolloutPercentage: 0, description: 'Use Redis', overrideCount: 0 }
+      });
+    });
+
     app.post('/api/admin/agents/:id/approve', isAuthenticated, localRequireAdmin, async (req: any, res) => {
       res.json({ id: req.params.id, status: 'approved' });
     });
@@ -245,6 +256,67 @@ describe('Admin Routes Security', () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('USE_WASMTIME_SANDBOX');
       expect(response.body).toHaveProperty('USE_UPSTASH_REDIS');
+    });
+  });
+
+  describe('POST /api/admin/flags', () => {
+    it('should reject non-admin users with 403', async () => {
+      const testApp = express();
+      testApp.use(express.json());
+      testApp.use((req: any, res, next) => {
+        req.user = { id: 'user-1', isAdmin: false };
+        next();
+      });
+      testApp.post('/api/admin/flags', isAuthenticated, localRequireAdmin, (req, res) => {
+        res.json({});
+      });
+
+      const response = await request(testApp)
+        .post('/api/admin/flags')
+        .send({ flagName: 'USE_WASMTIME_SANDBOX', enabled: true });
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow admin users to toggle flags', async () => {
+      const testApp = express();
+      testApp.use(express.json());
+      testApp.use((req: any, res, next) => {
+        req.user = { id: 'admin-1', isAdmin: true };
+        next();
+      });
+      testApp.post('/api/admin/flags', isAuthenticated, localRequireAdmin, (req, res) => {
+        const { flagName, enabled } = req.body;
+        res.json({
+          USE_WASMTIME_SANDBOX: { enabled: enabled ?? false, rolloutPercentage: 0, description: 'Use Wasmtime', overrideCount: 0 }
+        });
+      });
+
+      const response = await request(testApp)
+        .post('/api/admin/flags')
+        .send({ flagName: 'USE_WASMTIME_SANDBOX', enabled: true });
+      expect(response.status).toBe(200);
+      expect(response.body.USE_WASMTIME_SANDBOX.enabled).toBe(true);
+    });
+
+    it('should allow admin users to update rollout percentage', async () => {
+      const testApp = express();
+      testApp.use(express.json());
+      testApp.use((req: any, res, next) => {
+        req.user = { id: 'admin-1', isAdmin: true };
+        next();
+      });
+      testApp.post('/api/admin/flags', isAuthenticated, localRequireAdmin, (req, res) => {
+        const { rolloutPercentage } = req.body;
+        res.json({
+          USE_WASMTIME_SANDBOX: { enabled: false, rolloutPercentage: rolloutPercentage ?? 0, description: 'Use Wasmtime', overrideCount: 0 }
+        });
+      });
+
+      const response = await request(testApp)
+        .post('/api/admin/flags')
+        .send({ flagName: 'USE_WASMTIME_SANDBOX', rolloutPercentage: 50 });
+      expect(response.status).toBe(200);
+      expect(response.body.USE_WASMTIME_SANDBOX.rolloutPercentage).toBe(50);
     });
   });
 
@@ -512,6 +584,7 @@ describe('Production Admin Routes Verification', () => {
       { method: 'GET', path: '/api/admin/agents/pending', hasRequireAdmin: true },
       { method: 'GET', path: '/api/admin/flags', hasRequireAdmin: true },
       { method: 'GET', path: '/api/admin/feature-flags', hasRequireAdmin: true },
+      { method: 'POST', path: '/api/admin/flags', hasRequireAdmin: true },
       { method: 'POST', path: '/api/admin/agents/:id/approve', hasRequireAdmin: true },
       { method: 'POST', path: '/api/admin/agents/:id/reject', hasRequireAdmin: true },
       { method: 'GET', path: '/api/cache/stats', hasRequireAdmin: true },
@@ -531,6 +604,6 @@ describe('Production Admin Routes Verification', () => {
     });
 
     // Verify count matches expected
-    expect(adminRoutes.length).toBe(15);
+    expect(adminRoutes.length).toBe(16);
   });
 });

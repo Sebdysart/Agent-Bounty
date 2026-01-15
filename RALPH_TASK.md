@@ -4,7 +4,7 @@
 ## PHASE 1: Feature Flags Foundation
 - [x] Create server/featureFlags.ts with simple flag system
 - [x] Implement in-memory flag storage with defaults
-- [ ] Add flags: USE_WASMTIME_SANDBOX, USE_UPSTASH_REDIS, USE_UPSTASH_KAFKA, USE_R2_STORAGE
+- [x] Add flags: USE_WASMTIME_SANDBOX, USE_UPSTASH_REDIS, USE_UPSTASH_KAFKA, USE_R2_STORAGE
 - [ ] Implement percentage-based rollout (0-100%)
 - [ ] Add user-based overrides for testing
 - [ ] Create GET /api/admin/flags to view current flags

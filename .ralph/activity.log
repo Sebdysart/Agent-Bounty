@@ -1951,3 +1951,13 @@ Done. The four flags (USE_WASMTIME_SANDBOX, USE_UPSTASH_REDIS, USE_UPSTASH_KAFKA
 [2026-01-14 21:19:17] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 21:19:17] 🎯 Task: Create GET /api/admin/flags to view current flags...
 [2026-01-14 21:19:17] 🤖 Claude working (180s max)...
+Done. I've completed the task:
+
+1. **Code written**: Added `GET /api/admin/feature-flags` endpoint in `server/routes.ts` that returns current feature flag states using `featureFlags.getAllFlags()`. The endpoint is protected with `isAuthenticated` and `requireAdmin` middleware.
+
+2. **Tests passed**: All 40 test files and 1196 tests pass. I also added test coverage for the new endpoint in `adminRoutes.test.ts`.
+
+3. **RALPH_TASK.md updated**: Marked the task `[x]` complete.
+
+4. **Committed**: `Ralph #6: Add GET /api/admin/feature-flags endpoint`
+[2026-01-14 21:21:07] ✅ Task DONE!

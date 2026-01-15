@@ -38,8 +38,8 @@
 - [x] Create adapter matching pg-boss interface
 - [x] Wrap with feature flag (USE_UPSTASH_KAFKA)
 - [x] Add idempotency keys to prevent duplicate processing
-- [ ] Write tests for upstashKafka.test.ts (mock the API)
-- [ ] Add Kafka health check to /api/health
+- [x] Write tests for upstashKafka.test.ts (mock the API)
+- [x] Add Kafka health check to /api/health
 
 ## PHASE 4: Cloudflare R2 Storage
 - [ ] Install @aws-sdk/client-s3 package (R2 is S3-compatible)

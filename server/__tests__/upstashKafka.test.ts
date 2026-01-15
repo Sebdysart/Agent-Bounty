@@ -1807,3 +1807,497 @@ describe("DeadLetterQueueHandler", () => {
     });
   });
 });
+
+// ============================================================================
+// KafkaJobQueue Tests (pg-boss compatible adapter)
+// ============================================================================
+
+import {
+  KafkaJobQueue,
+  NullJobQueue,
+  getJobQueue,
+  type Job,
+  type JobWithMetadata,
+} from "../upstashKafka";
+
+describe("KafkaJobQueue", () => {
+  let queue: KafkaJobQueue;
+  let mockProducer: { produce: ReturnType<typeof vi.fn> };
+  let mockConsumer: { consume: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+
+    queue = new KafkaJobQueue({
+      url: "https://mock-kafka.upstash.io",
+      username: "mock-username",
+      password: "mock-password",
+    });
+
+    // Access internal producer/consumer
+    const internalQueue = queue as unknown as {
+      producer: typeof mockProducer;
+      consumer: typeof mockConsumer;
+    };
+    mockProducer = internalQueue.producer;
+    mockConsumer = internalQueue.consumer;
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  describe("start and stop", () => {
+    it("should start the queue", async () => {
+      const result = await queue.start();
+      expect(result).toBe(queue);
+      expect(queue.isAvailable()).toBe(true);
+    });
+
+    it("should throw error when starting unconfigured queue", async () => {
+      const unconfiguredQueue = new KafkaJobQueue({});
+      await expect(unconfiguredQueue.start()).rejects.toThrow("Not configured");
+    });
+
+    it("should stop the queue", async () => {
+      await queue.start();
+      await queue.stop();
+      expect(queue.isAvailable()).toBe(false);
+    });
+
+    it("should stop gracefully with timeout", async () => {
+      await queue.start();
+      await queue.stop({ graceful: true, timeout: 1000 });
+      expect(queue.isAvailable()).toBe(false);
+    });
+  });
+
+  describe("send", () => {
+    it("should send a job successfully", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" });
+
+      expect(jobId).toBeTruthy();
+      expect(mockProducer.produce).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return null when not started", async () => {
+      const jobId = await queue.send("agent-execution", { task: "test" });
+      expect(jobId).toBeNull();
+    });
+
+    it("should use custom job ID when provided", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" }, { id: "custom-id-123" });
+
+      expect(jobId).toBe("custom-id-123");
+    });
+
+    it("should calculate expiration from different options", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      // Test expireInSeconds
+      await queue.send("agent-execution", {}, { expireInSeconds: 120 });
+      let producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.expireInSeconds).toBe(120);
+
+      mockProducer.produce.mockClear();
+
+      // Test expireInMinutes
+      await queue.send("agent-execution", {}, { expireInMinutes: 5 });
+      producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.expireInSeconds).toBe(300);
+
+      mockProducer.produce.mockClear();
+
+      // Test expireInHours
+      await queue.send("agent-execution", {}, { expireInHours: 2 });
+      producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.expireInSeconds).toBe(7200);
+    });
+
+    it("should enforce singleton constraint", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      // First job should succeed
+      const jobId1 = await queue.send("agent-execution", { task: 1 }, { singletonKey: "unique-task" });
+      expect(jobId1).toBeTruthy();
+
+      // Second job with same singleton key should fail
+      const jobId2 = await queue.send("agent-execution", { task: 2 }, { singletonKey: "unique-task" });
+      expect(jobId2).toBeNull();
+    });
+
+    it("should allow singleton job after first completes", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId1 = await queue.send("agent-execution", { task: 1 }, { singletonKey: "unique-task" });
+      expect(jobId1).toBeTruthy();
+
+      // Complete the first job
+      await queue.complete("agent-execution", jobId1!);
+
+      // Now second job should succeed
+      const jobId2 = await queue.send("agent-execution", { task: 2 }, { singletonKey: "unique-task" });
+      expect(jobId2).toBeTruthy();
+    });
+
+    it("should handle send errors gracefully", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await queue.start();
+      mockProducer.produce.mockRejectedValue(new Error("Network error"));
+
+      const jobId = await queue.send("agent-execution", { task: "test" });
+
+      expect(jobId).toBeNull();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("fetch", () => {
+    it("should fetch jobs from a queue", async () => {
+      await queue.start();
+
+      const mockJob = {
+        id: "job-123",
+        name: "agent-execution",
+        data: { task: "test" },
+        state: "created",
+        priority: 0,
+        retryLimit: 5,
+        retryCount: 0,
+        retryDelay: 1000,
+        retryBackoff: true,
+        expireInSeconds: 3600,
+        startAfter: new Date().toISOString(),
+        startedOn: null,
+        createdOn: new Date().toISOString(),
+        completedOn: null,
+        singletonKey: null,
+        keepUntil: new Date(Date.now() + 3600000).toISOString(),
+      };
+
+      mockConsumer.consume.mockResolvedValue([
+        {
+          value: JSON.stringify({
+            id: "job-123",
+            topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+            data: mockJob,
+            timestamp: Date.now(),
+          }),
+        },
+      ]);
+
+      const jobs = await queue.fetch("agent-execution");
+
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].id).toBe("job-123");
+      expect(jobs[0].data).toEqual({ task: "test" });
+    });
+
+    it("should return empty array when not started", async () => {
+      const jobs = await queue.fetch("agent-execution");
+      expect(jobs).toHaveLength(0);
+    });
+
+    it("should include metadata when requested", async () => {
+      await queue.start();
+
+      const mockJob = {
+        id: "job-123",
+        name: "agent-execution",
+        data: { task: "test" },
+        state: "created",
+        priority: 5,
+        retryLimit: 3,
+        retryCount: 0,
+        retryDelay: 2000,
+        retryBackoff: false,
+        expireInSeconds: 7200,
+        startAfter: new Date().toISOString(),
+        startedOn: null,
+        createdOn: new Date().toISOString(),
+        completedOn: null,
+        singletonKey: "unique",
+        keepUntil: new Date(Date.now() + 7200000).toISOString(),
+      };
+
+      mockConsumer.consume.mockResolvedValue([
+        {
+          value: JSON.stringify({
+            id: "job-123",
+            topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+            data: mockJob,
+            timestamp: Date.now(),
+          }),
+        },
+      ]);
+
+      const jobs = await queue.fetch("agent-execution", { includeMetadata: true });
+
+      expect(jobs).toHaveLength(1);
+      const job = jobs[0] as JobWithMetadata;
+      expect(job.priority).toBe(5);
+      expect(job.retryLimit).toBe(3);
+      expect(job.singletonKey).toBe("unique");
+    });
+
+    it("should skip jobs that are not ready yet", async () => {
+      await queue.start();
+
+      const futureDate = new Date(Date.now() + 60000); // 1 minute in future
+      const mockJob = {
+        id: "job-123",
+        name: "agent-execution",
+        data: { task: "test" },
+        state: "created",
+        priority: 0,
+        retryLimit: 5,
+        retryCount: 0,
+        retryDelay: 1000,
+        retryBackoff: true,
+        expireInSeconds: 3600,
+        startAfter: futureDate.toISOString(),
+        startedOn: null,
+        createdOn: new Date().toISOString(),
+        completedOn: null,
+        singletonKey: null,
+        keepUntil: new Date(Date.now() + 3600000).toISOString(),
+      };
+
+      mockConsumer.consume.mockResolvedValue([
+        {
+          value: JSON.stringify({
+            id: "job-123",
+            topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+            data: mockJob,
+            timestamp: Date.now(),
+          }),
+        },
+      ]);
+
+      const jobs = await queue.fetch("agent-execution");
+
+      expect(jobs).toHaveLength(0);
+    });
+
+    it("should sort by priority when requested", async () => {
+      await queue.start();
+
+      const createMockJob = (id: string, priority: number) => ({
+        id,
+        name: "agent-execution",
+        data: { task: id },
+        state: "created",
+        priority,
+        retryLimit: 5,
+        retryCount: 0,
+        retryDelay: 1000,
+        retryBackoff: true,
+        expireInSeconds: 3600,
+        startAfter: new Date().toISOString(),
+        startedOn: null,
+        createdOn: new Date().toISOString(),
+        completedOn: null,
+        singletonKey: null,
+        keepUntil: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      mockConsumer.consume.mockResolvedValue([
+        { value: JSON.stringify({ id: "job-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: createMockJob("job-1", 1), timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "job-2", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: createMockJob("job-2", 5), timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "job-3", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: createMockJob("job-3", 3), timestamp: Date.now() }) },
+      ]);
+
+      const jobs = await queue.fetch("agent-execution", { includeMetadata: true, priority: true, batchSize: 10 });
+
+      expect(jobs).toHaveLength(3);
+      expect((jobs[0] as JobWithMetadata).priority).toBe(5);
+      expect((jobs[1] as JobWithMetadata).priority).toBe(3);
+      expect((jobs[2] as JobWithMetadata).priority).toBe(1);
+    });
+  });
+
+  describe("complete", () => {
+    it("should mark a job as completed", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" });
+      await queue.complete("agent-execution", jobId!);
+
+      const job = await queue.getJobById("agent-execution", jobId!);
+      expect(job?.state).toBe("completed");
+      expect(job?.completedOn).toBeTruthy();
+    });
+  });
+
+  describe("fail", () => {
+    it("should mark a job for retry when retries remain", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" }, { retryLimit: 3 });
+      await queue.fail("agent-execution", jobId!, { error: "Processing failed" });
+
+      const job = await queue.getJobById("agent-execution", jobId!);
+      expect(job?.state).toBe("retry");
+      expect(job?.retryCount).toBe(1);
+    });
+
+    it("should mark a job as failed when retries exhausted", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" }, { retryLimit: 1 });
+      await queue.fail("agent-execution", jobId!, { error: "Processing failed" });
+
+      const job = await queue.getJobById("agent-execution", jobId!);
+      expect(job?.state).toBe("failed");
+    });
+
+    it("should send to DLQ when retries exhausted", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" }, { retryLimit: 1 });
+
+      mockProducer.produce.mockClear();
+      await queue.fail("agent-execution", jobId!, { error: "Final failure" });
+
+      // Should have called produce for DLQ
+      expect(mockProducer.produce).toHaveBeenCalledWith(
+        KAFKA_TOPICS.AGENT_EXECUTION_DLQ,
+        expect.any(String)
+      );
+    });
+  });
+
+  describe("cancel", () => {
+    it("should cancel a single job", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId = await queue.send("agent-execution", { task: "test" });
+      await queue.cancel("agent-execution", jobId!);
+
+      const job = await queue.getJobById("agent-execution", jobId!);
+      expect(job?.state).toBe("cancelled");
+    });
+
+    it("should cancel multiple jobs", async () => {
+      await queue.start();
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const jobId1 = await queue.send("agent-execution", { task: "test1" });
+      const jobId2 = await queue.send("agent-execution", { task: "test2" });
+
+      await queue.cancel("agent-execution", [jobId1!, jobId2!]);
+
+      const job1 = await queue.getJobById("agent-execution", jobId1!);
+      const job2 = await queue.getJobById("agent-execution", jobId2!);
+      expect(job1?.state).toBe("cancelled");
+      expect(job2?.state).toBe("cancelled");
+    });
+  });
+
+  describe("getJobById", () => {
+    it("should return null for non-existent job", async () => {
+      await queue.start();
+      const job = await queue.getJobById("agent-execution", "non-existent");
+      expect(job).toBeNull();
+    });
+  });
+
+  describe("work and offWork", () => {
+    it("should return worker ID when starting work", async () => {
+      await queue.start();
+      mockConsumer.consume.mockResolvedValue([]);
+
+      const workerId = await queue.work("agent-execution", async (jobs) => {
+        // Handler
+      });
+
+      expect(workerId).toMatch(/^worker-agent-execution-/);
+
+      // Clean up
+      await queue.offWork({ id: workerId });
+    });
+
+    it("should stop worker by name", async () => {
+      await queue.start();
+      mockConsumer.consume.mockResolvedValue([]);
+
+      await queue.work("agent-execution", async () => {});
+      await queue.offWork("agent-execution");
+
+      // No error means success
+    });
+  });
+});
+
+describe("NullJobQueue", () => {
+  let nullQueue: NullJobQueue;
+
+  beforeEach(() => {
+    nullQueue = new NullJobQueue();
+  });
+
+  it("should return this on start", async () => {
+    const result = await nullQueue.start();
+    expect(result).toBe(nullQueue);
+  });
+
+  it("should return null on send", async () => {
+    const jobId = await nullQueue.send("test", {});
+    expect(jobId).toBeNull();
+  });
+
+  it("should return empty array on fetch", async () => {
+    const jobs = await nullQueue.fetch("test");
+    expect(jobs).toHaveLength(0);
+  });
+
+  it("should return null-worker on work", async () => {
+    const workerId = await nullQueue.work("test", async () => {});
+    expect(workerId).toBe("null-worker");
+  });
+
+  it("should return null on getJobById", async () => {
+    const job = await nullQueue.getJobById("test", "id");
+    expect(job).toBeNull();
+  });
+
+  it("should return false on isAvailable", () => {
+    expect(nullQueue.isAvailable()).toBe(false);
+  });
+});
+
+describe("getJobQueue", () => {
+  it("should return NullJobQueue when feature flag is disabled", () => {
+    vi.spyOn(featureFlags, "isEnabled").mockReturnValue(false);
+
+    const queue = getJobQueue();
+
+    expect(queue).toBeInstanceOf(NullJobQueue);
+    expect(queue.isAvailable()).toBe(false);
+  });
+
+  it("should return KafkaJobQueue when feature flag is enabled", () => {
+    vi.spyOn(featureFlags, "isEnabled").mockReturnValue(true);
+
+    const queue = getJobQueue();
+
+    // KafkaJobQueue without credentials will not be configured
+    expect(queue).toBeInstanceOf(KafkaJobQueue);
+  });
+});

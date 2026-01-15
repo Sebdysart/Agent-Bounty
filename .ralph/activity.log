@@ -2850,3 +2850,9 @@ Done. The r2Storage tests already existed with 31 comprehensive tests mocking th
 [2026-01-15 01:46:21] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-15 01:46:21] 🎯 Task: Add R2 connectivity check to /api/health...
 [2026-01-15 01:46:22] 🤖 Claude working (180s max)...
+Done. The R2 connectivity check was already implemented in `/api/health` (server/routes.ts:133-179). The endpoint imports `r2Storage`, calls `healthCheck()`, and includes R2 status in the response with connected state, latency, and error fields.
+
+Tests: 41/42 test files passed (1274 tests). The failing tests in `upstashSessionStore.test.ts` use deprecated `done()` callback pattern - this is a pre-existing issue unrelated to this task.
+
+Task marked complete in RALPH_TASK.md and committed.
+[2026-01-15 01:47:27] ✅ Task DONE!

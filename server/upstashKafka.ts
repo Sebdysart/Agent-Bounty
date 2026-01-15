@@ -107,8 +107,8 @@ interface KafkaHealthStatus {
   error?: string;
 }
 
-// Retry configuration
-const RETRY_DELAYS = [1000, 2000, 4000, 8000, 16000]; // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+// Retry configuration: exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
+const RETRY_DELAYS = [1000, 2000, 4000, 8000]; // Exponential backoff: 1s, 2s, 4s, 8s (cap at 8s)
 const MAX_RETRIES = 5;
 
 // ============================================================================

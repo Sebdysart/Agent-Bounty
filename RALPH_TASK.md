@@ -33,7 +33,7 @@
 - [x] Define message types for topics (execution, results, notifications)
 - [x] Create KafkaProducer class with retry logic
 - [ ] Create KafkaConsumer class with batch processing
-- [ ] Implement dead-letter queue handler
+- [x] Implement dead-letter queue handler
 - [ ] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
 - [ ] Create adapter matching pg-boss interface
 - [ ] Wrap with feature flag (USE_UPSTASH_KAFKA)

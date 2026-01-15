@@ -801,7 +801,7 @@ describe("KafkaConsumer", () => {
       expect(config.instanceId).toBe("test-instance");
       expect(config.batchSize).toBe(5);
       expect(config.maxRetries).toBe(5);
-      expect(config.retryDelays).toEqual([1000, 2000, 4000, 8000, 16000]);
+      expect(config.retryDelays).toEqual([1000, 2000, 4000, 8000]);
     });
 
     it("should return custom retry configuration", () => {
@@ -1132,7 +1132,7 @@ describe("KafkaProducer", () => {
     it("should return default retry configuration", () => {
       const config = producer.getRetryConfig();
       expect(config.maxRetries).toBe(5);
-      expect(config.retryDelays).toEqual([1000, 2000, 4000, 8000, 16000]);
+      expect(config.retryDelays).toEqual([1000, 2000, 4000, 8000]);
     });
 
     it("should return custom retry configuration", () => {

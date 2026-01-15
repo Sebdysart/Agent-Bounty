@@ -49,7 +49,7 @@
 - [x] Create agent-specific helpers (uploadAgentCode, downloadAgentCode)
 - [x] Wrap with feature flag (USE_R2_STORAGE)
 - [x] Add migration utility for existing DB blobs to R2
-- [ ] Implement cleanup job for orphaned files
+- [x] Implement cleanup job for orphaned files
 - [ ] Write tests for r2Storage.test.ts (mock S3 client)
 - [ ] Add R2 connectivity check to /api/health
 

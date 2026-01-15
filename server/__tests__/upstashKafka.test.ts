@@ -10,6 +10,10 @@ import {
   KAFKA_TOPICS,
   getKafkaClient,
   type KafkaMessage,
+  type AgentExecutionMessage,
+  type AgentResultMessage,
+  type NotificationMessage,
+  type DeadLetterMessage,
 } from "../upstashKafka";
 import { featureFlags } from "../featureFlags";
 
@@ -490,6 +494,135 @@ describe("UpstashKafkaClient", () => {
       expect(KAFKA_TOPICS.AGENT_RESULTS_QUEUE).toBe("agent-results-queue");
       expect(KAFKA_TOPICS.NOTIFICATIONS_QUEUE).toBe("notifications-queue");
       expect(KAFKA_TOPICS.AGENT_EXECUTION_DLQ).toBe("agent-execution-dlq");
+    });
+  });
+
+  describe("Message Types", () => {
+    it("should accept valid AgentExecutionMessage", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const executionMsg: AgentExecutionMessage = {
+        agentId: "agent-123",
+        bountyId: "bounty-456",
+        code: "console.log('test')",
+        testCases: [{ input: "a", expected: "b" }],
+        metadata: { priority: "high" },
+      };
+
+      const result = await client.queueAgentExecution(executionMsg);
+      expect(result.success).toBe(true);
+
+      const producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data).toEqual(executionMsg);
+    });
+
+    it("should accept valid AgentResultMessage", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const resultMsg: AgentResultMessage = {
+        executionId: "exec-789",
+        agentId: "agent-123",
+        bountyId: "bounty-456",
+        success: true,
+        output: { result: "passed", score: 100 },
+        executionTimeMs: 1500,
+      };
+
+      const result = await client.queueAgentResult(resultMsg);
+      expect(result.success).toBe(true);
+
+      const producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data).toEqual(resultMsg);
+    });
+
+    it("should accept valid AgentResultMessage with error", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const resultMsg: AgentResultMessage = {
+        executionId: "exec-789",
+        agentId: "agent-123",
+        bountyId: "bounty-456",
+        success: false,
+        error: "Timeout exceeded",
+        executionTimeMs: 30000,
+      };
+
+      const result = await client.queueAgentResult(resultMsg);
+      expect(result.success).toBe(true);
+
+      const producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.error).toBe("Timeout exceeded");
+    });
+
+    it("should accept valid NotificationMessage with all notification types", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const emailNotif: NotificationMessage = {
+        type: "email",
+        recipient: "user@example.com",
+        subject: "Test Subject",
+        body: "Test body content",
+        metadata: { templateId: "welcome-email" },
+      };
+
+      await client.queueNotification(emailNotif);
+      let producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.type).toBe("email");
+
+      mockProducer.produce.mockClear();
+
+      const webhookNotif: NotificationMessage = {
+        type: "webhook",
+        recipient: "https://webhook.example.com/notify",
+        body: JSON.stringify({ event: "bounty_completed" }),
+      };
+
+      await client.queueNotification(webhookNotif);
+      producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.type).toBe("webhook");
+
+      mockProducer.produce.mockClear();
+
+      const alertNotif: NotificationMessage = {
+        type: "alert",
+        recipient: "admin-channel",
+        body: "Critical: System overload detected",
+      };
+
+      await client.queueNotification(alertNotif);
+      producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.data.type).toBe("alert");
+    });
+
+    it("should validate DeadLetterMessage structure in DLQ", async () => {
+      const mockMessages = [
+        {
+          value: JSON.stringify({
+            id: "msg-1",
+            topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+            data: { agentId: "agent-1", bountyId: "bounty-1", code: "test" },
+            timestamp: Date.now(),
+            retryCount: 4,
+          }),
+        },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const handler = vi.fn().mockRejectedValue(new Error("Processing failed"));
+
+      await client.processMessages(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler);
+
+      const dlqCall = mockProducer.produce.mock.calls.find(
+        (call: unknown[]) => call[0] === KAFKA_TOPICS.AGENT_EXECUTION_DLQ
+      );
+      expect(dlqCall).toBeDefined();
+
+      const dlqMessage = JSON.parse(dlqCall[1]).data as DeadLetterMessage;
+      expect(dlqMessage.originalMessage).toBeDefined();
+      expect(dlqMessage.errorReason).toBe("Processing failed");
+      expect(dlqMessage.originalTopic).toBe(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+      expect(typeof dlqMessage.failedAt).toBe("number");
     });
   });
 });

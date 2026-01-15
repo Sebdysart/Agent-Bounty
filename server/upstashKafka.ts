@@ -11,6 +11,68 @@ export const KAFKA_TOPICS = {
 
 export type KafkaTopic = (typeof KAFKA_TOPICS)[keyof typeof KAFKA_TOPICS];
 
+// ============================================================================
+// Message Types for Topics
+// ============================================================================
+
+/**
+ * Message type for the agent-execution-queue topic.
+ * Contains all information needed to execute an agent against a bounty.
+ */
+export interface AgentExecutionMessage {
+  agentId: string;
+  bountyId: string;
+  code: string;
+  testCases?: unknown[];
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Message type for the agent-results-queue topic.
+ * Contains the result of an agent execution.
+ */
+export interface AgentResultMessage {
+  executionId: string;
+  agentId: string;
+  bountyId: string;
+  success: boolean;
+  output?: unknown;
+  error?: string;
+  executionTimeMs: number;
+}
+
+/**
+ * Notification types supported by the system.
+ */
+export type NotificationType = "email" | "webhook" | "alert";
+
+/**
+ * Message type for the notifications-queue topic.
+ * Contains notification details for various delivery channels.
+ */
+export interface NotificationMessage {
+  type: NotificationType;
+  recipient: string;
+  subject?: string;
+  body: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Message type for the dead-letter queue.
+ * Wraps failed messages with error context.
+ */
+export interface DeadLetterMessage<T = unknown> {
+  originalMessage: KafkaMessage<T>;
+  errorReason: string;
+  failedAt: number;
+  originalTopic: KafkaTopic;
+}
+
+// ============================================================================
+// Internal Types
+// ============================================================================
+
 interface UpstashKafkaConfig {
   url?: string;
   username?: string;
@@ -271,13 +333,7 @@ class UpstashKafkaClient {
   /**
    * Queue an agent execution job
    */
-  async queueAgentExecution(jobData: {
-    agentId: string;
-    bountyId: string;
-    code: string;
-    testCases?: unknown[];
-    metadata?: Record<string, unknown>;
-  }): Promise<ProduceResult> {
+  async queueAgentExecution(jobData: AgentExecutionMessage): Promise<ProduceResult> {
     const idempotencyKey = `exec-${jobData.agentId}-${jobData.bountyId}-${Date.now()}`;
     return this.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, jobData, {
       idempotencyKey,
@@ -287,15 +343,7 @@ class UpstashKafkaClient {
   /**
    * Queue an agent execution result
    */
-  async queueAgentResult(resultData: {
-    executionId: string;
-    agentId: string;
-    bountyId: string;
-    success: boolean;
-    output?: unknown;
-    error?: string;
-    executionTimeMs: number;
-  }): Promise<ProduceResult> {
+  async queueAgentResult(resultData: AgentResultMessage): Promise<ProduceResult> {
     const idempotencyKey = `result-${resultData.executionId}`;
     return this.produce(KAFKA_TOPICS.AGENT_RESULTS_QUEUE, resultData, {
       idempotencyKey,
@@ -305,13 +353,7 @@ class UpstashKafkaClient {
   /**
    * Queue a notification
    */
-  async queueNotification(notification: {
-    type: "email" | "webhook" | "alert";
-    recipient: string;
-    subject?: string;
-    body: string;
-    metadata?: Record<string, unknown>;
-  }): Promise<ProduceResult> {
+  async queueNotification(notification: NotificationMessage): Promise<ProduceResult> {
     const idempotencyKey = `notif-${notification.type}-${notification.recipient}-${Date.now()}`;
     return this.produce(KAFKA_TOPICS.NOTIFICATIONS_QUEUE, notification, {
       idempotencyKey,
@@ -373,9 +415,9 @@ export interface IKafkaClient {
   consume<T>(topic: KafkaTopic, options?: { groupId?: string; instanceId?: string; maxMessages?: number }): Promise<ConsumeResult<T>>;
   processMessages<T>(topic: KafkaTopic, handler: (message: KafkaMessage<T>) => Promise<void>, options?: { groupId?: string; instanceId?: string; maxMessages?: number }): Promise<{ processed: number; failed: number; errors: string[] }>;
   sendToDLQ<T>(originalMessage: KafkaMessage<T>, errorReason: string): Promise<ProduceResult>;
-  queueAgentExecution(jobData: { agentId: string; bountyId: string; code: string; testCases?: unknown[]; metadata?: Record<string, unknown> }): Promise<ProduceResult>;
-  queueAgentResult(resultData: { executionId: string; agentId: string; bountyId: string; success: boolean; output?: unknown; error?: string; executionTimeMs: number }): Promise<ProduceResult>;
-  queueNotification(notification: { type: "email" | "webhook" | "alert"; recipient: string; subject?: string; body: string; metadata?: Record<string, unknown> }): Promise<ProduceResult>;
+  queueAgentExecution(jobData: AgentExecutionMessage): Promise<ProduceResult>;
+  queueAgentResult(resultData: AgentResultMessage): Promise<ProduceResult>;
+  queueNotification(notification: NotificationMessage): Promise<ProduceResult>;
   healthCheck(): Promise<KafkaHealthStatus>;
   getConsumerLag(topic: KafkaTopic, groupId: string): Promise<number | null>;
 }
@@ -407,15 +449,15 @@ class NullKafkaClient implements IKafkaClient {
     return { success: false, topic: KAFKA_TOPICS.AGENT_EXECUTION_DLQ, error: "Kafka client not enabled" };
   }
 
-  async queueAgentExecution(_jobData: { agentId: string; bountyId: string; code: string; testCases?: unknown[]; metadata?: Record<string, unknown> }): Promise<ProduceResult> {
+  async queueAgentExecution(_jobData: AgentExecutionMessage): Promise<ProduceResult> {
     return { success: false, topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, error: "Kafka client not enabled" };
   }
 
-  async queueAgentResult(_resultData: { executionId: string; agentId: string; bountyId: string; success: boolean; output?: unknown; error?: string; executionTimeMs: number }): Promise<ProduceResult> {
+  async queueAgentResult(_resultData: AgentResultMessage): Promise<ProduceResult> {
     return { success: false, topic: KAFKA_TOPICS.AGENT_RESULTS_QUEUE, error: "Kafka client not enabled" };
   }
 
-  async queueNotification(_notification: { type: "email" | "webhook" | "alert"; recipient: string; subject?: string; body: string; metadata?: Record<string, unknown> }): Promise<ProduceResult> {
+  async queueNotification(_notification: NotificationMessage): Promise<ProduceResult> {
     return { success: false, topic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE, error: "Kafka client not enabled" };
   }
 
@@ -464,4 +506,10 @@ export type {
   ConsumeResult,
   KafkaHealthStatus,
   IKafkaClient,
+  // Message types for topics
+  AgentExecutionMessage,
+  AgentResultMessage,
+  NotificationMessage,
+  NotificationType,
+  DeadLetterMessage,
 };

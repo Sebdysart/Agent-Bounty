@@ -104,7 +104,10 @@ export const reviews = pgTable("reviews", {
   rating: integer("rating").notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("reviews_submission_id_idx").on(table.submissionId),
+  index("reviews_reviewer_id_idx").on(table.reviewerId),
+]);
 
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey(),
@@ -123,7 +126,10 @@ export const userProfiles = pgTable("user_profiles", {
   bountiesPostedThisMonth: integer("bounties_posted_this_month").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("user_profiles_subscription_tier_idx").on(table.subscriptionTier),
+  index("user_profiles_role_idx").on(table.role),
+]);
 
 export const bountyTimeline = pgTable("bounty_timeline", {
   id: serial("id").primaryKey(),
@@ -131,7 +137,9 @@ export const bountyTimeline = pgTable("bounty_timeline", {
   status: text("status").notNull(),
   description: text("description").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("bounty_timeline_bounty_id_idx").on(table.bountyId),
+]);
 
 export const agentUploads = pgTable("agent_uploads", {
   id: serial("id").primaryKey(),
@@ -181,7 +189,9 @@ export const agentVersions = pgTable("agent_versions", {
   manifestJson: text("manifest_json"),
   isActive: boolean("is_active").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("agent_versions_agent_upload_id_idx").on(table.agentUploadId),
+]);
 
 export const agentTools = pgTable("agent_tools", {
   id: serial("id").primaryKey(),
@@ -219,7 +229,10 @@ export const agentTests = pgTable("agent_tests", {
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("agent_tests_agent_upload_id_idx").on(table.agentUploadId),
+  index("agent_tests_status_idx").on(table.status),
+]);
 
 export const agentListings = pgTable("agent_listings", {
   id: serial("id").primaryKey(),
@@ -236,7 +249,10 @@ export const agentListings = pgTable("agent_listings", {
   verificationBadges: text("verification_badges").array().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("agent_listings_agent_upload_id_idx").on(table.agentUploadId),
+  index("agent_listings_is_featured_idx").on(table.isFeatured),
+]);
 
 export const agentReviews = pgTable("agent_reviews", {
   id: serial("id").primaryKey(),
@@ -248,7 +264,10 @@ export const agentReviews = pgTable("agent_reviews", {
   isVerifiedPurchase: boolean("is_verified_purchase").default(false),
   helpfulCount: integer("helpful_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("agent_reviews_agent_upload_id_idx").on(table.agentUploadId),
+  index("agent_reviews_reviewer_id_idx").on(table.reviewerId),
+]);
 
 export const agentBadges = pgTable("agent_badges", {
   id: serial("id").primaryKey(),
@@ -259,7 +278,10 @@ export const agentBadges = pgTable("agent_badges", {
   awardedBy: varchar("awarded_by"),
   reason: text("reason"),
   metadata: text("metadata"),
-});
+}, (table) => [
+  index("agent_badges_agent_upload_id_idx").on(table.agentUploadId),
+  index("agent_badges_badge_type_idx").on(table.badgeType),
+]);
 
 export const integrationConnectors = pgTable("integration_connectors", {
   id: serial("id").primaryKey(),
@@ -339,7 +361,11 @@ export const discussions = pgTable("discussions", {
   downvotes: integer("downvotes").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("discussions_agent_upload_id_idx").on(table.agentUploadId),
+  index("discussions_author_id_idx").on(table.authorId),
+  index("discussions_created_at_idx").on(table.createdAt),
+]);
 
 export const discussionReplies = pgTable("discussion_replies", {
   id: serial("id").primaryKey(),
@@ -352,7 +378,10 @@ export const discussionReplies = pgTable("discussion_replies", {
   isAcceptedAnswer: boolean("is_accepted_answer").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("discussion_replies_discussion_id_idx").on(table.discussionId),
+  index("discussion_replies_author_id_idx").on(table.authorId),
+]);
 
 export const votes = pgTable("votes", {
   id: serial("id").primaryKey(),
@@ -361,7 +390,10 @@ export const votes = pgTable("votes", {
   targetId: integer("target_id").notNull(),
   voteType: text("vote_type").notNull().$type<typeof voteTypes[number]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("votes_user_id_idx").on(table.userId),
+  index("votes_target_type_target_id_idx").on(table.targetType, table.targetId),
+]);
 
 export const securitySettings = pgTable("security_settings", {
   id: serial("id").primaryKey(),
@@ -454,7 +486,11 @@ export const outputVerifications = pgTable("output_verifications", {
   requiresManualReview: boolean("requires_manual_review").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
-});
+}, (table) => [
+  index("output_verifications_status_idx").on(table.status),
+  index("output_verifications_execution_id_idx").on(table.executionId),
+  index("output_verifications_reviewer_id_idx").on(table.reviewerId),
+]);
 
 // Dispute Resolution System
 export const disputes = pgTable("disputes", {
@@ -495,7 +531,9 @@ export const disputeMessages = pgTable("dispute_messages", {
   attachments: text("attachments").array().default([]),
   isInternal: boolean("is_internal").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("dispute_messages_dispute_id_idx").on(table.disputeId),
+]);
 
 // Support Ticket System
 export const supportTickets = pgTable("support_tickets", {
@@ -529,7 +567,10 @@ export const ticketMessages = pgTable("ticket_messages", {
   attachments: text("attachments").array().default([]),
   isInternal: boolean("is_internal").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("ticket_messages_ticket_id_idx").on(table.ticketId),
+  index("ticket_messages_sender_id_idx").on(table.senderId),
+]);
 
 // Admin/Moderation System
 export const moderationLog = pgTable("moderation_log", {
@@ -557,7 +598,10 @@ export const contentFlags = pgTable("content_flags", {
   reviewedAt: timestamp("reviewed_at"),
   resolution: text("resolution"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("content_flags_status_idx").on(table.status),
+  index("content_flags_reporter_id_idx").on(table.reporterId),
+]);
 
 // Quality Control Metrics
 export const qualityMetrics = pgTable("quality_metrics", {
@@ -589,7 +633,9 @@ export const refreshTokens = pgTable("refresh_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   revokedAt: timestamp("revoked_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("refresh_tokens_user_id_idx").on(table.userId),
+]);
 
 // Role-Based Access Control
 export const rolePermissions = pgTable("role_permissions", {
@@ -609,7 +655,9 @@ export const userRoleAssignments = pgTable("user_role_assignments", {
   grantedBy: varchar("granted_by"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("user_role_assignments_user_id_idx").on(table.userId),
+]);
 
 // GDPR/CCPA Consent Management
 export const consentCategories = ["analytics", "marketing", "ai_training", "third_party", "essential"] as const;

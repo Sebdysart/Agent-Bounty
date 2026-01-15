@@ -66,15 +66,15 @@
 - [ ] Write tests for neonDb.test.ts
 
 ## PHASE 6: Wasmtime Sandbox Upgrade
-- [ ] Research Wasmtime npm options (may need native bindings)
-- [ ] Create server/wasmtimeSandbox.ts implementation
+- [x] Research Wasmtime npm options (may need native bindings)
+- [x] Create server/wasmtimeSandbox.ts implementation
 - [x] Implement WASM module loading and caching
-- [ ] Add memory limits (configurable: 128MB-512MB)
-- [ ] Add CPU/fuel metering for time limits
-- [ ] Create warm pool manager (pre-initialized instances)
-- [ ] Wrap with feature flag (USE_WASMTIME_SANDBOX)
-- [ ] Fallback to QuickJS if Wasmtime unavailable
-- [ ] Write tests for wasmtimeSandbox.test.ts
+- [x] Add memory limits (configurable: 128MB-512MB)
+- [x] Add CPU/fuel metering for time limits
+- [x] Create warm pool manager (pre-initialized instances)
+- [x] Wrap with feature flag (USE_WASMTIME_SANDBOX)
+- [x] Fallback to QuickJS if Wasmtime unavailable
+- [x] Write tests for wasmtimeSandbox.test.ts
 - [ ] Benchmark QuickJS vs Wasmtime performance
 
 ## PHASE 7: Fly.io Deployment Config

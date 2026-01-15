@@ -4,6 +4,44 @@
  * A high-performance WebAssembly-based sandbox using the wasmtime runtime.
  * Provides secure code execution with configurable memory limits, CPU time limits,
  * and fuel metering for instruction counting.
+ *
+ * ## NPM Package Options Research (January 2025)
+ *
+ * ### Primary Option: @bytecodealliance/jco (RECOMMENDED)
+ * - Package: @bytecodealliance/jco@1.15.4
+ * - Maintained by: Bytecode Alliance (Wasmtime creators)
+ * - Features: WebAssembly Component Model support, WASI preview2
+ * - Use cases: `jco run` for WASI Commands, `jco serve` for HTTP Proxy components
+ * - Pros: Active development, official support, full WASI access
+ * - Cons: Requires Component Model format, larger dependency tree
+ *
+ * ### Alternative: wasmtime npm package
+ * - Package: wasmtime@0.0.2
+ * - Status: Experimental, last published 2023-05-02
+ * - Native bindings for: darwin-x64, linux-x64-gnu, linux-arm64-gnu, win32-x64-msvc
+ * - Pros: Direct Wasmtime bindings
+ * - Cons: Outdated (v0.0.2), limited maintenance, may have native module issues
+ *
+ * ### For JS-to-WASM compilation: Javy
+ * - Package: javy@0.1.2
+ * - Maintained by: Shopify (Bytecode Alliance contributor)
+ * - Purpose: Compile JavaScript to WebAssembly using QuickJS
+ * - Use case: Convert JS agent code to WASM for sandboxed execution
+ *
+ * ### Node.js Built-in WASI
+ * - Module: node:wasi (experimental)
+ * - Docs: https://nodejs.org/api/wasi.html
+ * - Pros: No external dependencies, built into Node.js
+ * - Cons: Experimental, limited compared to full Wasmtime
+ *
+ * ### Alternative Runtimes
+ * - @wasmer/wasi@1.2.2: Wasmer's WASI implementation
+ * - workerd: Cloudflare's JS/Wasm runtime (used in Workers)
+ *
+ * ### Implementation Recommendation
+ * For production: Use @bytecodealliance/jco with Javy for JS compilation
+ * For serverless: Consider Node.js built-in WASI or fallback to QuickJS
+ * Current implementation: Simulated execution with QuickJS fallback
  */
 
 import type { SandboxConfig, SandboxResult } from './sandboxRunner';

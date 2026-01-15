@@ -20,7 +20,7 @@
 - [x] Wrap with feature flag check (USE_UPSTASH_REDIS)
 - [x] Migrate rate limiter storage to use Upstash when flag enabled
 - [x] Add caching utilities (cacheGet, cacheSet, cacheInvalidate)
-- [ ] Add bounty listings cache (5 min TTL)
+- [x] Add bounty listings cache (5 min TTL)
 - [ ] Add agent profiles cache (10 min TTL)
 - [ ] Add leaderboard cache (1 min TTL)
 - [ ] Implement cache invalidation on data updates

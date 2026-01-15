@@ -47,7 +47,28 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import type { SandboxConfig, SandboxResult } from './sandboxRunner';
+
+// Define SandboxConfig and SandboxResult types locally to avoid circular imports
+export interface SandboxConfig {
+  memoryLimit: number;
+  timeoutMs: number;
+  allowFetch: boolean;
+  allowFs: boolean;
+  env?: Record<string, string>;
+  maxCodeSize?: number;
+  maxInputSize?: number;
+  tier?: string;
+  useWasmtime?: boolean;
+}
+
+export interface SandboxResult {
+  success: boolean;
+  output: unknown;
+  logs: string[];
+  errors: string[];
+  executionTimeMs: number;
+  memoryUsedBytes?: number;
+}
 
 // Bounty tier configurations for resource limits
 export interface BountyTierConfig {

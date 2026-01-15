@@ -1,7 +1,13 @@
 import variant from '@jitl/quickjs-ng-wasmfile-release-sync';
 import { type SandboxOptions, loadQuickJs } from '@sebastianwessel/quickjs';
 import OpenAI from "openai";
-import { WasmtimeSandbox, type WasmtimeSandboxConfig, BOUNTY_TIERS } from './wasmtimeSandbox';
+import {
+  WasmtimeSandbox,
+  BOUNTY_TIERS,
+  type WasmtimeSandboxConfig,
+  type SandboxConfig,
+  type SandboxResult,
+} from './wasmtimeSandbox';
 
 const MAX_CODE_SIZE = 512 * 1024;
 
@@ -18,26 +24,8 @@ function getOpenAIClient(): OpenAI | null {
 }
 const MAX_INPUT_SIZE = 1024 * 1024;
 
-export interface SandboxConfig {
-  memoryLimit: number;
-  timeoutMs: number;
-  allowFetch: boolean;
-  allowFs: boolean;
-  env?: Record<string, string>;
-  maxCodeSize?: number;
-  maxInputSize?: number;
-  tier?: string;  // Bounty tier for Wasmtime backend
-  useWasmtime?: boolean;  // Override feature flag per-instance
-}
-
-export interface SandboxResult {
-  success: boolean;
-  output: any;
-  logs: string[];
-  errors: string[];
-  executionTimeMs: number;
-  memoryUsedBytes?: number;
-}
+// Re-export types from wasmtimeSandbox
+export type { SandboxConfig, SandboxResult };
 
 const DEFAULT_CONFIG: SandboxConfig = {
   memoryLimit: 128 * 1024 * 1024,

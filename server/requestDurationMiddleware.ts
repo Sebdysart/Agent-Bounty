@@ -6,6 +6,8 @@ interface RequestMetrics {
   minDurationMs: number;
   maxDurationMs: number;
   buckets: Map<number, number>; // histogram buckets
+  errorCount: number; // 4xx and 5xx responses
+  statusCodes: Map<number, number>; // count per status code
 }
 
 interface EndpointKey {
@@ -39,6 +41,8 @@ function initMetrics(): RequestMetrics {
     minDurationMs: Infinity,
     maxDurationMs: 0,
     buckets,
+    errorCount: 0,
+    statusCodes: new Map<number, number>(),
   };
 }
 
@@ -64,6 +68,22 @@ function recordDuration(key: string, durationMs: number): void {
   metrics.buckets.set(Infinity, (metrics.buckets.get(Infinity) || 0) + 1);
 }
 
+function recordStatusCode(key: string, statusCode: number): void {
+  let metrics = endpointMetrics.get(key);
+  if (!metrics) {
+    metrics = initMetrics();
+    endpointMetrics.set(key, metrics);
+  }
+
+  // Track status code count
+  metrics.statusCodes.set(statusCode, (metrics.statusCodes.get(statusCode) || 0) + 1);
+
+  // Track error count (4xx and 5xx)
+  if (statusCode >= 400) {
+    metrics.errorCount++;
+  }
+}
+
 /**
  * Middleware to track request duration metrics
  */
@@ -82,6 +102,7 @@ export function requestDurationMiddleware(req: Request, res: Response, next: Nex
 
     const key = getEndpointKey(req.method, req.path);
     recordDuration(key, durationMs);
+    recordStatusCode(key, res.statusCode);
   });
 
   next();
@@ -151,6 +172,36 @@ export function getRequestDurationMetrics(): string {
     lines.push(`agentbounty_http_request_duration_avg_ms{method="${method}",path="${path}"} ${avg.toFixed(3)}`);
   }
 
+  // Error count per endpoint
+  lines.push("");
+  lines.push("# HELP agentbounty_http_errors_total Total number of HTTP errors (4xx and 5xx)");
+  lines.push("# TYPE agentbounty_http_errors_total counter");
+  for (const [key, metrics] of endpointMetrics) {
+    const [method, path] = key.split(":");
+    lines.push(`agentbounty_http_errors_total{method="${method}",path="${path}"} ${metrics.errorCount}`);
+  }
+
+  // Error rate per endpoint (percentage)
+  lines.push("");
+  lines.push("# HELP agentbounty_http_error_rate Error rate as percentage (0-100)");
+  lines.push("# TYPE agentbounty_http_error_rate gauge");
+  for (const [key, metrics] of endpointMetrics) {
+    const [method, path] = key.split(":");
+    const errorRate = metrics.count > 0 ? (metrics.errorCount / metrics.count) * 100 : 0;
+    lines.push(`agentbounty_http_error_rate{method="${method}",path="${path}"} ${errorRate.toFixed(2)}`);
+  }
+
+  // HTTP status code breakdown
+  lines.push("");
+  lines.push("# HELP agentbounty_http_responses_total Total HTTP responses by status code");
+  lines.push("# TYPE agentbounty_http_responses_total counter");
+  for (const [key, metrics] of endpointMetrics) {
+    const [method, path] = key.split(":");
+    for (const [statusCode, count] of metrics.statusCodes) {
+      lines.push(`agentbounty_http_responses_total{method="${method}",path="${path}",status="${statusCode}"} ${count}`);
+    }
+  }
+
   return lines.join("\n");
 }
 
@@ -174,4 +225,34 @@ export function resetMetrics(): void {
 export function getEndpointMetrics(method: string, path: string): RequestMetrics | undefined {
   const key = getEndpointKey(method, path);
   return endpointMetrics.get(key);
+}
+
+/**
+ * Get error rate for a specific endpoint (percentage 0-100)
+ */
+export function getEndpointErrorRate(method: string, path: string): number {
+  const metrics = getEndpointMetrics(method, path);
+  if (!metrics || metrics.count === 0) {
+    return 0;
+  }
+  return (metrics.errorCount / metrics.count) * 100;
+}
+
+/**
+ * Get all endpoints with their error rates
+ */
+export function getAllErrorRates(): Array<{ method: string; path: string; errorRate: number; errorCount: number; totalCount: number }> {
+  const results: Array<{ method: string; path: string; errorRate: number; errorCount: number; totalCount: number }> = [];
+  for (const [key, metrics] of endpointMetrics) {
+    const [method, path] = key.split(":");
+    const errorRate = metrics.count > 0 ? (metrics.errorCount / metrics.count) * 100 : 0;
+    results.push({
+      method,
+      path,
+      errorRate,
+      errorCount: metrics.errorCount,
+      totalCount: metrics.count,
+    });
+  }
+  return results.sort((a, b) => b.errorRate - a.errorRate);
 }

@@ -54,12 +54,12 @@
 - [x] Add R2 connectivity check to /api/health
 
 ## PHASE 5: Neon PostgreSQL Optimization
-- [ ] Install @neondatabase/serverless driver
-- [ ] Create server/neonDb.ts wrapper for serverless usage
-- [ ] Configure connection pooling (max 20 connections)
-- [ ] Implement query timeout wrapper (30s default)
-- [ ] Add connection retry logic with exponential backoff
-- [ ] Create database health check with latency measurement
+- [x] Install @neondatabase/serverless driver
+- [x] Create server/neonDb.ts wrapper for serverless usage
+- [x] Configure connection pooling (max 20 connections)
+- [x] Implement query timeout wrapper (30s default)
+- [x] Add connection retry logic with exponential backoff
+- [x] Create database health check with latency measurement
 - [ ] Add missing indexes for common query filters
 - [ ] Implement cursor-based pagination for large results
 - [ ] Integrate query caching with Upstash Redis

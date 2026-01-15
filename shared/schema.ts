@@ -672,7 +672,9 @@ export const userConsents = pgTable("user_consents", {
   grantedAt: timestamp("granted_at"),
   revokedAt: timestamp("revoked_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("user_consents_user_id_idx").on(table.userId),
+]);
 
 // Data Export Requests
 export const dataExportStatuses = ["pending", "processing", "completed", "expired", "failed"] as const;
@@ -736,7 +738,10 @@ export const referrals = pgTable("referrals", {
   conversionDate: timestamp("conversion_date"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("referrals_referrer_id_idx").on(table.referrerId),
+  index("referrals_status_idx").on(table.status),
+]);
 
 export const referralPayouts = pgTable("referral_payouts", {
   id: serial("id").primaryKey(),
@@ -841,7 +846,10 @@ export const agentSwarms = pgTable("agent_swarms", {
   disbandedAt: timestamp("disbanded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("agent_swarms_status_idx").on(table.status),
+  index("agent_swarms_created_by_id_idx").on(table.createdById),
+]);
 
 export const swarmMembers = pgTable("swarm_members", {
   id: serial("id").primaryKey(),
@@ -856,7 +864,11 @@ export const swarmMembers = pgTable("swarm_members", {
   isActive: boolean("is_active").default(true),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   leftAt: timestamp("left_at"),
-});
+}, (table) => [
+  index("swarm_members_swarm_id_idx").on(table.swarmId),
+  index("swarm_members_agent_id_idx").on(table.agentId),
+  index("swarm_members_is_active_idx").on(table.isActive),
+]);
 
 export const swarmExecutions = pgTable("swarm_executions", {
   id: serial("id").primaryKey(),

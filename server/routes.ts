@@ -42,6 +42,7 @@ import {
 } from "./errorResponse";
 import { setupSwagger } from "./openapi";
 import { agentCodeService } from "./agentCodeService";
+import { featureFlags } from "./featureFlags";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 
@@ -2718,6 +2719,17 @@ ${agentOutput}`
     } catch (error) {
       console.error("Error fetching content flags:", error);
       sendInternalError(res, "Failed to fetch flags");
+    }
+  });
+
+  // Feature flags endpoint - returns current feature flag states
+  app.get("/api/admin/feature-flags", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const flags = featureFlags.getAllFlags();
+      res.json(flags);
+    } catch (error) {
+      console.error("Error fetching feature flags:", error);
+      sendInternalError(res, "Failed to fetch feature flags");
     }
   });
 

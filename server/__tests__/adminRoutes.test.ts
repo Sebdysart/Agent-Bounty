@@ -86,6 +86,13 @@ describe('Admin Routes Security', () => {
       res.json([]);
     });
 
+    app.get('/api/admin/feature-flags', isAuthenticated, localRequireAdmin, async (req: any, res) => {
+      res.json({
+        USE_WASMTIME_SANDBOX: { enabled: false, rolloutPercentage: 0, description: 'Use Wasmtime for agent sandbox execution', overrideCount: 0 },
+        USE_UPSTASH_REDIS: { enabled: false, rolloutPercentage: 0, description: 'Use Upstash Redis for caching and rate limiting', overrideCount: 0 }
+      });
+    });
+
     app.post('/api/admin/agents/:id/approve', isAuthenticated, localRequireAdmin, async (req: any, res) => {
       res.json({ id: req.params.id, status: 'approved' });
     });
@@ -201,6 +208,43 @@ describe('Admin Routes Security', () => {
 
       const response = await request(testApp).get('/api/admin/flags');
       expect(response.status).toBe(200);
+    });
+  });
+
+  describe('GET /api/admin/feature-flags', () => {
+    it('should reject non-admin users with 403', async () => {
+      const testApp = express();
+      testApp.use(express.json());
+      testApp.use((req: any, res, next) => {
+        req.user = { id: 'user-1', isAdmin: false };
+        next();
+      });
+      testApp.get('/api/admin/feature-flags', isAuthenticated, localRequireAdmin, (req, res) => {
+        res.json({});
+      });
+
+      const response = await request(testApp).get('/api/admin/feature-flags');
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow admin users and return feature flags', async () => {
+      const testApp = express();
+      testApp.use(express.json());
+      testApp.use((req: any, res, next) => {
+        req.user = { id: 'admin-1', isAdmin: true };
+        next();
+      });
+      testApp.get('/api/admin/feature-flags', isAuthenticated, localRequireAdmin, (req, res) => {
+        res.json({
+          USE_WASMTIME_SANDBOX: { enabled: false, rolloutPercentage: 0, description: 'Use Wasmtime', overrideCount: 0 },
+          USE_UPSTASH_REDIS: { enabled: false, rolloutPercentage: 0, description: 'Use Redis', overrideCount: 0 }
+        });
+      });
+
+      const response = await request(testApp).get('/api/admin/feature-flags');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('USE_WASMTIME_SANDBOX');
+      expect(response.body).toHaveProperty('USE_UPSTASH_REDIS');
     });
   });
 
@@ -467,6 +511,7 @@ describe('Production Admin Routes Verification', () => {
       { method: 'GET', path: '/api/admin/stats', hasRequireAdmin: true },
       { method: 'GET', path: '/api/admin/agents/pending', hasRequireAdmin: true },
       { method: 'GET', path: '/api/admin/flags', hasRequireAdmin: true },
+      { method: 'GET', path: '/api/admin/feature-flags', hasRequireAdmin: true },
       { method: 'POST', path: '/api/admin/agents/:id/approve', hasRequireAdmin: true },
       { method: 'POST', path: '/api/admin/agents/:id/reject', hasRequireAdmin: true },
       { method: 'GET', path: '/api/cache/stats', hasRequireAdmin: true },
@@ -486,6 +531,6 @@ describe('Production Admin Routes Verification', () => {
     });
 
     // Verify count matches expected
-    expect(adminRoutes.length).toBe(14);
+    expect(adminRoutes.length).toBe(15);
   });
 });

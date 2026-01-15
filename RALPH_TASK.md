@@ -7,7 +7,7 @@
 - [x] Add flags: USE_WASMTIME_SANDBOX, USE_UPSTASH_REDIS, USE_UPSTASH_KAFKA, USE_R2_STORAGE
 - [ ] Implement percentage-based rollout (0-100%)
 - [ ] Add user-based overrides for testing
-- [ ] Create GET /api/admin/flags to view current flags
+- [x] Create GET /api/admin/flags to view current flags
 - [ ] Create POST /api/admin/flags to toggle flags (admin only)
 - [ ] Log flag evaluations for debugging
 - [ ] Write tests for featureFlags.test.ts

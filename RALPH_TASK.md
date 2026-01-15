@@ -31,7 +31,7 @@
 - [x] Install @upstash/kafka package
 - [x] Create server/upstashKafka.ts producer/consumer wrapper
 - [x] Define message types for topics (execution, results, notifications)
-- [ ] Create KafkaProducer class with retry logic
+- [x] Create KafkaProducer class with retry logic
 - [ ] Create KafkaConsumer class with batch processing
 - [ ] Implement dead-letter queue handler
 - [ ] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)

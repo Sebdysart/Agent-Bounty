@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   UpstashKafkaClient,
   NullKafkaClient,
+  KafkaProducer,
   KAFKA_TOPICS,
   getKafkaClient,
   type KafkaMessage,
@@ -742,5 +743,308 @@ describe("getKafkaClient with feature flags", () => {
     expect(defaultClient.isAvailable()).toBe(false);
     // User override should return the real client (though it may not be configured)
     expect(userClient).toBeDefined();
+  });
+});
+
+describe("KafkaProducer", () => {
+  let producer: KafkaProducer;
+  let mockProducer: { produce: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+
+    // Create producer with mock config
+    producer = new KafkaProducer({
+      url: "https://mock-kafka.upstash.io",
+      username: "mock-username",
+      password: "mock-password",
+    });
+
+    // Access internal producer
+    const internalProducer = producer as unknown as {
+      producer: typeof mockProducer;
+    };
+    mockProducer = internalProducer.producer;
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  describe("isReady", () => {
+    it("should return true when configured", () => {
+      expect(producer.isReady()).toBe(true);
+    });
+
+    it("should return false when not configured", () => {
+      const unconfiguredProducer = new KafkaProducer({});
+      expect(unconfiguredProducer.isReady()).toBe(false);
+    });
+  });
+
+  describe("getRetryConfig", () => {
+    it("should return default retry configuration", () => {
+      const config = producer.getRetryConfig();
+      expect(config.maxRetries).toBe(5);
+      expect(config.retryDelays).toEqual([1000, 2000, 4000, 8000, 16000]);
+    });
+
+    it("should return custom retry configuration", () => {
+      const customProducer = new KafkaProducer({
+        url: "https://mock-kafka.upstash.io",
+        username: "mock-username",
+        password: "mock-password",
+        maxRetries: 3,
+        retryDelays: [500, 1000, 2000],
+      });
+      const config = customProducer.getRetryConfig();
+      expect(config.maxRetries).toBe(3);
+      expect(config.retryDelays).toEqual([500, 1000, 2000]);
+    });
+  });
+
+  describe("produce", () => {
+    it("should produce a message successfully", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const result = await producer.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, {
+        test: "data",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.topic).toBe(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+      expect(result.partition).toBe(0);
+      expect(result.offset).toBe("123");
+      expect(mockProducer.produce).toHaveBeenCalledTimes(1);
+    });
+
+    it("should include idempotency key in message", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      await producer.produce(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        { test: "data" },
+        { idempotencyKey: "unique-key-123" }
+      );
+
+      const producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.idempotencyKey).toBe("unique-key-123");
+    });
+
+    it("should pass key and partition options", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 2, offset: "456" });
+
+      await producer.produce(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        { test: "data" },
+        { key: "my-key", partition: 2 }
+      );
+
+      expect(mockProducer.produce).toHaveBeenCalledWith(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        expect.any(String),
+        expect.objectContaining({ key: "my-key", partition: 2 })
+      );
+    });
+
+    it("should pass headers when provided", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      await producer.produce(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        { test: "data" },
+        { headers: { "x-correlation-id": "abc123", "x-source": "test" } }
+      );
+
+      expect(mockProducer.produce).toHaveBeenCalledWith(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        expect.any(String),
+        expect.objectContaining({
+          headers: [
+            { key: "x-correlation-id", value: "abc123" },
+            { key: "x-source", value: "test" },
+          ],
+        })
+      );
+    });
+
+    it("should retry on failure with exponential backoff", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockProducer.produce
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockResolvedValueOnce({ partition: 0, offset: "123" });
+
+      const resultPromise = producer.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, {
+        test: "data",
+      });
+
+      // Fast-forward through retry delays
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      await vi.advanceTimersByTimeAsync(2000); // Second retry delay
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(mockProducer.produce).toHaveBeenCalledTimes(3);
+      consoleSpy.mockRestore();
+    });
+
+    it("should return error after max retries exceeded", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockProducer.produce.mockRejectedValue(new Error("Persistent error"));
+
+      const resultPromise = producer.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, {
+        test: "data",
+      });
+
+      // Fast-forward through all retry delays
+      for (let i = 0; i < 5; i++) {
+        await vi.advanceTimersByTimeAsync(20000);
+      }
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Persistent error");
+      expect(mockProducer.produce).toHaveBeenCalledTimes(5);
+      consoleSpy.mockRestore();
+    });
+
+    it("should respect custom maxRetries", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const customProducer = new KafkaProducer({
+        url: "https://mock-kafka.upstash.io",
+        username: "mock-username",
+        password: "mock-password",
+        maxRetries: 2,
+        retryDelays: [100, 200],
+      });
+      const internalProducer = customProducer as unknown as {
+        producer: typeof mockProducer;
+      };
+      mockProducer = internalProducer.producer;
+      mockProducer.produce.mockRejectedValue(new Error("Persistent error"));
+
+      const resultPromise = customProducer.produce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, {
+        test: "data",
+      });
+
+      await vi.advanceTimersByTimeAsync(500);
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(mockProducer.produce).toHaveBeenCalledTimes(2);
+      consoleSpy.mockRestore();
+    });
+
+    it("should return error when producer not configured", async () => {
+      const unconfiguredProducer = new KafkaProducer({});
+
+      const result = await unconfiguredProducer.produce(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        { test: "data" }
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Kafka producer not configured");
+    });
+  });
+
+  describe("produceBatch", () => {
+    it("should produce multiple messages", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const results = await producer.produceBatch([
+        { topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { job: 1 } },
+        { topic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE, data: { notif: 1 } },
+      ]);
+
+      expect(results).toHaveLength(2);
+      expect(results[0].success).toBe(true);
+      expect(results[1].success).toBe(true);
+    });
+
+    it("should pass options to each message", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      await producer.produceBatch([
+        {
+          topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+          data: { job: 1 },
+          options: { idempotencyKey: "key-1" },
+        },
+        {
+          topic: KAFKA_TOPICS.NOTIFICATIONS_QUEUE,
+          data: { notif: 1 },
+          options: { idempotencyKey: "key-2" },
+        },
+      ]);
+
+      const msg1 = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      const msg2 = JSON.parse(mockProducer.produce.mock.calls[1][1]);
+      expect(msg1.idempotencyKey).toBe("key-1");
+      expect(msg2.idempotencyKey).toBe("key-2");
+    });
+  });
+
+  describe("produceOnce", () => {
+    it("should produce a message without retries", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const result = await producer.produceOnce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, {
+        test: "data",
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockProducer.produce).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return error immediately on failure without retries", async () => {
+      mockProducer.produce.mockRejectedValue(new Error("Network error"));
+
+      const result = await producer.produceOnce(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, {
+        test: "data",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Network error");
+      expect(mockProducer.produce).toHaveBeenCalledTimes(1);
+    });
+
+    it("should return error when producer not configured", async () => {
+      const unconfiguredProducer = new KafkaProducer({});
+
+      const result = await unconfiguredProducer.produceOnce(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        { test: "data" }
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Kafka producer not configured");
+    });
+
+    it("should include idempotency key and headers", async () => {
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      await producer.produceOnce(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        { test: "data" },
+        { idempotencyKey: "once-key", headers: { "x-test": "value" } }
+      );
+
+      const producedMessage = JSON.parse(mockProducer.produce.mock.calls[0][1]);
+      expect(producedMessage.idempotencyKey).toBe("once-key");
+      expect(mockProducer.produce).toHaveBeenCalledWith(
+        KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+        expect.any(String),
+        expect.objectContaining({
+          headers: [{ key: "x-test", value: "value" }],
+        })
+      );
+    });
   });
 });

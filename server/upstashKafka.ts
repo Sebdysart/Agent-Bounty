@@ -111,6 +111,209 @@ interface KafkaHealthStatus {
 const RETRY_DELAYS = [1000, 2000, 4000, 8000, 16000]; // Exponential backoff: 1s, 2s, 4s, 8s, 16s
 const MAX_RETRIES = 5;
 
+// ============================================================================
+// KafkaProducer Class with Retry Logic
+// ============================================================================
+
+export interface KafkaProducerConfig {
+  url?: string;
+  username?: string;
+  password?: string;
+  maxRetries?: number;
+  retryDelays?: number[];
+}
+
+export interface ProduceOptions {
+  idempotencyKey?: string;
+  key?: string;
+  partition?: number;
+  headers?: Record<string, string>;
+}
+
+/**
+ * Dedicated KafkaProducer class with configurable retry logic.
+ * Provides exponential backoff (1s, 2s, 4s, 8s, max 5 retries by default).
+ */
+export class KafkaProducer {
+  private kafka: Kafka | null = null;
+  private producer: Producer | null = null;
+  private isConfigured = false;
+  private maxRetries: number;
+  private retryDelays: number[];
+
+  constructor(config?: KafkaProducerConfig) {
+    const url = config?.url || process.env.UPSTASH_KAFKA_REST_URL;
+    const username = config?.username || process.env.UPSTASH_KAFKA_REST_USERNAME;
+    const password = config?.password || process.env.UPSTASH_KAFKA_REST_PASSWORD;
+
+    this.maxRetries = config?.maxRetries ?? MAX_RETRIES;
+    this.retryDelays = config?.retryDelays ?? RETRY_DELAYS;
+
+    if (url && username && password) {
+      this.kafka = new Kafka({ url, username, password });
+      this.producer = this.kafka.producer();
+      this.isConfigured = true;
+    }
+  }
+
+  /**
+   * Check if the producer is configured and ready
+   */
+  isReady(): boolean {
+    return this.isConfigured && this.producer !== null;
+  }
+
+  /**
+   * Sleep for a specified duration (for retry backoff)
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Get the delay for a given retry attempt using exponential backoff
+   */
+  private getRetryDelay(attempt: number): number {
+    return this.retryDelays[Math.min(attempt, this.retryDelays.length - 1)];
+  }
+
+  /**
+   * Generate a unique message ID
+   */
+  private generateMessageId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  }
+
+  /**
+   * Produce a message to a topic with retry logic.
+   * Uses exponential backoff: 1s, 2s, 4s, 8s (max 5 retries by default).
+   */
+  async produce<T>(
+    topic: KafkaTopic,
+    data: T,
+    options?: ProduceOptions
+  ): Promise<ProduceResult> {
+    if (!this.producer) {
+      return {
+        success: false,
+        topic,
+        error: "Kafka producer not configured",
+      };
+    }
+
+    const message: KafkaMessage<T> = {
+      id: this.generateMessageId(),
+      topic,
+      data,
+      timestamp: Date.now(),
+      idempotencyKey: options?.idempotencyKey,
+    };
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      try {
+        const result = await this.producer.produce(topic, JSON.stringify(message), {
+          key: options?.key,
+          partition: options?.partition,
+          headers: options?.headers ? Object.entries(options.headers).map(([k, v]) => ({ key: k, value: v })) : undefined,
+        });
+        return {
+          success: true,
+          topic,
+          partition: result.partition,
+          offset: result.offset?.toString(),
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(
+          `KafkaProducer: produce error (attempt ${attempt + 1}/${this.maxRetries}):`,
+          lastError.message
+        );
+
+        if (attempt < this.maxRetries - 1) {
+          const delay = this.getRetryDelay(attempt);
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    return {
+      success: false,
+      topic,
+      error: lastError?.message || "Unknown error after max retries",
+    };
+  }
+
+  /**
+   * Produce multiple messages in batch with retry logic per message
+   */
+  async produceBatch<T>(
+    messages: Array<{ topic: KafkaTopic; data: T; options?: ProduceOptions }>
+  ): Promise<ProduceResult[]> {
+    return Promise.all(
+      messages.map((msg) => this.produce(msg.topic, msg.data, msg.options))
+    );
+  }
+
+  /**
+   * Produce with a single retry attempt (no retries).
+   * Useful when caller wants to handle retry logic externally.
+   */
+  async produceOnce<T>(
+    topic: KafkaTopic,
+    data: T,
+    options?: ProduceOptions
+  ): Promise<ProduceResult> {
+    if (!this.producer) {
+      return {
+        success: false,
+        topic,
+        error: "Kafka producer not configured",
+      };
+    }
+
+    const message: KafkaMessage<T> = {
+      id: this.generateMessageId(),
+      topic,
+      data,
+      timestamp: Date.now(),
+      idempotencyKey: options?.idempotencyKey,
+    };
+
+    try {
+      const result = await this.producer.produce(topic, JSON.stringify(message), {
+        key: options?.key,
+        partition: options?.partition,
+        headers: options?.headers ? Object.entries(options.headers).map(([k, v]) => ({ key: k, value: v })) : undefined,
+      });
+      return {
+        success: true,
+        topic,
+        partition: result.partition,
+        offset: result.offset?.toString(),
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        topic,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Get the current retry configuration
+   */
+  getRetryConfig(): { maxRetries: number; retryDelays: number[] } {
+    return {
+      maxRetries: this.maxRetries,
+      retryDelays: [...this.retryDelays],
+    };
+  }
+}
+
 /**
  * Upstash Kafka client wrapper for serverless-friendly message queuing.
  * Implements producer/consumer with retry logic and dead-letter queue handling.
@@ -498,7 +701,7 @@ export const upstashKafka: IKafkaClient = new Proxy({} as IKafkaClient, {
 });
 
 // Export class for testing/custom instances
-export { UpstashKafkaClient, NullKafkaClient };
+export { UpstashKafkaClient, NullKafkaClient, KafkaProducer };
 export type {
   UpstashKafkaConfig,
   KafkaMessage,
@@ -506,6 +709,8 @@ export type {
   ConsumeResult,
   KafkaHealthStatus,
   IKafkaClient,
+  KafkaProducerConfig,
+  ProduceOptions,
   // Message types for topics
   AgentExecutionMessage,
   AgentResultMessage,

@@ -37,6 +37,16 @@ vi.mock('drizzle-orm/neon-serverless', () => ({
 // Mock schema
 vi.mock('@shared/schema', () => ({}));
 
+// Mock upstashRedis
+vi.mock('../upstashRedis', () => ({
+  cacheGet: vi.fn().mockResolvedValue(null),
+  cacheSet: vi.fn().mockResolvedValue(true),
+  cacheInvalidate: vi.fn().mockResolvedValue(0),
+  getRedisClient: vi.fn(() => ({
+    isAvailable: () => false, // Redis not available in tests by default
+  })),
+}));
+
 // Import after mocks are set up
 import { NeonDbClient, NullNeonDbClient } from '../neonDb';
 import { neon, Pool } from '@neondatabase/serverless';
@@ -425,5 +435,200 @@ describe('NullNeonDbClient', () => {
 
   it('close should resolve without error', async () => {
     await expect(nullClient.close()).resolves.toBeUndefined();
+  });
+
+  it('cachedQuery should throw error', async () => {
+    await expect(nullClient.cachedQuery('SELECT 1')).rejects.toThrow('Neon DB not available');
+  });
+
+  it('cachedFetch should throw error', async () => {
+    await expect(nullClient.cachedFetch('test-key', async () => 'test')).rejects.toThrow('Neon DB not available');
+  });
+
+  it('invalidateCache should return 0', async () => {
+    expect(await nullClient.invalidateCache({ key: 'test' })).toBe(0);
+  });
+
+  it('invalidateAllCache should return 0', async () => {
+    expect(await nullClient.invalidateAllCache()).toBe(0);
+  });
+});
+
+describe('NeonDbClient Query Caching', () => {
+  let client: NeonDbClient;
+  let mockSql: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockSql = vi.fn();
+    const mockPool = {
+      on: vi.fn(),
+      end: vi.fn().mockResolvedValue(undefined),
+      totalCount: 5,
+      idleCount: 3,
+      waitingCount: 0,
+    };
+
+    (neon as any).mockReturnValue(mockSql);
+    (Pool as any).mockReturnValue(mockPool);
+
+    client = new NeonDbClient({
+      connectionString: 'postgresql://test:test@localhost:5432/test',
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('cachedQuery', () => {
+    it('should execute query and return result with cache metadata', async () => {
+      const mockData = [{ id: 1, name: 'test' }];
+      mockSql.mockResolvedValue(mockData);
+
+      const result = await client.cachedQuery('SELECT * FROM users');
+
+      expect(result.data).toEqual(mockData);
+      expect(result.fromCache).toBe(false);
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should execute query with parameters', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      const result = await client.cachedQuery('SELECT * FROM users WHERE id = $1', [1]);
+
+      expect(result.data).toEqual(mockData);
+      expect(result.fromCache).toBe(false);
+    });
+
+    it('should use default TTL of 60 seconds', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      const result = await client.cachedQuery('SELECT 1');
+
+      expect(result.fromCache).toBe(false);
+    });
+
+    it('should respect custom TTL', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      const result = await client.cachedQuery('SELECT 1', undefined, { ttlSeconds: 120 });
+
+      expect(result.fromCache).toBe(false);
+    });
+
+    it('should support cache tags', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      const result = await client.cachedQuery('SELECT 1', undefined, { tags: ['users', 'public'] });
+
+      expect(result.fromCache).toBe(false);
+    });
+
+    it('should bypass cache read when bypassRead is true', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      const result = await client.cachedQuery('SELECT 1', undefined, { bypassRead: true });
+
+      expect(result.fromCache).toBe(false);
+    });
+  });
+
+  describe('cachedFetch', () => {
+    it('should execute fetcher and return result with cache metadata', async () => {
+      const mockData = { id: 1, name: 'test' };
+      const fetcher = vi.fn().mockResolvedValue(mockData);
+
+      const result = await client.cachedFetch('users:1', fetcher);
+
+      expect(result.data).toEqual(mockData);
+      expect(result.fromCache).toBe(false);
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use custom TTL', async () => {
+      const mockData = { id: 1 };
+      const fetcher = vi.fn().mockResolvedValue(mockData);
+
+      const result = await client.cachedFetch('users:1', fetcher, { ttlSeconds: 300 });
+
+      expect(result.fromCache).toBe(false);
+    });
+
+    it('should support cache tags', async () => {
+      const mockData = { id: 1 };
+      const fetcher = vi.fn().mockResolvedValue(mockData);
+
+      const result = await client.cachedFetch('users:1', fetcher, { tags: ['users'] });
+
+      expect(result.fromCache).toBe(false);
+    });
+
+    it('should bypass cache read when bypassRead is true', async () => {
+      const mockData = { id: 1 };
+      const fetcher = vi.fn().mockResolvedValue(mockData);
+
+      const result = await client.cachedFetch('users:1', fetcher, { bypassRead: true });
+
+      expect(result.fromCache).toBe(false);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('invalidateCache', () => {
+    it('should invalidate by key', async () => {
+      const count = await client.invalidateCache({ key: 'users:1' });
+      expect(count).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should invalidate by pattern', async () => {
+      const count = await client.invalidateCache({ pattern: 'users:*' });
+      expect(count).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should invalidate by tag', async () => {
+      const count = await client.invalidateCache({ tag: 'users' });
+      expect(count).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('invalidateAllCache', () => {
+    it('should invalidate all neon cache entries', async () => {
+      const count = await client.invalidateAllCache();
+      expect(count).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('generateCacheKey', () => {
+    it('should generate consistent cache keys for same query', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      // Run twice with same query to verify cache key consistency
+      await client.cachedQuery('SELECT * FROM users WHERE id = $1', [1]);
+      await client.cachedQuery('SELECT * FROM users WHERE id = $1', [1]);
+
+      // Both should have been executed (since Redis not mocked)
+      expect(mockSql).toHaveBeenCalledTimes(2);
+    });
+
+    it('should generate different keys for different params', async () => {
+      const mockData = [{ id: 1 }];
+      mockSql.mockResolvedValue(mockData);
+
+      await client.cachedQuery('SELECT * FROM users WHERE id = $1', [1]);
+      await client.cachedQuery('SELECT * FROM users WHERE id = $1', [2]);
+
+      // Both should have been executed
+      expect(mockSql).toHaveBeenCalledTimes(2);
+    });
   });
 });

@@ -1365,5 +1365,623 @@ export class DeadLetterQueueHandler {
   }
 }
 
+// ============================================================================
+// PgBoss-Compatible Adapter
+// ============================================================================
+
+/**
+ * Job state matching pg-boss states
+ */
+export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed';
+
+/**
+ * Job interface matching pg-boss Job<T>
+ */
+export interface Job<T = object> {
+  id: string;
+  name: string;
+  data: T;
+  expireInSeconds: number;
+}
+
+/**
+ * Job with metadata matching pg-boss JobWithMetadata<T>
+ */
+export interface JobWithMetadata<T = object> extends Job<T> {
+  priority: number;
+  state: JobState;
+  retryLimit: number;
+  retryCount: number;
+  retryDelay: number;
+  retryBackoff: boolean;
+  startAfter: Date;
+  startedOn: Date;
+  singletonKey: string | null;
+  createdOn: Date;
+  completedOn: Date | null;
+  keepUntil: Date;
+}
+
+/**
+ * Send options matching pg-boss SendOptions
+ */
+export interface SendOptions {
+  id?: string;
+  priority?: number;
+  startAfter?: number | string | Date;
+  singletonKey?: string;
+  retryLimit?: number;
+  retryDelay?: number;
+  retryBackoff?: boolean;
+  expireInSeconds?: number;
+  expireInMinutes?: number;
+  expireInHours?: number;
+}
+
+/**
+ * Work options matching pg-boss WorkOptions
+ */
+export interface WorkOptions {
+  includeMetadata?: boolean;
+  priority?: boolean;
+  batchSize?: number;
+  pollingIntervalSeconds?: number;
+}
+
+/**
+ * Fetch options matching pg-boss FetchOptions
+ */
+export interface FetchOptions {
+  includeMetadata?: boolean;
+  priority?: boolean;
+  batchSize?: number;
+}
+
+/**
+ * Work handler matching pg-boss WorkHandler
+ */
+export interface WorkHandler<ReqData> {
+  (jobs: Job<ReqData>[]): Promise<void>;
+}
+
+/**
+ * Work handler with metadata matching pg-boss WorkWithMetadataHandler
+ */
+export interface WorkWithMetadataHandler<ReqData> {
+  (jobs: JobWithMetadata<ReqData>[]): Promise<void>;
+}
+
+/**
+ * Internal job storage for tracking job states
+ */
+interface InternalJob<T = unknown> {
+  id: string;
+  name: string;
+  data: T;
+  state: JobState;
+  priority: number;
+  retryLimit: number;
+  retryCount: number;
+  retryDelay: number;
+  retryBackoff: boolean;
+  expireInSeconds: number;
+  startAfter: Date;
+  startedOn: Date | null;
+  createdOn: Date;
+  completedOn: Date | null;
+  singletonKey: string | null;
+  keepUntil: Date;
+}
+
+export interface KafkaJobQueueConfig {
+  url?: string;
+  username?: string;
+  password?: string;
+}
+
+/**
+ * PgBoss-compatible adapter for Upstash Kafka.
+ * Provides a familiar job queue interface backed by Kafka topics.
+ *
+ * Key differences from pg-boss:
+ * - Jobs are stored in Kafka topics instead of PostgreSQL
+ * - No built-in scheduling (use external cron for scheduled jobs)
+ * - Simpler state management (no database transactions)
+ */
+export class KafkaJobQueue {
+  private kafka: Kafka | null = null;
+  private producer: Producer | null = null;
+  private consumer: Consumer | null = null;
+  private isConfigured = false;
+  private workers: Map<string, { stop: () => void; id: string }> = new Map();
+  private jobStates: Map<string, InternalJob> = new Map();
+  private started = false;
+
+  constructor(config?: KafkaJobQueueConfig) {
+    const url = config?.url || process.env.UPSTASH_KAFKA_REST_URL;
+    const username = config?.username || process.env.UPSTASH_KAFKA_REST_USERNAME;
+    const password = config?.password || process.env.UPSTASH_KAFKA_REST_PASSWORD;
+
+    if (url && username && password) {
+      this.kafka = new Kafka({ url, username, password });
+      this.producer = this.kafka.producer();
+      this.consumer = this.kafka.consumer();
+      this.isConfigured = true;
+    }
+  }
+
+  /**
+   * Start the job queue (required before sending/working jobs)
+   */
+  async start(): Promise<this> {
+    if (!this.isConfigured) {
+      throw new Error("KafkaJobQueue: Not configured - missing Upstash Kafka credentials");
+    }
+    this.started = true;
+    return this;
+  }
+
+  /**
+   * Stop the job queue and all workers
+   */
+  async stop(options?: { graceful?: boolean; timeout?: number }): Promise<void> {
+    const timeout = options?.timeout ?? 5000;
+
+    // Stop all workers
+    const stopPromises = Array.from(this.workers.values()).map(async (worker) => {
+      worker.stop();
+    });
+
+    if (options?.graceful) {
+      await Promise.race([
+        Promise.all(stopPromises),
+        new Promise((resolve) => setTimeout(resolve, timeout)),
+      ]);
+    } else {
+      this.workers.clear();
+    }
+
+    this.started = false;
+  }
+
+  /**
+   * Generate a unique job ID
+   */
+  private generateJobId(): string {
+    return `job-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  }
+
+  /**
+   * Calculate expiration in seconds from options
+   */
+  private calculateExpiration(options?: SendOptions): number {
+    if (options?.expireInSeconds) return options.expireInSeconds;
+    if (options?.expireInMinutes) return options.expireInMinutes * 60;
+    if (options?.expireInHours) return options.expireInHours * 3600;
+    return 3600; // Default 1 hour
+  }
+
+  /**
+   * Calculate startAfter date from options
+   */
+  private calculateStartAfter(options?: SendOptions): Date {
+    if (!options?.startAfter) return new Date();
+    if (options.startAfter instanceof Date) return options.startAfter;
+    if (typeof options.startAfter === 'number') {
+      return new Date(Date.now() + options.startAfter * 1000);
+    }
+    return new Date(options.startAfter);
+  }
+
+  /**
+   * Map queue name to Kafka topic
+   */
+  private queueToTopic(name: string): KafkaTopic {
+    // Map common queue names to our defined topics
+    const topicMap: Record<string, KafkaTopic> = {
+      'agent-execution': KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+      'agent-results': KAFKA_TOPICS.AGENT_RESULTS_QUEUE,
+      'notifications': KAFKA_TOPICS.NOTIFICATIONS_QUEUE,
+    };
+    return topicMap[name] || KAFKA_TOPICS.AGENT_EXECUTION_QUEUE;
+  }
+
+  /**
+   * Send a job to a queue (pg-boss compatible)
+   */
+  async send(name: string, data: object, options?: SendOptions): Promise<string | null> {
+    if (!this.producer || !this.started) {
+      return null;
+    }
+
+    const jobId = options?.id || this.generateJobId();
+    const topic = this.queueToTopic(name);
+    const expireInSeconds = this.calculateExpiration(options);
+    const startAfter = this.calculateStartAfter(options);
+
+    const internalJob: InternalJob = {
+      id: jobId,
+      name,
+      data,
+      state: 'created',
+      priority: options?.priority ?? 0,
+      retryLimit: options?.retryLimit ?? MAX_RETRIES,
+      retryCount: 0,
+      retryDelay: options?.retryDelay ?? 1000,
+      retryBackoff: options?.retryBackoff ?? true,
+      expireInSeconds,
+      startAfter,
+      startedOn: null,
+      createdOn: new Date(),
+      completedOn: null,
+      singletonKey: options?.singletonKey ?? null,
+      keepUntil: new Date(Date.now() + expireInSeconds * 1000),
+    };
+
+    // Check singleton constraint
+    if (options?.singletonKey) {
+      for (const job of this.jobStates.values()) {
+        if (job.singletonKey === options.singletonKey &&
+            job.state !== 'completed' &&
+            job.state !== 'failed' &&
+            job.state !== 'cancelled') {
+          // Singleton job already exists
+          return null;
+        }
+      }
+    }
+
+    const kafkaMessage: KafkaMessage<InternalJob> = {
+      id: jobId,
+      topic,
+      data: internalJob,
+      timestamp: Date.now(),
+      idempotencyKey: `job-${jobId}`,
+    };
+
+    try {
+      await this.producer.produce(topic, JSON.stringify(kafkaMessage));
+      this.jobStates.set(jobId, internalJob);
+      return jobId;
+    } catch (error) {
+      console.error("KafkaJobQueue: send error:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch jobs from a queue without processing (pg-boss compatible)
+   */
+  async fetch<T>(name: string, options?: FetchOptions): Promise<Job<T>[] | JobWithMetadata<T>[]> {
+    if (!this.consumer || !this.started) {
+      return [];
+    }
+
+    const topic = this.queueToTopic(name);
+    const batchSize = options?.batchSize ?? 1;
+
+    try {
+      const result = await this.consumer.consume({
+        consumerGroupId: `fetch-${name}`,
+        instanceId: `fetch-${Date.now()}`,
+        topics: [topic],
+        autoOffsetReset: "earliest",
+      });
+
+      const jobs: (Job<T> | JobWithMetadata<T>)[] = [];
+
+      for (const msg of result) {
+        if (jobs.length >= batchSize) break;
+
+        try {
+          const parsed = JSON.parse(msg.value) as KafkaMessage<InternalJob<T>>;
+          const internalJob = parsed.data;
+
+          // Skip jobs that aren't ready yet
+          if (internalJob.startAfter && new Date(internalJob.startAfter) > new Date()) {
+            continue;
+          }
+
+          // Mark as active
+          internalJob.state = 'active';
+          internalJob.startedOn = new Date();
+          this.jobStates.set(internalJob.id, internalJob as InternalJob);
+
+          if (options?.includeMetadata) {
+            jobs.push({
+              id: internalJob.id,
+              name: internalJob.name,
+              data: internalJob.data,
+              expireInSeconds: internalJob.expireInSeconds,
+              priority: internalJob.priority,
+              state: internalJob.state,
+              retryLimit: internalJob.retryLimit,
+              retryCount: internalJob.retryCount,
+              retryDelay: internalJob.retryDelay,
+              retryBackoff: internalJob.retryBackoff,
+              startAfter: new Date(internalJob.startAfter),
+              startedOn: new Date(internalJob.startedOn!),
+              singletonKey: internalJob.singletonKey,
+              createdOn: new Date(internalJob.createdOn),
+              completedOn: internalJob.completedOn ? new Date(internalJob.completedOn) : null,
+              keepUntil: new Date(internalJob.keepUntil),
+            } as JobWithMetadata<T>);
+          } else {
+            jobs.push({
+              id: internalJob.id,
+              name: internalJob.name,
+              data: internalJob.data,
+              expireInSeconds: internalJob.expireInSeconds,
+            } as Job<T>);
+          }
+        } catch (parseError) {
+          console.error("KafkaJobQueue: parse error:", parseError);
+        }
+      }
+
+      // Sort by priority if requested
+      if (options?.priority) {
+        jobs.sort((a, b) => {
+          const priorityA = 'priority' in a ? a.priority : 0;
+          const priorityB = 'priority' in b ? b.priority : 0;
+          return priorityB - priorityA;
+        });
+      }
+
+      return jobs;
+    } catch (error) {
+      console.error("KafkaJobQueue: fetch error:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Subscribe to work on jobs from a queue (pg-boss compatible)
+   */
+  async work<ReqData>(
+    name: string,
+    optionsOrHandler: WorkOptions | WorkHandler<ReqData>,
+    handler?: WorkHandler<ReqData> | WorkWithMetadataHandler<ReqData>
+  ): Promise<string> {
+    const workerId = `worker-${name}-${Date.now()}`;
+
+    let options: WorkOptions = {};
+    let workHandler: WorkHandler<ReqData> | WorkWithMetadataHandler<ReqData>;
+
+    if (typeof optionsOrHandler === 'function') {
+      workHandler = optionsOrHandler;
+    } else {
+      options = optionsOrHandler;
+      workHandler = handler!;
+    }
+
+    const pollingInterval = (options.pollingIntervalSeconds ?? 2) * 1000;
+    const batchSize = options.batchSize ?? 1;
+    let running = true;
+
+    const poll = async () => {
+      while (running && this.started) {
+        try {
+          const jobs = await this.fetch<ReqData>(name, {
+            includeMetadata: options.includeMetadata,
+            priority: options.priority,
+            batchSize,
+          });
+
+          if (jobs.length > 0) {
+            try {
+              await (workHandler as WorkHandler<ReqData>)(jobs as Job<ReqData>[]);
+              // Auto-complete jobs on successful processing
+              for (const job of jobs) {
+                await this.complete(name, job.id);
+              }
+            } catch (error) {
+              // Mark jobs as failed on error
+              for (const job of jobs) {
+                await this.fail(name, job.id, { error: String(error) });
+              }
+            }
+          } else {
+            // No jobs, wait before polling again
+            await new Promise((resolve) => setTimeout(resolve, pollingInterval));
+          }
+        } catch (error) {
+          console.error(`KafkaJobQueue: worker ${workerId} error:`, error);
+          await new Promise((resolve) => setTimeout(resolve, pollingInterval));
+        }
+      }
+    };
+
+    // Start polling in background
+    poll();
+
+    this.workers.set(workerId, {
+      id: workerId,
+      stop: () => { running = false; },
+    });
+
+    return workerId;
+  }
+
+  /**
+   * Stop a specific worker
+   */
+  async offWork(nameOrOptions: string | { id: string }): Promise<void> {
+    if (typeof nameOrOptions === 'string') {
+      // Stop all workers for this queue name
+      for (const [id, worker] of this.workers) {
+        if (id.includes(`worker-${nameOrOptions}-`)) {
+          worker.stop();
+          this.workers.delete(id);
+        }
+      }
+    } else {
+      // Stop specific worker by ID
+      const worker = this.workers.get(nameOrOptions.id);
+      if (worker) {
+        worker.stop();
+        this.workers.delete(nameOrOptions.id);
+      }
+    }
+  }
+
+  /**
+   * Mark a job as completed (pg-boss compatible)
+   */
+  async complete(name: string, id: string, data?: object): Promise<void> {
+    const job = this.jobStates.get(id);
+    if (job) {
+      job.state = 'completed';
+      job.completedOn = new Date();
+      this.jobStates.set(id, job);
+    }
+  }
+
+  /**
+   * Mark a job as failed (pg-boss compatible)
+   */
+  async fail(name: string, id: string, data?: object): Promise<void> {
+    const job = this.jobStates.get(id);
+    if (job) {
+      job.retryCount++;
+
+      if (job.retryCount >= job.retryLimit) {
+        job.state = 'failed';
+        // Send to DLQ
+        if (this.producer) {
+          const dlqMessage: DeadLetterMessage = {
+            originalMessage: {
+              id: job.id,
+              topic: this.queueToTopic(job.name),
+              data: job.data,
+              timestamp: job.createdOn.getTime(),
+            },
+            errorReason: data && typeof data === 'object' && 'error' in data ? String(data.error) : 'Unknown error',
+            failedAt: Date.now(),
+            originalTopic: this.queueToTopic(job.name),
+          };
+
+          try {
+            await this.producer.produce(
+              KAFKA_TOPICS.AGENT_EXECUTION_DLQ,
+              JSON.stringify(dlqMessage)
+            );
+          } catch (error) {
+            console.error("KafkaJobQueue: DLQ send error:", error);
+          }
+        }
+      } else {
+        job.state = 'retry';
+        // Re-queue for retry
+        if (this.producer) {
+          const retryDelay = job.retryBackoff
+            ? job.retryDelay * Math.pow(2, job.retryCount - 1)
+            : job.retryDelay;
+
+          job.startAfter = new Date(Date.now() + retryDelay);
+
+          const kafkaMessage: KafkaMessage<InternalJob> = {
+            id: job.id,
+            topic: this.queueToTopic(job.name),
+            data: job,
+            timestamp: Date.now(),
+          };
+
+          try {
+            await this.producer.produce(
+              this.queueToTopic(job.name),
+              JSON.stringify(kafkaMessage)
+            );
+          } catch (error) {
+            console.error("KafkaJobQueue: retry send error:", error);
+          }
+        }
+      }
+
+      this.jobStates.set(id, job);
+    }
+  }
+
+  /**
+   * Cancel a job (pg-boss compatible)
+   */
+  async cancel(name: string, id: string | string[]): Promise<void> {
+    const ids = Array.isArray(id) ? id : [id];
+    for (const jobId of ids) {
+      const job = this.jobStates.get(jobId);
+      if (job) {
+        job.state = 'cancelled';
+        this.jobStates.set(jobId, job);
+      }
+    }
+  }
+
+  /**
+   * Get a job by ID (pg-boss compatible)
+   */
+  async getJobById<T>(name: string, id: string): Promise<JobWithMetadata<T> | null> {
+    const job = this.jobStates.get(id) as InternalJob<T> | undefined;
+    if (!job) return null;
+
+    return {
+      id: job.id,
+      name: job.name,
+      data: job.data,
+      expireInSeconds: job.expireInSeconds,
+      priority: job.priority,
+      state: job.state,
+      retryLimit: job.retryLimit,
+      retryCount: job.retryCount,
+      retryDelay: job.retryDelay,
+      retryBackoff: job.retryBackoff,
+      startAfter: new Date(job.startAfter),
+      startedOn: job.startedOn ? new Date(job.startedOn) : new Date(),
+      singletonKey: job.singletonKey,
+      createdOn: new Date(job.createdOn),
+      completedOn: job.completedOn ? new Date(job.completedOn) : null,
+      keepUntil: new Date(job.keepUntil),
+    };
+  }
+
+  /**
+   * Check if the job queue is available
+   */
+  isAvailable(): boolean {
+    return this.isConfigured && this.started;
+  }
+}
+
+/**
+ * Null implementation of KafkaJobQueue for when feature flag is disabled
+ */
+export class NullJobQueue {
+  async start(): Promise<this> { return this; }
+  async stop(): Promise<void> {}
+  async send(_name: string, _data: object, _options?: SendOptions): Promise<string | null> { return null; }
+  async fetch<T>(_name: string, _options?: FetchOptions): Promise<Job<T>[]> { return []; }
+  async work<ReqData>(_name: string, _handler: WorkHandler<ReqData>): Promise<string> { return 'null-worker'; }
+  async offWork(_nameOrOptions: string | { id: string }): Promise<void> {}
+  async complete(_name: string, _id: string, _data?: object): Promise<void> {}
+  async fail(_name: string, _id: string, _data?: object): Promise<void> {}
+  async cancel(_name: string, _id: string | string[]): Promise<void> {}
+  async getJobById<T>(_name: string, _id: string): Promise<JobWithMetadata<T> | null> { return null; }
+  isAvailable(): boolean { return false; }
+}
+
+// Singleton instances for feature flag-based switching
+const kafkaJobQueueInstance = new KafkaJobQueue();
+const nullJobQueueInstance = new NullJobQueue();
+
+/**
+ * Get the job queue based on the USE_UPSTASH_KAFKA feature flag.
+ * Returns the Kafka-backed queue when enabled, or a null implementation when disabled.
+ */
+export function getJobQueue(userId?: string): KafkaJobQueue | NullJobQueue {
+  if (featureFlags.isEnabled("USE_UPSTASH_KAFKA", userId)) {
+    return kafkaJobQueueInstance;
+  }
+  return nullJobQueueInstance;
+}
+
 // Export class for testing/custom instances
 export { UpstashKafkaClient, NullKafkaClient };

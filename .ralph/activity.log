@@ -2334,3 +2334,22 @@ Done. The task is complete:
 [2026-01-14 22:36:51] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-14 22:36:51] 🎯 Task: Define message types for topics (execution, results, notific...
 [2026-01-14 22:36:51] 🤖 Claude working (180s max)...
+Done. I've completed the task:
+
+1. **Defined message types** in `server/upstashKafka.ts`:
+   - `AgentExecutionMessage` - for the agent-execution-queue topic
+   - `AgentResultMessage` - for the agent-results-queue topic
+   - `NotificationMessage` - for the notifications-queue topic
+   - `DeadLetterMessage` - for wrapping failed messages in the DLQ
+   - `NotificationType` - union type (`"email" | "webhook" | "alert"`)
+
+2. **Updated method signatures** to use the new types instead of inline object definitions
+
+3. **Added tests** in `server/__tests__/upstashKafka.test.ts` for the new message types (5 new tests)
+
+4. **All tests pass** (42 tests in upstashKafka.test.ts)
+
+5. **Marked task complete** in RALPH_TASK.md
+
+6. **Committed** with message: `Ralph #15: Define message types for Kafka topics`
+[2026-01-14 22:39:26] ✅ Task DONE!

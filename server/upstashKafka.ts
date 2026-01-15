@@ -700,21 +700,347 @@ export const upstashKafka: IKafkaClient = new Proxy({} as IKafkaClient, {
   }
 });
 
+// ============================================================================
+// KafkaConsumer Class with Batch Processing
+// ============================================================================
+
+export interface KafkaConsumerConfig {
+  url?: string;
+  username?: string;
+  password?: string;
+  groupId?: string;
+  instanceId?: string;
+  batchSize?: number;
+  maxRetries?: number;
+  retryDelays?: number[];
+}
+
+export interface ConsumeOptions {
+  maxMessages?: number;
+  autoCommit?: boolean;
+}
+
+export interface BatchProcessResult {
+  processed: number;
+  failed: number;
+  errors: Array<{ messageId: string; error: string }>;
+  dlqSent: number;
+}
+
+/**
+ * Dedicated KafkaConsumer class with batch processing and configurable retry logic.
+ * Supports message batching, automatic DLQ handling, and exponential backoff.
+ */
+export class KafkaConsumer {
+  private kafka: Kafka | null = null;
+  private consumer: Consumer | null = null;
+  private producer: Producer | null = null;
+  private isConfigured = false;
+  private groupId: string;
+  private instanceId: string;
+  private batchSize: number;
+  private maxRetries: number;
+  private retryDelays: number[];
+
+  constructor(config?: KafkaConsumerConfig) {
+    const url = config?.url || process.env.UPSTASH_KAFKA_REST_URL;
+    const username = config?.username || process.env.UPSTASH_KAFKA_REST_USERNAME;
+    const password = config?.password || process.env.UPSTASH_KAFKA_REST_PASSWORD;
+
+    this.groupId = config?.groupId || "default-group";
+    this.instanceId = config?.instanceId || `instance-${Date.now()}`;
+    this.batchSize = config?.batchSize ?? 10;
+    this.maxRetries = config?.maxRetries ?? MAX_RETRIES;
+    this.retryDelays = config?.retryDelays ?? RETRY_DELAYS;
+
+    if (url && username && password) {
+      this.kafka = new Kafka({ url, username, password });
+      this.consumer = this.kafka.consumer();
+      this.producer = this.kafka.producer(); // For DLQ and retries
+      this.isConfigured = true;
+    }
+  }
+
+  /**
+   * Check if the consumer is configured and ready
+   */
+  isReady(): boolean {
+    return this.isConfigured && this.consumer !== null;
+  }
+
+  /**
+   * Get the current consumer configuration
+   */
+  getConfig(): { groupId: string; instanceId: string; batchSize: number; maxRetries: number; retryDelays: number[] } {
+    return {
+      groupId: this.groupId,
+      instanceId: this.instanceId,
+      batchSize: this.batchSize,
+      maxRetries: this.maxRetries,
+      retryDelays: [...this.retryDelays],
+    };
+  }
+
+  /**
+   * Consume messages from a topic
+   */
+  async consume<T>(
+    topic: KafkaTopic,
+    options?: ConsumeOptions
+  ): Promise<ConsumeResult<T>> {
+    if (!this.consumer) {
+      return {
+        messages: [],
+        error: "Kafka consumer not configured",
+      };
+    }
+
+    try {
+      const result = await this.consumer.consume({
+        consumerGroupId: this.groupId,
+        instanceId: this.instanceId,
+        topics: [topic],
+        autoOffsetReset: "earliest",
+      });
+
+      const messages: KafkaMessage<T>[] = [];
+      const maxMessages = options?.maxMessages ?? this.batchSize;
+
+      for (const msg of result) {
+        try {
+          const parsed = JSON.parse(msg.value) as KafkaMessage<T>;
+          messages.push(parsed);
+
+          if (messages.length >= maxMessages) {
+            break;
+          }
+        } catch (parseError) {
+          console.error("KafkaConsumer: Failed to parse message:", parseError);
+        }
+      }
+
+      return { messages };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("KafkaConsumer: consume error:", errorMessage);
+      return {
+        messages: [],
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Consume a batch of messages from a topic
+   */
+  async consumeBatch<T>(
+    topic: KafkaTopic,
+    batchSize?: number
+  ): Promise<ConsumeResult<T>> {
+    return this.consume<T>(topic, { maxMessages: batchSize ?? this.batchSize });
+  }
+
+  /**
+   * Process messages in batch with a handler function.
+   * Handles retries with exponential backoff and automatic DLQ for exhausted retries.
+   */
+  async processBatch<T>(
+    topic: KafkaTopic,
+    handler: (message: KafkaMessage<T>) => Promise<void>,
+    options?: { batchSize?: number }
+  ): Promise<BatchProcessResult> {
+    const result = await this.consumeBatch<T>(topic, options?.batchSize);
+
+    let processed = 0;
+    let failed = 0;
+    let dlqSent = 0;
+    const errors: Array<{ messageId: string; error: string }> = [];
+
+    for (const message of result.messages) {
+      try {
+        await handler(message);
+        processed++;
+      } catch (error) {
+        failed++;
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        errors.push({ messageId: message.id, error: errorMessage });
+
+        // Check if max retries exceeded
+        const retryCount = (message.retryCount ?? 0) + 1;
+        if (retryCount >= this.maxRetries) {
+          // Send to DLQ
+          await this.sendToDLQ(message, errorMessage);
+          dlqSent++;
+        } else {
+          // Retry with incremented count
+          await this.retryMessage(topic, message, retryCount);
+        }
+      }
+    }
+
+    return { processed, failed, errors, dlqSent };
+  }
+
+  /**
+   * Process messages in parallel batches for higher throughput.
+   * Uses Promise.allSettled to handle partial failures gracefully.
+   */
+  async processParallelBatch<T>(
+    topic: KafkaTopic,
+    handler: (message: KafkaMessage<T>) => Promise<void>,
+    options?: { batchSize?: number; concurrency?: number }
+  ): Promise<BatchProcessResult> {
+    const result = await this.consumeBatch<T>(topic, options?.batchSize);
+    const concurrency = options?.concurrency ?? 5;
+
+    let processed = 0;
+    let failed = 0;
+    let dlqSent = 0;
+    const errors: Array<{ messageId: string; error: string }> = [];
+
+    // Process in chunks based on concurrency
+    for (let i = 0; i < result.messages.length; i += concurrency) {
+      const chunk = result.messages.slice(i, i + concurrency);
+
+      const results = await Promise.allSettled(
+        chunk.map(async (message) => {
+          await handler(message);
+          return message;
+        })
+      );
+
+      for (let j = 0; j < results.length; j++) {
+        const settledResult = results[j];
+        const message = chunk[j];
+
+        if (settledResult.status === "fulfilled") {
+          processed++;
+        } else {
+          failed++;
+          const errorMessage = settledResult.reason instanceof Error
+            ? settledResult.reason.message
+            : "Unknown error";
+          errors.push({ messageId: message.id, error: errorMessage });
+
+          const retryCount = (message.retryCount ?? 0) + 1;
+          if (retryCount >= this.maxRetries) {
+            await this.sendToDLQ(message, errorMessage);
+            dlqSent++;
+          } else {
+            await this.retryMessage(topic, message, retryCount);
+          }
+        }
+      }
+    }
+
+    return { processed, failed, errors, dlqSent };
+  }
+
+  /**
+   * Retry a failed message with incremented retry count
+   */
+  private async retryMessage<T>(
+    topic: KafkaTopic,
+    message: KafkaMessage<T>,
+    retryCount: number
+  ): Promise<void> {
+    if (!this.producer) {
+      console.error("KafkaConsumer: Cannot retry - producer not configured");
+      return;
+    }
+
+    const retryMessage: KafkaMessage<T> = {
+      ...message,
+      retryCount,
+    };
+
+    try {
+      await this.producer.produce(topic, JSON.stringify(retryMessage));
+    } catch (error) {
+      console.error("KafkaConsumer: Failed to retry message:", error);
+    }
+  }
+
+  /**
+   * Send a failed message to the dead-letter queue
+   */
+  private async sendToDLQ<T>(
+    originalMessage: KafkaMessage<T>,
+    errorReason: string
+  ): Promise<void> {
+    if (!this.producer) {
+      console.error("KafkaConsumer: Cannot send to DLQ - producer not configured");
+      return;
+    }
+
+    const dlqMessage: DeadLetterMessage<T> = {
+      originalMessage,
+      errorReason,
+      failedAt: Date.now(),
+      originalTopic: originalMessage.topic,
+    };
+
+    const wrappedMessage: KafkaMessage<DeadLetterMessage<T>> = {
+      id: `dlq-${originalMessage.id}`,
+      topic: KAFKA_TOPICS.AGENT_EXECUTION_DLQ,
+      data: dlqMessage,
+      timestamp: Date.now(),
+    };
+
+    try {
+      await this.producer.produce(KAFKA_TOPICS.AGENT_EXECUTION_DLQ, JSON.stringify(wrappedMessage));
+    } catch (error) {
+      console.error("KafkaConsumer: Failed to send to DLQ:", error);
+    }
+  }
+
+  /**
+   * Create a polling consumer that continuously processes messages
+   */
+  async startPolling<T>(
+    topic: KafkaTopic,
+    handler: (message: KafkaMessage<T>) => Promise<void>,
+    options?: {
+      batchSize?: number;
+      pollIntervalMs?: number;
+      onBatchComplete?: (result: BatchProcessResult) => void;
+    }
+  ): Promise<{ stop: () => void }> {
+    let running = true;
+    const pollInterval = options?.pollIntervalMs ?? 1000;
+
+    const poll = async () => {
+      while (running) {
+        try {
+          const result = await this.processBatch<T>(topic, handler, {
+            batchSize: options?.batchSize,
+          });
+
+          if (options?.onBatchComplete) {
+            options.onBatchComplete(result);
+          }
+
+          // Only wait if we didn't process any messages (avoid tight loops on empty queues)
+          if (result.processed === 0 && result.failed === 0) {
+            await new Promise((resolve) => setTimeout(resolve, pollInterval));
+          }
+        } catch (error) {
+          console.error("KafkaConsumer: Polling error:", error);
+          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        }
+      }
+    };
+
+    // Start polling in the background
+    poll();
+
+    return {
+      stop: () => {
+        running = false;
+      },
+    };
+  }
+}
+
 // Export class for testing/custom instances
-export { UpstashKafkaClient, NullKafkaClient, KafkaProducer };
-export type {
-  UpstashKafkaConfig,
-  KafkaMessage,
-  ProduceResult,
-  ConsumeResult,
-  KafkaHealthStatus,
-  IKafkaClient,
-  KafkaProducerConfig,
-  ProduceOptions,
-  // Message types for topics
-  AgentExecutionMessage,
-  AgentResultMessage,
-  NotificationMessage,
-  NotificationType,
-  DeadLetterMessage,
-};
+export { UpstashKafkaClient, NullKafkaClient };

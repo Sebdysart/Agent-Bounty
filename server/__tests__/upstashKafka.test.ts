@@ -8,6 +8,7 @@ import {
   UpstashKafkaClient,
   NullKafkaClient,
   KafkaProducer,
+  KafkaConsumer,
   KAFKA_TOPICS,
   getKafkaClient,
   type KafkaMessage,
@@ -15,6 +16,7 @@ import {
   type AgentResultMessage,
   type NotificationMessage,
   type DeadLetterMessage,
+  type BatchProcessResult,
 } from "../upstashKafka";
 import { featureFlags } from "../featureFlags";
 
@@ -743,6 +745,346 @@ describe("getKafkaClient with feature flags", () => {
     expect(defaultClient.isAvailable()).toBe(false);
     // User override should return the real client (though it may not be configured)
     expect(userClient).toBeDefined();
+  });
+});
+
+describe("KafkaConsumer", () => {
+  let consumer: KafkaConsumer;
+  let mockConsumer: { consume: ReturnType<typeof vi.fn> };
+  let mockProducer: { produce: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+
+    // Create consumer with mock config
+    consumer = new KafkaConsumer({
+      url: "https://mock-kafka.upstash.io",
+      username: "mock-username",
+      password: "mock-password",
+      groupId: "test-group",
+      instanceId: "test-instance",
+      batchSize: 5,
+    });
+
+    // Access internal consumer and producer
+    const internalConsumer = consumer as unknown as {
+      consumer: typeof mockConsumer;
+      producer: typeof mockProducer;
+    };
+    mockConsumer = internalConsumer.consumer;
+    mockProducer = internalConsumer.producer;
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+  });
+
+  describe("isReady", () => {
+    it("should return true when configured", () => {
+      expect(consumer.isReady()).toBe(true);
+    });
+
+    it("should return false when not configured", () => {
+      const unconfiguredConsumer = new KafkaConsumer({});
+      expect(unconfiguredConsumer.isReady()).toBe(false);
+    });
+  });
+
+  describe("getConfig", () => {
+    it("should return consumer configuration", () => {
+      const config = consumer.getConfig();
+      expect(config.groupId).toBe("test-group");
+      expect(config.instanceId).toBe("test-instance");
+      expect(config.batchSize).toBe(5);
+      expect(config.maxRetries).toBe(5);
+      expect(config.retryDelays).toEqual([1000, 2000, 4000, 8000, 16000]);
+    });
+
+    it("should return custom retry configuration", () => {
+      const customConsumer = new KafkaConsumer({
+        url: "https://mock-kafka.upstash.io",
+        username: "mock-username",
+        password: "mock-password",
+        maxRetries: 3,
+        retryDelays: [500, 1000, 2000],
+      });
+      const config = customConsumer.getConfig();
+      expect(config.maxRetries).toBe(3);
+      expect(config.retryDelays).toEqual([500, 1000, 2000]);
+    });
+  });
+
+  describe("consume", () => {
+    it("should consume messages from a topic", async () => {
+      const mockMessages = [
+        {
+          value: JSON.stringify({
+            id: "msg-1",
+            topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+            data: { test: "data1" },
+            timestamp: Date.now(),
+          }),
+        },
+        {
+          value: JSON.stringify({
+            id: "msg-2",
+            topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE,
+            data: { test: "data2" },
+            timestamp: Date.now(),
+          }),
+        },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const result = await consumer.consume(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+
+      expect(result.messages).toHaveLength(2);
+      expect(result.messages[0].data).toEqual({ test: "data1" });
+      expect(result.messages[1].data).toEqual({ test: "data2" });
+    });
+
+    it("should respect maxMessages option", async () => {
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "msg-2", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 2 }, timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "msg-3", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 3 }, timestamp: Date.now() }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const result = await consumer.consume(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, { maxMessages: 2 });
+
+      expect(result.messages).toHaveLength(2);
+    });
+
+    it("should return error when consumer not configured", async () => {
+      const unconfiguredConsumer = new KafkaConsumer({});
+
+      const result = await unconfiguredConsumer.consume(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+
+      expect(result.messages).toHaveLength(0);
+      expect(result.error).toBe("Kafka consumer not configured");
+    });
+
+    it("should handle consume errors", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockConsumer.consume.mockRejectedValue(new Error("Connection failed"));
+
+      const result = await consumer.consume(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+
+      expect(result.messages).toHaveLength(0);
+      expect(result.error).toBe("Connection failed");
+      consoleSpy.mockRestore();
+    });
+
+    it("should skip invalid JSON messages", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const mockMessages = [
+        { value: "invalid-json" },
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { test: "data" }, timestamp: Date.now() }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const result = await consumer.consume(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+
+      expect(result.messages).toHaveLength(1);
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("consumeBatch", () => {
+    it("should consume batch with default batch size", async () => {
+      const mockMessages = Array.from({ length: 10 }, (_, i) => ({
+        value: JSON.stringify({ id: `msg-${i}`, topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: i }, timestamp: Date.now() }),
+      }));
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const result = await consumer.consumeBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE);
+
+      // Consumer was configured with batchSize: 5
+      expect(result.messages).toHaveLength(5);
+    });
+
+    it("should consume batch with custom batch size", async () => {
+      const mockMessages = Array.from({ length: 10 }, (_, i) => ({
+        value: JSON.stringify({ id: `msg-${i}`, topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: i }, timestamp: Date.now() }),
+      }));
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const result = await consumer.consumeBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, 3);
+
+      expect(result.messages).toHaveLength(3);
+    });
+  });
+
+  describe("processBatch", () => {
+    it("should process messages successfully", async () => {
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "msg-2", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 2 }, timestamp: Date.now() }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+
+      const result = await consumer.processBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler);
+
+      expect(result.processed).toBe(2);
+      expect(result.failed).toBe(0);
+      expect(result.dlqSent).toBe(0);
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    it("should retry failed messages with incremented retry count", async () => {
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now(), retryCount: 1 }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const handler = vi.fn().mockRejectedValue(new Error("Processing failed"));
+
+      const result = await consumer.processBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler);
+
+      expect(result.processed).toBe(0);
+      expect(result.failed).toBe(1);
+      expect(result.dlqSent).toBe(0);
+
+      // Check that retry was sent to original topic
+      const retryCall = mockProducer.produce.mock.calls.find(
+        (call: unknown[]) => call[0] === KAFKA_TOPICS.AGENT_EXECUTION_QUEUE
+      );
+      expect(retryCall).toBeDefined();
+      const retryMessage = JSON.parse(retryCall[1]) as KafkaMessage;
+      expect(retryMessage.retryCount).toBe(2);
+    });
+
+    it("should send to DLQ after max retries exceeded", async () => {
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now(), retryCount: 4 }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const handler = vi.fn().mockRejectedValue(new Error("Processing failed"));
+
+      const result = await consumer.processBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler);
+
+      expect(result.processed).toBe(0);
+      expect(result.failed).toBe(1);
+      expect(result.dlqSent).toBe(1);
+
+      // Check that DLQ message was sent
+      const dlqCall = mockProducer.produce.mock.calls.find(
+        (call: unknown[]) => call[0] === KAFKA_TOPICS.AGENT_EXECUTION_DLQ
+      );
+      expect(dlqCall).toBeDefined();
+    });
+
+    it("should track errors with message IDs", async () => {
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "msg-2", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 2 }, timestamp: Date.now() }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const handler = vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("Failed on msg-2"));
+
+      const result = await consumer.processBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler);
+
+      expect(result.processed).toBe(1);
+      expect(result.failed).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].messageId).toBe("msg-2");
+      expect(result.errors[0].error).toBe("Failed on msg-2");
+    });
+  });
+
+  describe("processParallelBatch", () => {
+    it("should process messages in parallel", async () => {
+      const mockMessages = Array.from({ length: 5 }, (_, i) => ({
+        value: JSON.stringify({ id: `msg-${i}`, topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: i }, timestamp: Date.now() }),
+      }));
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+
+      const result = await consumer.processParallelBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler, { concurrency: 3 });
+
+      expect(result.processed).toBe(5);
+      expect(result.failed).toBe(0);
+      expect(handler).toHaveBeenCalledTimes(5);
+    });
+
+    it("should handle partial failures in parallel processing", async () => {
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "msg-2", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 2 }, timestamp: Date.now() }) },
+        { value: JSON.stringify({ id: "msg-3", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 3 }, timestamp: Date.now() }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+      mockProducer.produce.mockResolvedValue({ partition: 0, offset: "123" });
+
+      const handler = vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("Failed"))
+        .mockResolvedValueOnce(undefined);
+
+      const result = await consumer.processParallelBatch(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler, { concurrency: 3 });
+
+      expect(result.processed).toBe(2);
+      expect(result.failed).toBe(1);
+    });
+  });
+
+  describe("startPolling", () => {
+    it("should start polling and call handler", async () => {
+      vi.useRealTimers();
+      const mockMessages = [
+        { value: JSON.stringify({ id: "msg-1", topic: KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, data: { n: 1 }, timestamp: Date.now() }) },
+      ];
+      mockConsumer.consume.mockResolvedValue(mockMessages);
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+      const onBatchComplete = vi.fn();
+
+      const poller = await consumer.startPolling(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler, {
+        pollIntervalMs: 10,
+        onBatchComplete,
+      });
+
+      // Wait a bit for polling to occur
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      poller.stop();
+
+      expect(handler).toHaveBeenCalled();
+      expect(onBatchComplete).toHaveBeenCalled();
+    });
+
+    it("should stop polling when stop is called", async () => {
+      vi.useRealTimers();
+      mockConsumer.consume.mockResolvedValue([]);
+
+      const handler = vi.fn().mockResolvedValue(undefined);
+
+      const poller = await consumer.startPolling(KAFKA_TOPICS.AGENT_EXECUTION_QUEUE, handler, {
+        pollIntervalMs: 10,
+      });
+
+      poller.stop();
+
+      const callCountBeforeStop = mockConsumer.consume.mock.calls.length;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const callCountAfterWait = mockConsumer.consume.mock.calls.length;
+
+      // After stopping, consume should not be called many more times
+      expect(callCountAfterWait - callCountBeforeStop).toBeLessThanOrEqual(1);
+    });
   });
 });
 

@@ -258,6 +258,19 @@ export async function registerRoutes(
     }
   });
 
+  // Paginated bounties endpoint for large result sets
+  app.get("/api/bounties/paginated", async (req, res) => {
+    try {
+      const cursor = req.query.cursor as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const result = await storage.getBountiesPaginated({ cursor, limit });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching paginated bounties:", error);
+      sendInternalError(res, "Failed to fetch bounties");
+    }
+  });
+
   app.get("/api/bounties/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -687,6 +700,19 @@ Only ask questions about genuinely missing or unclear information.`;
       res.json(agents);
     } catch (error) {
       console.error("Error fetching agents:", error);
+      sendInternalError(res, "Failed to fetch agents");
+    }
+  });
+
+  // Paginated agents endpoint for large result sets
+  app.get("/api/agents/paginated", async (req, res) => {
+    try {
+      const cursor = req.query.cursor as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const result = await storage.getAgentsPaginated({ cursor, limit });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching paginated agents:", error);
       sendInternalError(res, "Failed to fetch agents");
     }
   });
@@ -1939,6 +1965,19 @@ ${agentOutput}`
     }
   });
 
+  // Paginated marketplace agents endpoint for large result sets
+  app.get("/api/agent-marketplace/paginated", async (req, res) => {
+    try {
+      const cursor = req.query.cursor as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const result = await storage.getAgentUploadsPaginated({ cursor, limit, status: "published" });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching paginated marketplace agents:", error);
+      sendInternalError(res, "Failed to fetch marketplace agents");
+    }
+  });
+
   app.get("/api/agent-marketplace/featured", async (req, res) => {
     try {
       const featured = await storage.getFeaturedAgentListings();
@@ -2734,6 +2773,19 @@ ${agentOutput}`
       res.json(agents);
     } catch (error) {
       console.error("Error fetching pending agents:", error);
+      sendInternalError(res, "Failed to fetch pending agents");
+    }
+  });
+
+  // Paginated admin pending agents endpoint for large result sets
+  app.get("/api/admin/agents/pending/paginated", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const cursor = req.query.cursor as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const result = await storage.getAgentUploadsPaginated({ cursor, limit, status: "pending_review" });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching paginated pending agents:", error);
       sendInternalError(res, "Failed to fetch pending agents");
     }
   });

@@ -719,7 +719,7 @@ Only ask questions about genuinely missing or unclear information.`;
   app.get("/api/agents/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const agent = await storage.getAgent(id);
+      const agent = await dataCache.getAgent(id, () => storage.getAgent(id));
       if (!agent) {
         return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
@@ -736,17 +736,17 @@ Only ask questions about genuinely missing or unclear information.`;
       if (isNaN(id) || id <= 0) {
         return sendBadRequest(res, "Invalid agent ID");
       }
-      
+
       const validRanges = ["7d", "30d", "90d"];
-      const range = validRanges.includes(req.query.range as string) 
-        ? (req.query.range as string) 
+      const range = validRanges.includes(req.query.range as string)
+        ? (req.query.range as string)
         : "30d";
-      
-      const agent = await storage.getAgent(id);
+
+      const agent = await dataCache.getAgent(id, () => storage.getAgent(id));
       if (!agent) {
         return sendNotFound(res, "Agent not found", ErrorCode.AGENT_NOT_FOUND);
       }
-      
+
       const stats = await storage.getAgentStats(id, range);
       res.json(stats);
     } catch (error) {

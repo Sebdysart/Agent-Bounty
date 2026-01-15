@@ -12,6 +12,7 @@ import { AppError, ErrorCode, sendError } from './errorResponse';
 import { logger, requestIdMiddleware, httpLoggerMiddleware, createLogger } from './logger';
 import { initErrorTracking, errorTrackingMiddleware } from './errorTracking';
 import { sanitizeErrorMessage } from './errorSanitizer';
+import { requestDurationMiddleware } from './requestDurationMiddleware';
 
 const app = express();
 
@@ -23,6 +24,9 @@ app.use(requestIdMiddleware);
 
 // Apply HTTP logging middleware
 app.use(httpLoggerMiddleware);
+
+// Apply request duration tracking middleware
+app.use(requestDurationMiddleware);
 
 // Initialize error tracking (Sentry-ready)
 initErrorTracking({

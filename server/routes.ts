@@ -43,6 +43,7 @@ import {
 import { setupSwagger } from "./openapi";
 import { agentCodeService } from "./agentCodeService";
 import { featureFlags } from "./featureFlags";
+import { getRequestDurationMetrics } from "./requestDurationMiddleware";
 
 // Encrypted vault handles credential storage - see encryptedVault.ts
 
@@ -378,6 +379,13 @@ export async function registerRoutes(
     lines.push("# HELP agentbounty_nodejs_info Node.js version and platform info");
     lines.push("# TYPE agentbounty_nodejs_info gauge");
     lines.push(`agentbounty_nodejs_info{version="${process.version}",platform="${process.platform}",arch="${process.arch}"} 1`);
+
+    // Request duration metrics
+    const durationMetrics = getRequestDurationMetrics();
+    if (durationMetrics) {
+      lines.push("");
+      lines.push(durationMetrics);
+    }
 
     res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
     res.send(lines.join("\n") + "\n");

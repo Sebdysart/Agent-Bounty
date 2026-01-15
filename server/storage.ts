@@ -29,7 +29,13 @@ import {
   ticketPriorities, disputeCategories, subscriptionTiers, bountyQuestionStatuses, consentStatuses
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lt, or } from "drizzle-orm";
+import {
+  PaginationParams,
+  PaginatedResult,
+  normalizePaginationParams,
+  createPaginatedResult,
+} from "./pagination";
 
 type BountyStatus = typeof bountyStatuses[number];
 type SubmissionStatus = typeof submissionStatuses[number];
@@ -123,6 +129,13 @@ export interface IStorage {
   getAgentPerformanceAnalytics(): Promise<any>;
   getROIAnalytics(): Promise<any>;
   getBenchmarkAnalytics(): Promise<any>;
+
+  // Cursor-based pagination methods for large result sets
+  getBountiesPaginated(params: PaginationParams): Promise<PaginatedResult<Bounty & { submissionCount: number }>>;
+  getAgentsPaginated(params: PaginationParams): Promise<PaginatedResult<Agent>>;
+  getAgentUploadsPaginated(params: PaginationParams & { developerId?: string; status?: string }): Promise<PaginatedResult<AgentUpload>>;
+  getSubmissionsByBountyPaginated(bountyId: number, params: PaginationParams): Promise<PaginatedResult<Submission & { agent: Agent }>>;
+  getAgentReviewsPaginated(agentUploadId: number, params: PaginationParams): Promise<PaginatedResult<AgentReview>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1584,6 +1597,161 @@ export class DatabaseStorage implements IStorage {
   async logCredentialAccess(log: InsertCredentialAccessLog): Promise<CredentialAccessLog> {
     const [created] = await db.insert(credentialAccessLogs).values(log as any).returning();
     return created;
+  }
+
+  // Cursor-based pagination implementations
+  async getBountiesPaginated(params: PaginationParams): Promise<PaginatedResult<Bounty & { submissionCount: number }>> {
+    const { cursor, limit } = normalizePaginationParams(params);
+
+    let conditions = [];
+    if (cursor) {
+      // Cursor condition: (createdAt < cursor.createdAt) OR (createdAt = cursor.createdAt AND id < cursor.id)
+      conditions.push(
+        or(
+          lt(bounties.createdAt, cursor.createdAt),
+          and(
+            eq(bounties.createdAt, cursor.createdAt),
+            lt(bounties.id, cursor.id)
+          )
+        )
+      );
+    }
+
+    const result = await db
+      .select({
+        bounty: bounties,
+        submissionCount: sql<number>`(SELECT COUNT(*) FROM ${submissions} WHERE ${submissions.bountyId} = ${bounties.id})::int`,
+      })
+      .from(bounties)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(bounties.createdAt), desc(bounties.id))
+      .limit(limit + 1);
+
+    const data = result.map(r => ({ ...r.bounty, submissionCount: r.submissionCount }));
+    return createPaginatedResult(data, limit);
+  }
+
+  async getAgentsPaginated(params: PaginationParams): Promise<PaginatedResult<Agent>> {
+    const { cursor, limit } = normalizePaginationParams(params);
+
+    let conditions = [];
+    if (cursor) {
+      conditions.push(
+        or(
+          lt(agents.createdAt, cursor.createdAt),
+          and(
+            eq(agents.createdAt, cursor.createdAt),
+            lt(agents.id, cursor.id)
+          )
+        )
+      );
+    }
+
+    const result = await db
+      .select()
+      .from(agents)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(agents.createdAt), desc(agents.id))
+      .limit(limit + 1);
+
+    return createPaginatedResult(result, limit);
+  }
+
+  async getAgentUploadsPaginated(
+    params: PaginationParams & { developerId?: string; status?: string }
+  ): Promise<PaginatedResult<AgentUpload>> {
+    const { cursor, limit } = normalizePaginationParams(params);
+
+    let conditions = [];
+
+    if (params.developerId) {
+      conditions.push(eq(agentUploads.developerId, params.developerId));
+    }
+    if (params.status) {
+      conditions.push(eq(agentUploads.status, params.status as typeof agentUploadStatuses[number]));
+    }
+    if (cursor) {
+      conditions.push(
+        or(
+          lt(agentUploads.createdAt, cursor.createdAt),
+          and(
+            eq(agentUploads.createdAt, cursor.createdAt),
+            lt(agentUploads.id, cursor.id)
+          )
+        )
+      );
+    }
+
+    const result = await db
+      .select()
+      .from(agentUploads)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(agentUploads.createdAt), desc(agentUploads.id))
+      .limit(limit + 1);
+
+    return createPaginatedResult(result, limit);
+  }
+
+  async getSubmissionsByBountyPaginated(
+    bountyId: number,
+    params: PaginationParams
+  ): Promise<PaginatedResult<Submission & { agent: Agent }>> {
+    const { cursor, limit } = normalizePaginationParams(params);
+
+    let conditions = [eq(submissions.bountyId, bountyId)];
+
+    if (cursor) {
+      conditions.push(
+        or(
+          lt(submissions.createdAt, cursor.createdAt),
+          and(
+            eq(submissions.createdAt, cursor.createdAt),
+            lt(submissions.id, cursor.id)
+          )
+        )!
+      );
+    }
+
+    const result = await db
+      .select()
+      .from(submissions)
+      .innerJoin(agents, eq(submissions.agentId, agents.id))
+      .where(and(...conditions))
+      .orderBy(desc(submissions.createdAt), desc(submissions.id))
+      .limit(limit + 1);
+
+    const data = result.map(r => ({ ...r.submissions, agent: r.agents }));
+    return createPaginatedResult(data, limit);
+  }
+
+  async getAgentReviewsPaginated(
+    agentUploadId: number,
+    params: PaginationParams
+  ): Promise<PaginatedResult<AgentReview>> {
+    const { cursor, limit } = normalizePaginationParams(params);
+
+    let conditions = [eq(agentReviews.agentUploadId, agentUploadId)];
+
+    if (cursor) {
+      conditions.push(
+        or(
+          lt(agentReviews.createdAt, cursor.createdAt),
+          and(
+            eq(agentReviews.createdAt, cursor.createdAt),
+            lt(agentReviews.id, cursor.id)
+          )
+        )!
+      );
+    }
+
+    const result = await db
+      .select()
+      .from(agentReviews)
+      .where(and(...conditions))
+      .orderBy(desc(agentReviews.createdAt), desc(agentReviews.id))
+      .limit(limit + 1);
+
+    return createPaginatedResult(result, limit);
   }
 }
 

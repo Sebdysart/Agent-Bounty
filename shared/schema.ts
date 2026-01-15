@@ -931,7 +931,10 @@ export const userIntegrations = pgTable("user_integrations", {
   lastUsedAt: timestamp("last_used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("user_integrations_user_id_idx").on(table.userId),
+  index("user_integrations_connector_id_idx").on(table.connectorId),
+]);
 
 // ============================================
 // AI FINOPS MONITORING (Enterprise Feature 3)
@@ -972,7 +975,9 @@ export const costBudgets = pgTable("cost_budgets", {
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("cost_budgets_user_id_idx").on(table.userId),
+]);
 
 export const finopsOptimizations = pgTable("finops_optimizations", {
   id: serial("id").primaryKey(),
@@ -1132,7 +1137,10 @@ export const translations = pgTable("translations", {
   verifiedById: varchar("verified_by_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("translations_language_idx").on(table.language),
+  index("translations_key_idx").on(table.key),
+]);
 
 export const userLanguagePrefs = pgTable("user_language_prefs", {
   id: serial("id").primaryKey(),
@@ -1168,7 +1176,10 @@ export const quantumKeys = pgTable("quantum_keys", {
   lastUsedAt: timestamp("last_used_at"),
   rotatedFromId: integer("rotated_from_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("quantum_keys_user_id_idx").on(table.userId),
+  index("quantum_keys_status_idx").on(table.status),
+]);
 
 export const encryptedData = pgTable("encrypted_data", {
   id: serial("id").primaryKey(),
@@ -1183,7 +1194,10 @@ export const encryptedData = pgTable("encrypted_data", {
   classicalAlgorithm: text("classical_algorithm").default("AES-256-GCM"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("encrypted_data_owner_id_idx").on(table.ownerId),
+  index("encrypted_data_key_id_idx").on(table.keyId),
+]);
 
 export const keyRotationHistory = pgTable("key_rotation_history", {
   id: serial("id").primaryKey(),

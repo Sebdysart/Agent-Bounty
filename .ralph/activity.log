@@ -2751,3 +2751,19 @@ Done. The agent-specific helpers (`uploadAgentCode`, `downloadAgentCode`) were a
 [2026-01-15 01:34:43] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [2026-01-15 01:34:43] 🎯 Task: Wrap with feature flag (USE_R2_STORAGE)...
 [2026-01-15 01:34:43] 🤖 Claude working (180s max)...
+Done. I wrapped R2 storage with the `USE_R2_STORAGE` feature flag:
+
+1. **Code changes** (`server/agentCodeService.ts`):
+   - Added `featureFlags` import
+   - Gated `storeCode()`, `getCode()`, `deleteCode()`, and `migrateToR2()` behind `featureFlags.isEnabled('USE_R2_STORAGE')`
+   - Updated `isR2Available()` to check both the feature flag AND r2Storage availability
+
+2. **Tests** (`server/__tests__/agentCodeService.test.ts`):
+   - Added mock for `featureFlags`
+   - Added tests for when feature flag is disabled
+   - Updated expected error message
+
+3. **RALPH_TASK.md**: Marked `[x] Wrap with feature flag (USE_R2_STORAGE)` complete
+
+4. **Committed**: `Ralph #4: Wrap R2 storage with USE_R2_STORAGE feature flag`
+[2026-01-15 01:37:04] ✅ Task DONE!

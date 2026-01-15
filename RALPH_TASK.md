@@ -25,7 +25,7 @@
 - [x] Add leaderboard cache (1 min TTL)
 - [x] Implement cache invalidation on data updates
 - [x] Write tests for upstashRedis.test.ts (mock the API)
-- [ ] Add Redis health check to /api/health
+- [x] Add Redis health check to /api/health
 
 ## PHASE 3: Upstash Kafka Queue Migration
 - [ ] Install @upstash/kafka package

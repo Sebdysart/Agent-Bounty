@@ -3425,3 +3425,6 @@ The background test processes have been cleaned up. The task is complete - `fly.
 [2026-01-15 03:58:04] ⚠️ Retry 2/3
 [2026-01-15 03:58:04] 🎯 Task: Create scripts/deploy.sh deployment script...
 [2026-01-15 03:58:04] 🤖 Claude working (180s max)...
+That's another notification for a superseded background test run. The task is already complete - all steps finished successfully and the commit was made (`6d690a4`).
+[2026-01-15 04:01:04] ⏰ Timeout - killing process
+[2026-01-15 04:01:04] ✅ Task DONE!

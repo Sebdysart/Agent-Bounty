@@ -32,7 +32,7 @@
 - [x] Create server/upstashKafka.ts producer/consumer wrapper
 - [x] Define message types for topics (execution, results, notifications)
 - [x] Create KafkaProducer class with retry logic
-- [ ] Create KafkaConsumer class with batch processing
+- [x] Create KafkaConsumer class with batch processing
 - [x] Implement dead-letter queue handler
 - [x] Add exponential backoff (1s, 2s, 4s, 8s, max 5 retries)
 - [ ] Create adapter matching pg-boss interface

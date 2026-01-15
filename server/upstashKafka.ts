@@ -79,7 +79,7 @@ interface UpstashKafkaConfig {
   password?: string;
 }
 
-interface KafkaMessage<T = unknown> {
+export interface KafkaMessage<T = unknown> {
   id: string;
   topic: KafkaTopic;
   data: T;

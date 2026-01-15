@@ -90,7 +90,7 @@
 - [x] Add Fly.io deployment instructions to README
 
 ## PHASE 8: Enhanced Health and Monitoring
-- [ ] Expand /api/health with all component status
+- [x] Expand /api/health with all component status
 - [ ] Create /api/ready readiness endpoint
 - [ ] Create /api/metrics Prometheus format endpoint
 - [ ] Add structured logging with correlation IDs

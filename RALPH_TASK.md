@@ -79,7 +79,7 @@
 
 ## PHASE 7: Fly.io Deployment Config
 - [ ] Create fly.toml with app configuration
-- [ ] Create Dockerfile with multi-stage build
+- [x] Create Dockerfile with multi-stage build
 - [ ] Configure health check endpoint
 - [ ] Set up auto-scaling (min: 1, max: 5)
 - [ ] Configure machine specs (shared-cpu-1x, 512MB)

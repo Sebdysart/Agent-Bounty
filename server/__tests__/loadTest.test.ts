@@ -318,4 +318,233 @@ describe('Load Test Suite', () => {
       expect(result.throughput.total).toBe(500000);
     });
   });
+
+  describe('100 Concurrent API Requests Test', () => {
+    it('should configure 100 concurrent connections correctly', () => {
+      const config: LoadTestConfig = {
+        name: '100 Concurrent API Requests',
+        url: 'http://localhost:5000/api/health',
+        connections: 100,
+        duration: 10,
+      };
+
+      expect(config.connections).toBe(100);
+      expect(config.name).toBe('100 Concurrent API Requests');
+    });
+
+    it('should parse results from 100 concurrent requests correctly', () => {
+      const mockResult: AutocannonResult = {
+        title: '100 Concurrent Test',
+        url: 'http://localhost:5000/api/health',
+        socketPath: undefined,
+        connections: 100,
+        sampleInt: 1,
+        pipelining: 1,
+        workers: undefined,
+        duration: 10,
+        samples: 10,
+        start: new Date(),
+        finish: new Date(),
+        errors: 0,
+        timeouts: 0,
+        mismatches: 0,
+        non2xx: 0,
+        resets: 0,
+        '1xx': 0,
+        '2xx': 10000,
+        '3xx': 0,
+        '4xx': 0,
+        '5xx': 0,
+        statusCodeStats: {},
+        latency: {
+          average: 8.5,
+          mean: 8.5,
+          stddev: 2.5,
+          min: 2,
+          max: 50,
+          p0_001: 2,
+          p0_01: 2,
+          p0_1: 3,
+          p1: 4,
+          p2_5: 5,
+          p10: 5,
+          p25: 6,
+          p50: 8,
+          p75: 10,
+          p90: 12,
+          p97_5: 18,
+          p99: 25,
+          p99_9: 40,
+          p99_99: 48,
+          p99_999: 50,
+          totalCount: 10000,
+        },
+        requests: {
+          average: 1000,
+          mean: 1000,
+          stddev: 50,
+          min: 900,
+          max: 1100,
+          total: 10000,
+          p0_001: 900,
+          p0_01: 900,
+          p0_1: 920,
+          p1: 930,
+          p2_5: 940,
+          p10: 950,
+          p25: 970,
+          p50: 1000,
+          p75: 1030,
+          p90: 1050,
+          p97_5: 1080,
+          p99: 1090,
+          p99_9: 1100,
+          p99_99: 1100,
+          p99_999: 1100,
+          sent: 10000,
+          totalCount: 10,
+        },
+        throughput: {
+          average: 500000,
+          mean: 500000,
+          stddev: 20000,
+          min: 450000,
+          max: 550000,
+          total: 5000000,
+          p0_001: 450000,
+          p0_01: 450000,
+          p0_1: 460000,
+          p1: 465000,
+          p2_5: 470000,
+          p10: 475000,
+          p25: 485000,
+          p50: 500000,
+          p75: 515000,
+          p90: 530000,
+          p97_5: 540000,
+          p99: 545000,
+          p99_9: 550000,
+          p99_99: 550000,
+          p99_999: 550000,
+          totalCount: 10,
+        },
+      };
+
+      const result = parseResult('100 Concurrent API Requests', mockResult);
+
+      expect(result.name).toBe('100 Concurrent API Requests');
+      expect(result.errors).toBe(0);
+      expect(result.timeouts).toBe(0);
+      expect(result.requests.total).toBe(10000);
+      expect(result.latency.p50).toBe(8);
+      expect(result.latency.p99).toBe(25);
+      expect(result.latency.max).toBe(50);
+    });
+
+    it('should handle 100 concurrent requests with some errors', () => {
+      const mockResult: AutocannonResult = {
+        title: '100 Concurrent with Errors',
+        url: 'http://localhost:5000/api/health',
+        socketPath: undefined,
+        connections: 100,
+        sampleInt: 1,
+        pipelining: 1,
+        workers: undefined,
+        duration: 10,
+        samples: 10,
+        start: new Date(),
+        finish: new Date(),
+        errors: 10,
+        timeouts: 5,
+        mismatches: 0,
+        non2xx: 15,
+        resets: 0,
+        '1xx': 0,
+        '2xx': 9985,
+        '3xx': 0,
+        '4xx': 10,
+        '5xx': 5,
+        statusCodeStats: {},
+        latency: {
+          average: 15,
+          mean: 15,
+          stddev: 10,
+          min: 5,
+          max: 200,
+          p0_001: 5,
+          p0_01: 5,
+          p0_1: 6,
+          p1: 7,
+          p2_5: 8,
+          p10: 9,
+          p25: 10,
+          p50: 12,
+          p75: 18,
+          p90: 30,
+          p97_5: 80,
+          p99: 150,
+          p99_9: 180,
+          p99_99: 195,
+          p99_999: 200,
+          totalCount: 10000,
+        },
+        requests: {
+          average: 1000,
+          mean: 1000,
+          stddev: 100,
+          min: 800,
+          max: 1200,
+          total: 10000,
+          p0_001: 800,
+          p0_01: 800,
+          p0_1: 850,
+          p1: 870,
+          p2_5: 890,
+          p10: 900,
+          p25: 950,
+          p50: 1000,
+          p75: 1050,
+          p90: 1100,
+          p97_5: 1150,
+          p99: 1180,
+          p99_9: 1200,
+          p99_99: 1200,
+          p99_999: 1200,
+          sent: 10000,
+          totalCount: 10,
+        },
+        throughput: {
+          average: 500000,
+          mean: 500000,
+          stddev: 50000,
+          min: 400000,
+          max: 600000,
+          total: 5000000,
+          p0_001: 400000,
+          p0_01: 400000,
+          p0_1: 420000,
+          p1: 430000,
+          p2_5: 440000,
+          p10: 450000,
+          p25: 470000,
+          p50: 500000,
+          p75: 530000,
+          p90: 550000,
+          p97_5: 580000,
+          p99: 590000,
+          p99_9: 600000,
+          p99_99: 600000,
+          p99_999: 600000,
+          totalCount: 10,
+        },
+      };
+
+      const result = parseResult('100 Concurrent with Errors', mockResult);
+
+      expect(result.name).toBe('100 Concurrent with Errors');
+      expect(result.errors).toBe(10);
+      expect(result.timeouts).toBe(5);
+      expect(result.latency.max).toBe(200);
+    });
+  });
 });
